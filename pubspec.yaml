@@ -1,0 +1,23 @@
+name: quran_malayalam_app
+description: Fast offline-cached Flutter Quran Android app with Mushaf Page View, Verse View, bi-directional continuous Surah scroll, flicker-free header, and draggable long-press speed auto-scroll.
+publish_to: 'none'
+version: 4.0.0+4
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  google_fonts: ^6.2.1
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

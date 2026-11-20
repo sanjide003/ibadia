@@ -1,0 +1,5 @@
+{
+  "name": "Al-Quran",
+  "description": "Fast offline-cached Quran reader with Mushaf Page View, Verse List View, bi-directional continuous Surah scroll, flicker-free header, and draggable long-press speed auto-scroll.",
+  "requestFramePermissions": []
+}

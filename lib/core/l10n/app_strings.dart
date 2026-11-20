@@ -1,0 +1,131 @@
+import 'package:flutter/material.dart';
+
+class AppStrings {
+  final String lang; // 'en' | 'ml' | 'ar'
+
+  const AppStrings(this.lang);
+
+  bool get isRtl => lang == 'ar';
+  TextDirection get textDirection =>
+      isRtl ? TextDirection.rtl : TextDirection.ltr;
+
+  String get appTitle => _pick('Al-Quran', 'അൽ-ഖുർആൻ', 'القرآن الكريم');
+  String get surahsTab => _pick('Surahs', 'സൂറത്തുകൾ', 'السور');
+  String get bookmarksTab => _pick('Bookmarks', 'ബുക്ക്‌മാർക്ക്', 'المحفوظات');
+  String get settings => _pick('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
+  String get lastRead => _pick('Last Read', 'അവസാനം വായിച്ചത്', 'آخر قراءة');
+  String get searchHint => _pick(
+        'Search Surah (e.g. Yaseen, Kahf, 36)...',
+        'സൂറത്ത് തിരയുക (ഉദാ: Yaseen, Kahf, 36)...',
+        'ابحث عن سورة (مثال: يس، الكهف، 36)...',
+      );
+  String get ayahsLabel => _pick('Ayahs', 'ആയത്തുകൾ', 'آيات');
+  String get ayahLabel => _pick('Ayah', 'ആയത്ത്', 'آية');
+  String get surahLabel => _pick('Surah', 'സൂറത്ത്', 'سورة');
+  String get pageLabel => _pick('Page', 'പേജ്', 'صفحة');
+  String get juzLabel => _pick('Juz', 'ജുസ്അ്', 'جزء');
+  String get loadError => _pick(
+        'Could not load data.\nPlease check your internet connection.',
+        'ഡാറ്റ ലോഡ് ചെയ്യാനായില്ല.\nഇന്റർനെറ്റ് കണക്ഷൻ പരിശോധിക്കുക.',
+        'تعذر تحميل البيانات.\nيرجى التحقق من اتصال الإنترنت.',
+      );
+  String get retry => _pick('Retry', 'വീണ്ടും ശ്രമിക്കുക', 'إعادة المحاولة');
+  String get noBookmarks => _pick(
+        'No bookmarks saved yet.',
+        'ഇതുവരെ ബുക്ക്‌മാർക്കുകൾ ഒന്നും സേവ് ചെയ്തിട്ടില്ല.',
+        'لا توجد إشارات مرجعية محفوظة بعد.',
+      );
+  String get copiedAyah =>
+      _pick('Ayah copied', 'ആയത്ത് കോപ്പി ചെയ്തു', 'تم نسخ الآية');
+  String get bookmarkSaved =>
+      _pick('Bookmark saved', 'ബുക്ക്‌മാർക്ക് സേവ് ചെയ്തു', 'تم حفظ الإشارة');
+  String get bookmarkRemoved => _pick(
+        'Bookmark removed',
+        'ബുക്ക്‌മാർക്ക് നീക്കം ചെയ്തു',
+        'تمت إزالة الإشارة',
+      );
+  String get loadingNextSurah => _pick(
+        'Loading next Surah...',
+        'അടുത്ത സൂറത്ത് ലോഡ് ചെയ്യുന്നു...',
+        'جاري تحميل السورة التالية...',
+      );
+  String get loadingPrevSurah => _pick(
+        'Loading previous Surah...',
+        'മുമ്പത്തെ സൂറത്ത് ലോഡ് ചെയ്യുന്നു...',
+        'جاري تحميل السورة السابقة...',
+      );
+
+  // Settings labels
+  String get appLanguage => _pick('App Language', 'ആപ്പ് ഭാഷ', 'لغة التطبيق');
+  String get readingMode =>
+      _pick('Reading Mode', 'വായനാ രീതി (Mode)', 'وضع القراءة');
+  String get modeMushaf =>
+      _pick('Mushaf Page', 'പേജ് വ്യൂ (Mushaf)', 'صفحة مصحف');
+  String get modeVerse =>
+      _pick('Verse List', 'ആയത്ത് ലിസ്റ്റ്', 'قائمة الآيات');
+  String get readingTheme => _pick('Reading Theme', 'വായനാ തീം', 'مظهر القراءة');
+  String get themeLight => _pick('Light', 'ലൈറ്റ്', 'فاتح');
+  String get themeSepia => _pick('Sepia', 'സെപിയ', 'ورقي');
+  String get themeDark => _pick('Dark', 'ഡാർക്ക്', 'داكن');
+  String get showTranslation =>
+      _pick('Show Translation', 'പരിഭാഷ കാണിക്കുക', 'إظهار الترجمة');
+  String get showTranslationDesc => _pick(
+        'Toggle translations on or off (Quran Arabic always stays visible)',
+        'പരിഭാഷ ഓൺ/ഓഫ് ചെയ്യാം (അറബിക് ടെക്സ്റ്റ് എപ്പോഴും ഉണ്ടാകും)',
+        'تفعيل أو إيقاف الترجمة (النص العربي للقرآن يظهر دائماً)',
+      );
+  String get translationLanguages => _pick(
+        'Translation Languages (Select 1 or more)',
+        'പരിഭാഷാ ഭാഷകൾ (ഒന്നോ അതിലധികമോ തിരഞ്ഞെടുക്കാം)',
+        'لغات الترجمة (اختر لغة أو أكثر)',
+      );
+  String get langEnglish => _pick('English', 'ഇംഗ്ലീഷ് (English)', 'الإنجليزية');
+  String get langMalayalam =>
+      _pick('Malayalam', 'മലയാളം', 'المالايالامية (Malayalam)');
+  String get langArabicTafsir => _pick(
+        'Arabic (Al-Muyassar)',
+        'അറബിക് (തഫ്സീർ അൽ-മുയസ്സർ)',
+        'العربية (التفسير الميسر)',
+      );
+  String get arabicFontSize =>
+      _pick('Arabic Font Size', 'അറബിക് ഫോണ്ട് സൈസ്', 'حجم الخط العربي');
+  String get translationFontSize => _pick(
+        'Translation Font Size',
+        'പരിഭാഷ ഫോണ്ട് സൈസ്',
+        'حجم خط الترجمة',
+      );
+  String get autoScrollSpeed =>
+      _pick('Auto-Scroll Speed', 'ഓട്ടോ-സ്ക്രോൾ വേഗത', 'سرعة التمرير التلقائي');
+  String get autoScrollHint => _pick(
+        'Tap to Play/Pause, Drag anywhere, Long-press to change speed.',
+        'ടാപ്പ് ചെയ്താൽ പ്ലേ/പോസ്, ഡ്രാഗ് ചെയ്ത് എവിടെയും വെക്കാം, ലോങ്ങ് പ്രസ്സ് ചെയ്താൽ സ്പീഡ് മാറ്റാം.',
+        'اضغط للتشغيل/الإيقاف، اسحب لأي مكان، واضغط مطولاً لتغيير السرعة.',
+      );
+  String get resetButtonPos => _pick(
+        'Reset Floating Button Position',
+        'ഫ്ലോട്ടിംഗ് ബട്ടൺ പഴയ സ്ഥലത്തേക്ക് മാറ്റുക',
+        'إعادة زر التمرير للموقع الافتراضي',
+      );
+  String get pause => _pick('Pause', 'പോസ്', 'إيقاف مؤقت');
+  String get play => _pick('Start', 'തുടങ്ങുക', 'تشغيل');
+  String get done => _pick('Done', 'ശരി', 'تم');
+
+  String revelationLabel(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('mecc') || lower.contains('makk')) {
+      return _pick('Meccan', 'മക്കി', 'مكية');
+    }
+    return _pick('Medinan', 'മദനി', 'مدنية');
+  }
+
+  String _pick(String en, String ml, String ar) {
+    switch (lang) {
+      case 'ml':
+        return ml;
+      case 'ar':
+        return ar;
+      default:
+        return en;
+    }
+  }
+}
