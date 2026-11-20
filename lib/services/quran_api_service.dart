@@ -6,15 +6,21 @@ import '../models/surah_model.dart';
 
 class QuranApiService {
   static const String _surahListCacheKey = 'cache_surah_list_v3';
+  static List<SurahSummary>? _memSurahList;
+  static final Map<int, SurahDetail> _memArabicCache = {};
+  static final Map<String, List<String>> _memTranslationCache = {};
 
   Future<List<SurahSummary>> fetchSurahList() async {
+    if (_memSurahList != null) return _memSurahList!;
+
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString(_surahListCacheKey);
     if (cached != null) {
       final decoded = jsonDecode(cached) as List<dynamic>;
-      return decoded
+      _memSurahList = decoded
           .map((e) => SurahSummary.fromJson(e as Map<String, dynamic>))
           .toList();
+      return _memSurahList!;
     }
 
     final uri = Uri.parse('${ApiConfig.baseUrl}/surah');
@@ -32,6 +38,7 @@ class QuranApiService {
         .map((e) => SurahSummary.fromJson(e as Map<String, dynamic>))
         .toList();
 
+    _memSurahList = surahs;
     await prefs.setString(
       _surahListCacheKey,
       jsonEncode(surahs.map((s) => s.toJson()).toList()),
@@ -40,7 +47,7 @@ class QuranApiService {
   }
 
   /// Fetches ONLY Arabic text + the exact translation languages currently enabled.
-  /// Every edition is cached individually in SharedPreferences for instant offline loading.
+  /// Every edition is cached in memory and SharedPreferences for instant offline loading.
   Future<SurahDetail> fetchSurahDetail({
     required int surahNumber,
     required List<String> requiredTranslations,
@@ -71,17 +78,22 @@ class QuranApiService {
     SharedPreferences prefs,
     int surahNumber,
   ) async {
+    final memHit = _memArabicCache[surahNumber];
+    if (memHit != null) return memHit;
+
     final cacheKey = 'cache_ar_v3_$surahNumber';
     final cached = prefs.getString(cacheKey);
     if (cached != null) {
       final decoded = jsonDecode(cached) as Map<String, dynamic>;
-      return SurahDetail(
+      final detail = SurahDetail(
         summary:
             SurahSummary.fromJson(decoded['summary'] as Map<String, dynamic>),
         ayahs: (decoded['ayahs'] as List<dynamic>)
             .map((e) => AyahItem.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
+      _memArabicCache[surahNumber] = detail;
+      return detail;
     }
 
     final res = await http
@@ -131,7 +143,9 @@ class QuranApiService {
       }),
     );
 
-    return SurahDetail(summary: summary, ayahs: ayahs);
+    final detail = SurahDetail(summary: summary, ayahs: ayahs);
+    _memArabicCache[surahNumber] = detail;
+    return detail;
   }
 
   Future<List<String>> _fetchTranslationEdition(
@@ -140,11 +154,16 @@ class QuranApiService {
     String langCode,
   ) async {
     final cacheKey = 'cache_tr_v3_${surahNumber}_$langCode';
+    final memHit = _memTranslationCache[cacheKey];
+    if (memHit != null) return memHit;
+
     final cached = prefs.getString(cacheKey);
     if (cached != null) {
-      return (jsonDecode(cached) as List<dynamic>)
+      final list = (jsonDecode(cached) as List<dynamic>)
           .map((e) => e.toString())
           .toList();
+      _memTranslationCache[cacheKey] = list;
+      return list;
     }
 
     final edition = _editionForCode(langCode);
@@ -165,6 +184,7 @@ class QuranApiService {
         .map((e) => ((e as Map<String, dynamic>)['text'] ?? '') as String)
         .toList();
 
+    _memTranslationCache[cacheKey] = texts;
     await prefs.setString(cacheKey, jsonEncode(texts));
     return texts;
   }

@@ -210,10 +210,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           separatorBuilder: (_, __) => const Divider(height: 1),
                           itemBuilder: (context, index) {
                             final surah = filtered[index];
-                            return _SurahTile(
-                              surah: surah,
-                              strings: t,
-                              onTap: () => _openSurah(context, surah.number),
+                            return RepaintBoundary(
+                              child: _SurahTile(
+                                key: ValueKey(surah.number),
+                                surah: surah,
+                                strings: t,
+                                onTap: () => _openSurah(context, surah.number),
+                              ),
                             );
                           },
                         );
@@ -263,6 +266,7 @@ class _SurahTile extends StatelessWidget {
   final VoidCallback onTap;
 
   const _SurahTile({
+    super.key,
     required this.surah,
     required this.strings,
     required this.onTap,

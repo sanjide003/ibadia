@@ -1,0 +1,54 @@
+name: Build Quran Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate fresh Android Gradle wrapper
+        run: flutter create . --platforms=android --org com.quranapp.malayalam && rm -f test/widget_test.dart
+
+      - name: Configure App Name & Internet Permission
+        run: |
+          sed -i 's/android:label="[^"]*"/android:label="Al-Quran"/' android/app/src/main/AndroidManifest.xml
+          grep -q "android.permission.INTERNET" android/app/src/main/AndroidManifest.xml || \
+            sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze Dart code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build Single Universal Release APK
+        env:
+          QURAN_API_KEY: ${{ secrets.QURAN_API_KEY }}
+        run: |
+          flutter build apk --release \
+            --dart-define=QURAN_API_KEY="${QURAN_API_KEY}"
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Al-Quran.apk
+
+      - name: Upload Single Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Al-Quran-APK
+          path: build/app/outputs/flutter-apk/Al-Quran.apk
