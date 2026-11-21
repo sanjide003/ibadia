@@ -74,10 +74,10 @@ class ExportLayoutSpec {
     final double innerWidth = cardWidth - hPad * 2;
     // Arabic wrapper uses Padding(horizontal: 4, vertical: 2).
     final double arabicMaxWidth = innerWidth - 8.0;
-    // A4 fills ~794pt out of 798pt usable vertical budget cleanly; Automatic caps safely under 4096px GPU texture limit.
-    final double maxBodyHeight = isA4 ? (a4Height - vPad * 2 - 4.0) : 1350.0;
+    // A4 fills ~784pt out of 798pt usable vertical height cleanly with headroom so pages never shrink or clip.
+    final double maxBodyHeight = isA4 ? (a4Height - vPad * 2 - 14.0) : 1350.0;
 
-    final double arabicFontSize = isA4 ? 16.5 : 21.5;
+    final double arabicFontSize = isA4 ? 19.5 : 21.5;
     final double arabicLineHeight = isA4 ? 1.80 : 1.92;
 
     return ExportLayoutSpec._(
@@ -105,7 +105,7 @@ class ExportLayoutSpec {
         decoration: TextDecoration.none,
       ),
       bismillahStyle: GoogleFonts.amiri(
-        fontSize: isA4 ? 18.0 : 20.5,
+        fontSize: isA4 ? 19.5 : 20.5,
         height: 1.55,
         fontWeight: FontWeight.w700,
         color: inkPrimary,
@@ -113,33 +113,33 @@ class ExportLayoutSpec {
       ),
       bannerEnStyle: TextStyle(
         color: emerald,
-        fontSize: isA4 ? 12.0 : 13.0,
+        fontSize: isA4 ? 12.5 : 13.0,
         height: 1.3,
         fontWeight: FontWeight.w700,
         decoration: TextDecoration.none,
       ),
       bannerArStyle: GoogleFonts.amiri(
         color: emerald,
-        fontSize: isA4 ? 16.5 : 18.5,
+        fontSize: isA4 ? 17.5 : 18.5,
         height: 1.35,
         fontWeight: FontWeight.w700,
         decoration: TextDecoration.none,
       ),
       mlStyle: GoogleFonts.notoSansMalayalam(
-        fontSize: isA4 ? 10.2 : 13.0,
-        height: isA4 ? 1.45 : 1.52,
+        fontSize: isA4 ? 11.2 : 13.0,
+        height: isA4 ? 1.48 : 1.52,
         color: inkPrimary,
         decoration: TextDecoration.none,
       ),
       enStyle: GoogleFonts.plusJakartaSans(
-        fontSize: isA4 ? 10.0 : 12.5,
-        height: isA4 ? 1.40 : 1.45,
+        fontSize: isA4 ? 10.8 : 12.5,
+        height: isA4 ? 1.42 : 1.45,
         color: inkPrimary,
         decoration: TextDecoration.none,
       ),
       arTafsirStyle: GoogleFonts.notoSansArabic(
-        fontSize: isA4 ? 11.2 : 14.0,
-        height: isA4 ? 1.50 : 1.58,
+        fontSize: isA4 ? 12.2 : 14.0,
+        height: isA4 ? 1.52 : 1.58,
         color: inkPrimary,
         decoration: TextDecoration.none,
       ),
@@ -170,6 +170,7 @@ class ExportLayoutSpec {
     final arPainter = TextPainter(
       text: TextSpan(text: summary.nameArabic, style: bannerArStyle),
       textDirection: TextDirection.rtl,
+      textScaler: TextScaler.noScaling,
       maxLines: 1,
     )..layout(maxWidth: innerWidth);
     final arH = arPainter.height;
@@ -181,6 +182,7 @@ class ExportLayoutSpec {
         style: bannerEnStyle,
       ),
       textDirection: TextDirection.ltr,
+      textScaler: TextScaler.noScaling,
       maxLines: 1,
     )..layout(maxWidth: innerWidth);
     final enH = enPainter.height;
@@ -197,6 +199,7 @@ class ExportLayoutSpec {
         style: bismillahStyle,
       ),
       textDirection: TextDirection.rtl,
+      textScaler: TextScaler.noScaling,
     )..layout(maxWidth: innerWidth);
     final h = tp.height;
     tp.dispose();
@@ -206,9 +209,13 @@ class ExportLayoutSpec {
 
   double measureArabicBlockHeight(List<ExportAyahBlock> ayahs) {
     final tp = TextPainter(
-      text: TextSpan(children: buildArabicSpans(ayahs)),
+      text: TextSpan(
+        style: arabicStyle,
+        children: buildArabicSpans(ayahs),
+      ),
       textDirection: TextDirection.rtl,
       textAlign: TextAlign.right,
+      textScaler: TextScaler.noScaling,
     )..layout(maxWidth: arabicMaxWidth);
     final h = tp.height;
     tp.dispose();
@@ -229,6 +236,7 @@ class ExportLayoutSpec {
       final isAr = code == 'ar';
       final tp = TextPainter(
         text: TextSpan(
+          style: style,
           children: [
             TextSpan(
               text: '${block.numberInSurah}. ',
@@ -241,6 +249,7 @@ class ExportLayoutSpec {
           ],
         ),
         textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+        textScaler: TextScaler.noScaling,
       )..layout(maxWidth: innerWidth);
       total += tp.height + 2.0; // Padding(bottom: 2)
       tp.dispose();

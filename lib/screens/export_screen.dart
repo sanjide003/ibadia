@@ -1069,39 +1069,39 @@ class _ExportPageCard extends StatelessWidget {
       ],
     );
 
-    // Material + explicit TextDecoration.none eliminates debug yellow underlines in all render contexts.
-    return Material(
-      color: ExportLayoutSpec.paperBg,
-      textStyle: const TextStyle(
-        color: ExportLayoutSpec.inkPrimary,
-        decoration: TextDecoration.none,
-      ),
-      child: DefaultTextStyle(
-        style: const TextStyle(
+    // Isolate export paper from OS accessibility font scaling and remove inner FittedBox shrinking
+    // so every page renders at exact identical width & readable font size matching TextPainter metrics.
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+      child: Material(
+        color: ExportLayoutSpec.paperBg,
+        textStyle: const TextStyle(
           color: ExportLayoutSpec.inkPrimary,
           decoration: TextDecoration.none,
         ),
-        child: Container(
-          width: spec.cardWidth,
-          height: spec.cardHeight,
-          color: ExportLayoutSpec.paperBg,
-          padding: EdgeInsets.symmetric(
-            horizontal: spec.hPad,
-            vertical: spec.vPad,
+        child: DefaultTextStyle(
+          style: const TextStyle(
+            color: ExportLayoutSpec.inkPrimary,
+            decoration: TextDecoration.none,
           ),
-          child: spec.isA4
-              ? Align(
-                  alignment: Alignment.topCenter,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
+          child: Container(
+            width: spec.cardWidth,
+            height: spec.cardHeight,
+            color: ExportLayoutSpec.paperBg,
+            padding: EdgeInsets.symmetric(
+              horizontal: spec.hPad,
+              vertical: spec.vPad,
+            ),
+            child: spec.isA4
+                ? Align(
                     alignment: Alignment.topCenter,
                     child: SizedBox(
                       width: spec.innerWidth,
                       child: bodyContent,
                     ),
-                  ),
-                )
-              : bodyContent,
+                  )
+                : bodyContent,
+          ),
         ),
       ),
     );
@@ -1170,7 +1170,10 @@ class _ExportPageCard extends StatelessWidget {
           child: Directionality(
             textDirection: TextDirection.rtl,
             child: Text.rich(
-              TextSpan(children: spec.buildArabicSpans(section.ayahs)),
+              TextSpan(
+                style: spec.arabicStyle,
+                children: spec.buildArabicSpans(section.ayahs),
+              ),
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.right,
             ),
@@ -1232,6 +1235,7 @@ class _ExportPageCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 2),
       child: Text.rich(
         TextSpan(
+          style: style,
           children: [
             TextSpan(
               text: '$ayahNumber. ',
