@@ -8,6 +8,7 @@ import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
 import '../models/surah_model.dart';
 import '../providers/quran_providers.dart';
+import '../widgets/web_pwa_widgets.dart';
 import 'export_screen.dart';
 import 'settings_screen.dart';
 import 'surah_reader_screen.dart';
@@ -113,6 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ),
           actions: [
+            PwaInstallAppBarAction(strings: t),
             Builder(
               builder: (drawerCtx) => IconButton(
                 tooltip: t.settings,
@@ -146,83 +148,98 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               : null,
         ),
         endDrawer: const CompactSettingsDrawer(),
-        body: _tabIndex == 0
-            ? Stack(
-                children: [
-                  TabBarView(
-                    controller: _quranTabController,
-                    children: [
-                      // 1. Surah Tab View
-                      _SurahTabView(
-                        surahsAsync: surahsAsync,
-                        lastRead: lastRead,
-                        appLanguage: settings.appLanguage,
-                        strings: t,
-                        cs: cs,
-                        cardBg: cardBg,
-                        cardBorder: cardBorder,
-                        onRetry: () => ref.invalidate(surahListProvider),
-                        onOpenSurah: (surahNo, {int? ayahNo}) =>
-                            _openSurah(context, surahNo, initialAyah: ayahNo),
-                      ),
+        body: Column(
+          children: [
+            OfflineStatusBanner(strings: t),
+            Expanded(
+              child: _tabIndex == 0
+                  ? Stack(
+                      children: [
+                        TabBarView(
+                          controller: _quranTabController,
+                          children: [
+                            // 1. Surah Tab View
+                            _SurahTabView(
+                              surahsAsync: surahsAsync,
+                              lastRead: lastRead,
+                              appLanguage: settings.appLanguage,
+                              strings: t,
+                              cs: cs,
+                              cardBg: cardBg,
+                              cardBorder: cardBorder,
+                              onRetry: () => ref.invalidate(surahListProvider),
+                              onOpenSurah: (surahNo, {int? ayahNo}) =>
+                                  _openSurah(
+                                context,
+                                surahNo,
+                                initialAyah: ayahNo,
+                              ),
+                            ),
 
-                      // 2. Juz Tab View
-                      _JuzTabView(
-                        strings: t,
-                        cs: cs,
-                        cardBg: cardBg,
-                        cardBorder: cardBorder,
-                        onOpenJuz: (juz) => _openSurah(
-                          context,
-                          juz.startSurah,
-                          initialAyah: juz.startAyah,
+                            // 2. Juz Tab View
+                            _JuzTabView(
+                              strings: t,
+                              cs: cs,
+                              cardBg: cardBg,
+                              cardBorder: cardBorder,
+                              onOpenJuz: (juz) => _openSurah(
+                                context,
+                                juz.startSurah,
+                                initialAyah: juz.startAyah,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
 
-                  // Floating Search Surah Pill
-                  PositionedDirectional(
-                    end: 16,
-                    bottom: 16,
-                    child: FloatingActionButton.extended(
-                      heroTag: 'search_surah_pill',
-                      backgroundColor: headerBg,
-                      foregroundColor: Colors.white,
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      icon: const Icon(Icons.search_rounded),
-                      label: Text(
-                        t.searchSurah,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      onPressed: () {
-                        final list = surahsAsync.valueOrNull;
-                        if (list == null || list.isEmpty) return;
-                        _showSurahSearchSheet(
-                          context: context,
-                          surahs: list,
+                        // Floating Search Surah Pill
+                        PositionedDirectional(
+                          end: math.max(
+                            16.0,
+                            (MediaQuery.sizeOf(context).width - 860) / 2,
+                          ),
+                          bottom: 16,
+                          child: FloatingActionButton.extended(
+                            heroTag: 'search_surah_pill',
+                            backgroundColor: headerBg,
+                            foregroundColor: Colors.white,
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            icon: const Icon(Icons.search_rounded),
+                            label: Text(
+                              t.searchSurah,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            onPressed: () {
+                              final list = surahsAsync.valueOrNull;
+                              if (list == null || list.isEmpty) return;
+                              _showSurahSearchSheet(
+                                context: context,
+                                surahs: list,
+                                strings: t,
+                                cs: cs,
+                                cardBg: cardBg,
+                                cardBorder: cardBorder,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    )
+                  : _tabIndex == 1
+                      ? _BookmarksTab(
+                          bookmarks: bookmarks,
+                          surahs: surahsAsync.valueOrNull ?? const [],
                           strings: t,
-                          cs: cs,
-                          cardBg: cardBg,
-                          cardBorder: cardBorder,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              )
-            : _tabIndex == 1
-                ? _BookmarksTab(
-                    bookmarks: bookmarks,
-                    surahs: surahsAsync.valueOrNull ?? const [],
-                    strings: t,
-                    onOpenSurah: (surahNo, {int? ayahNo}) =>
-                        _openSurah(context, surahNo, initialAyah: ayahNo),
-                  )
-                : const ExportScreen(),
+                          onOpenSurah: (surahNo, {int? ayahNo}) =>
+                              _openSurah(context, surahNo, initialAyah: ayahNo),
+                        )
+                      : const ExportScreen(),
+            ),
+          ],
+        ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _tabIndex,
           onDestinationSelected: (i) => setState(() => _tabIndex = i),
@@ -388,8 +405,9 @@ class _SurahTabView extends StatelessWidget {
         ),
       ),
       data: (surahs) {
+        final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 92),
+          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 92),
           itemCount: surahs.length + 2,
           itemBuilder: (context, index) {
             // Item 0: Optional Last Read resume banner
@@ -593,8 +611,9 @@ class _JuzTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 92),
+      padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 92),
       itemCount: ApiConfig.juzCatalog.length,
       itemBuilder: (context, index) {
         final juz = ApiConfig.juzCatalog[index];
@@ -899,8 +918,10 @@ class _BookmarksTab extends StatelessWidget {
       return Center(child: Text(strings.noBookmarks));
     }
     final cs = Theme.of(context).colorScheme;
+    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
 
     return ListView.separated(
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 8),
       itemCount: bookmarks.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {

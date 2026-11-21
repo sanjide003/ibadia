@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -884,6 +885,8 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
     final cs = Theme.of(context).colorScheme;
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
     final bodyTextColor = Theme.of(context).textTheme.bodyLarge?.color;
+    final double readerHPad =
+        math.max(14.0, (MediaQuery.sizeOf(context).width - 820) / 2);
 
     if (readingMode != _cachedBlockMode && _forwardSurahs.isNotEmpty) {
       _rebuildBlockCaches(readingMode);
@@ -996,7 +999,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                     // UPWARD SLIVER: Previous Surahs (ends directly above current Surah)
                     if (_backwardBlocks.isNotEmpty)
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        padding: EdgeInsets.symmetric(horizontal: readerHPad),
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) => RepaintBoundary(
@@ -1035,7 +1038,8 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                     // CENTER + DOWNWARD SLIVER: Initial Surah -> Next Surahs
                     SliverPadding(
                       key: _centerKey,
-                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 100),
+                      padding: EdgeInsets.fromLTRB(
+                          readerHPad, 10, readerHPad, 100),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {

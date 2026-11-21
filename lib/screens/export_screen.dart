@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -250,8 +252,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           orElse: () => surahs.first,
         );
 
+        final hPad =
+            math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
           children: [
             // Title header
             Row(

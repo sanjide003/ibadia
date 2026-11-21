@@ -204,6 +204,54 @@ class AppStrings {
   String get surahTabLabel => _pick('Surah', 'സൂറത്ത്', 'السور');
   String get juzTabLabel => _pick('Juz', 'ജുസ്അ്', 'الأجزاء');
 
+  // Web PWA Install, Offline Banner & Android APK Download
+  String get installApp => _pick(
+        'Install App',
+        'ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യുക',
+        'تثبيت التطبيق',
+      );
+  String get installAppDesc => _pick(
+        'Add Al-Quran to your home screen for quick offline access',
+        'വേഗത്തിലുള്ള വായനയ്ക്കായി ഫോൺ/കമ്പ്യൂട്ടർ ഹോം സ്ക്രീനിലേക്ക് ചേർക്കുക',
+        'أضف التطبيق إلى الشاشة الرئيسية للوصول السريع بدون إنترنت',
+      );
+  String get installOnIosTitle => _pick(
+        'Install on iPhone / iPad',
+        'iPhone / iPad-ൽ ഇൻസ്റ്റാൾ ചെയ്യാൻ',
+        'التثبيت على iPhone / iPad',
+      );
+  String get installOnIosSteps => _pick(
+        '1. Tap the Share button in Safari.\n2. Scroll down and tap "Add to Home Screen".',
+        '1. Safari ബ്രൗസറിലെ Share ബട്ടൺ ക്ലിക്ക് ചെയ്യുക.\n2. താഴേക്ക് സ്ക്രോൾ ചെയ്ത് "Add to Home Screen" തിരഞ്ഞെടുക്കുക.',
+        '1. اضغط على زر المشاركة في متصفح Safari.\n2. مرر للأسفل واضغط على "إضافة إلى الشاشة الرئيسية".',
+      );
+  String get downloadAndroidApk => _pick(
+        'Download Android APK',
+        'Android APK ഡൗൺലോഡ് ചെയ്യുക',
+        'تحميل تطبيق أندرويد (APK)',
+      );
+  String get downloadAndroidApkDesc => _pick(
+        'Install the native Android package (Al-Quran.apk)',
+        'ആൻഡ്രോയിഡ് ഫോണിനായുള്ള Al-Quran.apk ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യാം',
+        'تثبيت حزمة تطبيق الأندرويد الأصلية (Al-Quran.apk)',
+      );
+  String get apkSetupTitle => _pick(
+        'Android APK Link',
+        'Android APK ഡൗൺലോഡ് ലിങ്ക്',
+        'رابط تطبيق الأندرويد',
+      );
+  String get apkSetupDesc => _pick(
+        'To enable 1-tap APK downloads on your website, add ANDROID_APK_URL (your GitHub Release Al-Quran.apk URL) in Vercel Environment Variables or AppBranding.',
+        'ഈ ബട്ടണിൽ ക്ലിക്ക് ചെയ്യുമ്പോൾ നേരിട്ട് APK ഡൗൺലോഡ് ആകാൻ, നിങ്ങളുടെ GitHub Release-ലെ Al-Quran.apk ലിങ്ക് Vercel Environment Variables-ൽ ANDROID_APK_URL എന്ന പേരിൽ നൽകുക.',
+        'لتفعيل التحميل المباشر، أضف رابط ملف Al-Quran.apk في متغيرات البيئة ANDROID_APK_URL على Vercel.',
+      );
+  String get offlineBanner => _pick(
+        'Offline Mode — Cached Surahs remain available',
+        'ഓഫ്‌ലൈൻ മോഡ് — സേവ് ചെയ്ത സൂറത്തുകൾ ഇപ്പോഴും വായിക്കാം',
+        'وضع عدم الاتصال — السور المحفوظة متاحة للقراءة',
+      );
+  String get closeLabel => _pick('Close', 'അടയ്ക്കുക', 'إغلاق');
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

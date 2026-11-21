@@ -20,6 +20,15 @@ class AppBranding {
   /// Master 1024x1024 logo asset registered in pubspec.yaml.
   static const String logoAsset = 'assets/branding/app_logo.png';
 
+  /// Optional Android APK download URL shown in the Web app.
+  /// Set via Vercel Environment Variable `ANDROID_APK_URL`
+  /// (e.g. https://github.com/<user>/<repo>/releases/latest/download/Al-Quran.apk)
+  /// or paste your direct link as defaultValue below.
+  static const String androidApkUrl = String.fromEnvironment(
+    'ANDROID_APK_URL',
+    defaultValue: '',
+  );
+
   /// Primary brand emerald palette.
   static const Color primaryEmerald = Color(0xFF047857);
   static const Color darkEmerald = Color(0xFF064E3B);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/app_branding.dart';
 import '../providers/quran_providers.dart';
+import '../widgets/web_pwa_widgets.dart';
 
 /// Compact slide-in side panel (endDrawer) mounted on both Home & Reader screens.
 /// Speed and font size sliders are intentionally omitted here and documented via
@@ -117,6 +118,8 @@ class CompactSettingsDrawer extends ConsumerWidget {
                         ],
                       ),
                     ),
+
+                    WebDrawerAppActions(strings: t),
 
                     // 1. Reading Mode
                     Text(
