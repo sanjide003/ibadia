@@ -137,11 +137,13 @@ class ExportAyahBlock {
 
 class ExportSurahSection {
   final SurahSummary summary;
+  final bool showBanner;
   final bool showBismillah;
   final List<ExportAyahBlock> ayahs;
 
   const ExportSurahSection({
     required this.summary,
+    this.showBanner = true,
     required this.showBismillah,
     required this.ayahs,
   });

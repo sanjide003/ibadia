@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../core/config/api_config.dart';
 import '../core/l10n/app_strings.dart';
 import '../models/surah_model.dart';
 import '../providers/quran_providers.dart';
@@ -123,7 +122,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         );
         docTitle = '${t.juzLabel} $_selectedJuz';
         baseFileName = 'quran_juz_$_selectedJuz';
-        pages = ExportService.paginateJuz(
+        pages = await ExportService.paginateJuz(
           detail: juzDetail,
           pageSize: _pageSize,
           includeTranslation: _includeTranslation,
@@ -157,7 +156,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
             ? 'surah_${detail.summary.number}_${detail.summary.englishName}'
             : 'surah_${detail.summary.number}_${detail.summary.englishName}_${fromAyah}_$toAyah';
 
-        pages = ExportService.paginateSurah(
+        pages = await ExportService.paginateSurah(
           detail: detail,
           fromAyah: fromAyah,
           toAyah: toAyah,
@@ -678,11 +677,6 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
   double _progress = 0.0;
   String _progressLabel = '';
 
-  double get _cardLogicalWidth =>
-      widget.pageSize == ExportPageSize.a4
-          ? ExportService.a4Width
-          : ExportService.automaticWidth;
-
   Future<void> _runExport({required bool share}) async {
     if (_isExporting) return;
     final t = widget.strings;
@@ -696,7 +690,8 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
     final List<Size> logicalSizes = [];
 
     try {
-      // Ensure Arabic & translation Google Fonts are completely loaded before capturing page 1
+      // Pre-warm fonts before mounting page 1 into the visible capture modal.
+      ExportLayoutSpec.forPageSize(widget.pageSize);
       await GoogleFonts.pendingFonts();
 
       for (int i = 0; i < widget.pages.length; i++) {
@@ -709,9 +704,10 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
         });
 
         await WidgetsBinding.instance.endOfFrame;
-        await WidgetsBinding.instance.endOfFrame;
         await GoogleFonts.pendingFonts();
-        await Future<void>.delayed(const Duration(milliseconds: 24));
+        await WidgetsBinding.instance.endOfFrame;
+        await Future<void>.delayed(Duration(milliseconds: i == 0 ? 120 : 50));
+        await WidgetsBinding.instance.endOfFrame;
 
         final renderObject = _captureKey.currentContext?.findRenderObject();
         if (renderObject is! RenderRepaintBoundary || !renderObject.hasSize) {
@@ -722,9 +718,9 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
         logicalSizes.add(pageSize);
 
         double pixelRatio =
-            widget.pageSize == ExportPageSize.a4 ? 2.1 : 2.5;
+            widget.pageSize == ExportPageSize.a4 ? 2.4 : 2.6;
         if (pageSize.height * pixelRatio > 3800.0 && pageSize.height > 0) {
-          pixelRatio = (3800.0 / pageSize.height).clamp(1.2, 2.5);
+          pixelRatio = (3800.0 / pageSize.height).clamp(1.2, 2.6);
         }
 
         final image = await renderObject.toImage(pixelRatio: pixelRatio);
@@ -824,160 +820,217 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
     return Directionality(
       textDirection: t.textDirection,
       child: Stack(
-        clipBehavior: Clip.none,
         children: [
-          // Unconstrained exact-size capture layer behind opaque preview scaffold
-          if (_capturingPage != null)
-            Positioned(
-              left: 0,
-              top: 0,
-              width: _cardLogicalWidth,
-              height: widget.pageSize == ExportPageSize.a4
-                  ? ExportService.a4Height
-                  : 4000.0,
-              child: IgnorePointer(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: RepaintBoundary(
-                    key: _captureKey,
-                    child: _ExportPageCard(
-                      key: ValueKey('cap_card_$_capturingIndex'),
-                      page: _capturingPage!,
-                      pageSize: widget.pageSize,
-                      includeTranslation: widget.includeTranslation,
-                      translationCodes: widget.translationCodes,
-                      strings: t,
+          Scaffold(
+            backgroundColor: const Color(0xFFE7ECEF),
+            appBar: AppBar(
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.exportPreview,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
+                  Text(
+                    '${widget.pages.length} ${t.pagesLabel} • $formatLabel • $sizeLabel',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
-
-          // Main opaque preview scaffold
-          Positioned.fill(
-            child: Scaffold(
-              backgroundColor: const Color(0xFFE7ECEF),
-              appBar: AppBar(
-                title: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.exportPreview,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      '${widget.pages.length} ${t.pagesLabel} • $formatLabel • $sizeLabel',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+            body: ListView.separated(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 16,
               ),
-              body: ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 16,
-                ),
-                itemCount: widget.pages.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final page = widget.pages[index];
-                  return Center(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+              itemCount: widget.pages.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final page = widget.pages[index];
+                return Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.topCenter,
+                      child: _ExportPageCard(
+                        page: page,
+                        pageSize: widget.pageSize,
+                        includeTranslation: widget.includeTranslation,
+                        translationCodes: widget.translationCodes,
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.topCenter,
-                        child: _ExportPageCard(
-                          page: page,
-                          pageSize: widget.pageSize,
-                          includeTranslation: widget.includeTranslation,
-                          translationCodes: widget.translationCodes,
-                          strings: t,
+                    ),
+                  ),
+                );
+              },
+            ),
+            bottomNavigationBar: Material(
+              elevation: 8,
+              color: cs.surface,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: FilledButton.icon(
+                            onPressed:
+                                _isExporting ? null : () => _runExport(share: false),
+                            icon: const Icon(Icons.download_rounded),
+                            label: Text(
+                              t.download,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
-              ),
-              bottomNavigationBar: Material(
-                elevation: 8,
-                color: cs.surface,
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                    child: _isExporting
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              LinearProgressIndicator(value: _progress),
-                              const SizedBox(height: 8),
-                              Text(
-                                _progressLabel,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          height: 48,
+                          child: FilledButton.tonalIcon(
+                            onPressed:
+                                _isExporting ? null : () => _runExport(share: true),
+                            icon: const Icon(Icons.share_rounded),
+                            label: Text(
+                              t.share,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
                               ),
-                            ],
-                          )
-                        : Row(
-                            children: [
-                              Expanded(
-                                child: SizedBox(
-                                  height: 48,
-                                  child: FilledButton.icon(
-                                    onPressed: () => _runExport(share: false),
-                                    icon: const Icon(Icons.download_rounded),
-                                    label: Text(
-                                      t.download,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: SizedBox(
-                                  height: 48,
-                                  child: FilledButton.tonalIcon(
-                                    onPressed: () => _runExport(share: true),
-                                    icon: const Icon(Icons.share_rounded),
-                                    label: Text(
-                                      t.share,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
+
+          // Visible centered modal preview stage so RepaintBoundary paints cleanly with zero GPU occlusion/corruption
+          if (_isExporting)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: 0.62),
+                child: SafeArea(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: 420,
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Material(
+                          color: cs.surface,
+                          elevation: 14,
+                          borderRadius: BorderRadius.circular(18),
+                          clipBehavior: Clip.antiAlias,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: cs.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        _progressLabel,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.none,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(value: _progress),
+                                ),
+                                if (_capturingPage != null) ...[
+                                  const SizedBox(height: 14),
+                                  Flexible(
+                                    child: Center(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: Colors.black.withValues(alpha: 0.08),
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.12),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        clipBehavior: Clip.antiAlias,
+                                        child: FittedBox(
+                                          fit: BoxFit.contain,
+                                          alignment: Alignment.center,
+                                          child: RepaintBoundary(
+                                            key: _captureKey,
+                                            child: _ExportPageCard(
+                                              key: ValueKey('cap_card_$_capturingIndex'),
+                                              page: _capturingPage!,
+                                              pageSize: widget.pageSize,
+                                              includeTranslation:
+                                                  widget.includeTranslation,
+                                              translationCodes: widget.translationCodes,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -989,7 +1042,6 @@ class _ExportPageCard extends StatelessWidget {
   final ExportPageSize pageSize;
   final bool includeTranslation;
   final List<String> translationCodes;
-  final AppStrings strings;
 
   const _ExportPageCard({
     super.key,
@@ -997,140 +1049,67 @@ class _ExportPageCard extends StatelessWidget {
     required this.pageSize,
     required this.includeTranslation,
     required this.translationCodes,
-    required this.strings,
   });
-
-  static const Color _paperBg = Color(0xFFFFFFFF);
-  static const Color _inkPrimary = Color(0xFF181C1A);
-  static const Color _inkMuted = Color(0xFF526059);
-  static const Color _emerald = Color(0xFF047857);
-  static const Color _emeraldTint = Color(0xFFECFDF5);
-  static const Color _emeraldBorder = Color(0xFFA7F3D0);
-  static const Color _divider = Color(0xFFE2E8F0);
 
   @override
   Widget build(BuildContext context) {
-    final bool isA4 = pageSize == ExportPageSize.a4;
-    final double cardWidth =
-        isA4 ? ExportService.a4Width : ExportService.automaticWidth;
-    final double hPad = isA4 ? 34.0 : 22.0;
-    final double vPad = isA4 ? 28.0 : 20.0;
-    final double innerWidth = cardWidth - hPad * 2;
-
-    final double arabicFontSize = isA4 ? 19.0 : 22.0;
-    final double mlFontSize = isA4 ? 11.5 : 13.5;
-    final double enFontSize = isA4 ? 11.2 : 13.0;
-    final double arTafsirFontSize = isA4 ? 12.5 : 14.5;
-
-    final headerBar = Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Text(
-            page.headerTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _emerald,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          page.headerSubtitle,
-          style: const TextStyle(
-            color: _inkMuted,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-
-    final footerBar = Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          strings.appTitle,
-          style: const TextStyle(
-            color: _inkMuted,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Text(
-          '${strings.pageLabel} ${page.pageIndex + 1} / ${page.totalPages}',
-          style: const TextStyle(
-            color: _inkMuted,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
+    final spec = ExportLayoutSpec.forPageSize(pageSize);
 
     final bodyContent = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (int sIdx = 0; sIdx < page.sections.length; sIdx++) ...[
-          if (sIdx > 0) const SizedBox(height: 14),
+          if (sIdx > 0) SizedBox(height: spec.sectionGap),
           _buildSection(
             section: page.sections[sIdx],
-            isA4: isA4,
-            arabicFontSize: arabicFontSize,
-            mlFontSize: mlFontSize,
-            enFontSize: enFontSize,
-            arTafsirFontSize: arTafsirFontSize,
+            spec: spec,
           ),
         ],
       ],
     );
 
-    return Container(
-      width: cardWidth,
-      height: isA4 ? ExportService.a4Height : null,
-      color: _paperBg,
-      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
-      child: Column(
-        mainAxisSize: isA4 ? MainAxisSize.max : MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          headerBar,
-          const SizedBox(height: 6),
-          const Divider(height: 1, color: _divider),
-          SizedBox(height: isA4 ? 12 : 10),
-          if (isA4)
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: innerWidth,
-                  child: bodyContent,
-                ),
-              ),
-            )
-          else
-            bodyContent,
-          SizedBox(height: isA4 ? 12 : 14),
-          const Divider(height: 1, color: _divider),
-          const SizedBox(height: 6),
-          footerBar,
-        ],
+    // Material + explicit TextDecoration.none eliminates debug yellow underlines in all render contexts.
+    return Material(
+      color: ExportLayoutSpec.paperBg,
+      textStyle: const TextStyle(
+        color: ExportLayoutSpec.inkPrimary,
+        decoration: TextDecoration.none,
+      ),
+      child: DefaultTextStyle(
+        style: const TextStyle(
+          color: ExportLayoutSpec.inkPrimary,
+          decoration: TextDecoration.none,
+        ),
+        child: Container(
+          width: spec.cardWidth,
+          height: spec.cardHeight,
+          color: ExportLayoutSpec.paperBg,
+          padding: EdgeInsets.symmetric(
+            horizontal: spec.hPad,
+            vertical: spec.vPad,
+          ),
+          child: spec.isA4
+              ? Align(
+                  alignment: Alignment.topCenter,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: spec.innerWidth,
+                      child: bodyContent,
+                    ),
+                  ),
+                )
+              : bodyContent,
+        ),
       ),
     );
   }
 
   Widget _buildSection({
     required ExportSurahSection section,
-    required bool isA4,
-    required double arabicFontSize,
-    required double mlFontSize,
-    required double enFontSize,
-    required double arTafsirFontSize,
+    required ExportLayoutSpec spec,
   }) {
     final surah = section.summary;
 
@@ -1138,45 +1117,38 @@ class _ExportPageCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Surah banner
-        Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: isA4 ? 14 : 12,
-            vertical: isA4 ? 8 : 7,
-          ),
-          decoration: BoxDecoration(
-            color: _emeraldTint,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: _emeraldBorder, width: 1),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  '${surah.number}. ${surah.englishName}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _emerald,
-                    fontSize: isA4 ? 13 : 13.5,
-                    fontWeight: FontWeight.w700,
+        // Clean Surah Banner shown only on the opening slice of each Surah
+        if (section.showBanner)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: ExportLayoutSpec.emeraldTint,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: ExportLayoutSpec.emeraldBorder,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    '${surah.number}. ${surah.englishName}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: spec.bannerEnStyle,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                surah.nameArabic,
-                textDirection: TextDirection.rtl,
-                style: GoogleFonts.amiri(
-                  color: _emerald,
-                  fontSize: isA4 ? 18 : 19,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(width: 8),
+                Text(
+                  surah.nameArabic,
+                  textDirection: TextDirection.rtl,
+                  style: spec.bannerArStyle,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
 
         if (section.showBismillah) ...[
           const SizedBox(height: 8),
@@ -1184,45 +1156,21 @@ class _ExportPageCard extends StatelessWidget {
             child: Text(
               'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
               textDirection: TextDirection.rtl,
-              style: GoogleFonts.amiri(
-                fontSize: isA4 ? 19 : 21,
-                fontWeight: FontWeight.w700,
-                color: _inkPrimary,
-              ),
+              style: spec.bismillahStyle,
             ),
           ),
         ],
 
-        const SizedBox(height: 10),
+        if (section.showBanner || section.showBismillah)
+          const SizedBox(height: 8),
 
-        // Continuous RTL Mushaf Arabic block with generous padding so diacritics never clip
+        // Continuous RTL Mushaf Arabic block with padding so diacritics never clip
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           child: Directionality(
             textDirection: TextDirection.rtl,
             child: Text.rich(
-              TextSpan(
-                children: [
-                  for (final ayah in section.ayahs) ...[
-                    TextSpan(
-                      text: ayah.arabicText,
-                      style: GoogleFonts.amiri(
-                        fontSize: arabicFontSize,
-                        height: 1.95,
-                        color: _inkPrimary,
-                      ),
-                    ),
-                    TextSpan(
-                      text: ApiConfig.ayahEndMarker(ayah.numberInSurah),
-                      style: GoogleFonts.amiri(
-                        fontSize: arabicFontSize * 0.86,
-                        fontWeight: FontWeight.w700,
-                        color: _emerald,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              TextSpan(children: spec.buildArabicSpans(section.ayahs)),
               textDirection: TextDirection.rtl,
               textAlign: TextAlign.right,
             ),
@@ -1231,11 +1179,16 @@ class _ExportPageCard extends StatelessWidget {
 
         if (includeTranslation &&
             section.ayahs.any((a) => a.translations.isNotEmpty)) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: 7),
             decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: _divider, width: 0.8)),
+              border: Border(
+                top: BorderSide(
+                  color: ExportLayoutSpec.divider,
+                  width: 0.8,
+                ),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1243,7 +1196,7 @@ class _ExportPageCard extends StatelessWidget {
                 for (final ayah in section.ayahs)
                   if (ayah.translations.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 5),
+                      padding: const EdgeInsets.only(bottom: 4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -1253,9 +1206,7 @@ class _ExportPageCard extends StatelessWidget {
                                 ayahNumber: ayah.numberInSurah,
                                 code: code,
                                 text: ayah.translations[code]!,
-                                mlFontSize: mlFontSize,
-                                enFontSize: enFontSize,
-                                arTafsirFontSize: arTafsirFontSize,
+                                spec: spec,
                               ),
                         ],
                       ),
@@ -1272,31 +1223,10 @@ class _ExportPageCard extends StatelessWidget {
     required int ayahNumber,
     required String code,
     required String text,
-    required double mlFontSize,
-    required double enFontSize,
-    required double arTafsirFontSize,
+    required ExportLayoutSpec spec,
   }) {
     final bool isAr = code == 'ar';
-    final TextStyle style;
-    if (code == 'ml') {
-      style = GoogleFonts.notoSansMalayalam(
-        fontSize: mlFontSize,
-        height: 1.52,
-        color: _inkPrimary,
-      );
-    } else if (isAr) {
-      style = GoogleFonts.notoSansArabic(
-        fontSize: arTafsirFontSize,
-        height: 1.6,
-        color: _inkPrimary,
-      );
-    } else {
-      style = GoogleFonts.plusJakartaSans(
-        fontSize: enFontSize,
-        height: 1.45,
-        color: _inkPrimary,
-      );
-    }
+    final style = spec.translationStyle(code);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
@@ -1307,7 +1237,7 @@ class _ExportPageCard extends StatelessWidget {
               text: '$ayahNumber. ',
               style: style.copyWith(
                 fontWeight: FontWeight.w700,
-                color: _emerald,
+                color: ExportLayoutSpec.emerald,
               ),
             ),
             TextSpan(text: text, style: style),

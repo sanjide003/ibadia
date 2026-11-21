@@ -1,25 +1,261 @@
-import 'dart:typed_data';
-import 'dart:ui';
-
 import 'package:file_saver/file_saver.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
+import '../core/config/api_config.dart';
 import '../models/surah_model.dart';
 
-class ExportService {
-  /// Logical widths for page layouts.
-  /// Automatic uses a mobile-friendly 360px logical width with normal text sizes
-  /// and packs selected ranges together cleanly onto one page (splitting only
-  /// when approaching safe mobile GPU texture height limits).
+/// Shared exact typography & spacing specification used identically by both
+/// [ExportService] TextPainter pagination and [_ExportPageCard] rendering.
+class ExportLayoutSpec {
   static const double automaticWidth = 360.0;
   static const double a4Width = 595.0;
   static const double a4Height = 842.0;
 
-  static List<ExportPageData> paginateSurah({
+  static const Color paperBg = Color(0xFFFFFFFF);
+  static const Color inkPrimary = Color(0xFF181C1A);
+  static const Color emerald = Color(0xFF047857);
+  static const Color emeraldTint = Color(0xFFECFDF5);
+  static const Color emeraldBorder = Color(0xFFA7F3D0);
+  static const Color divider = Color(0xFFE2E8F0);
+
+  final ExportPageSize pageSize;
+  final bool isA4;
+  final double cardWidth;
+  final double? cardHeight;
+  final double hPad;
+  final double vPad;
+  final double innerWidth;
+  final double arabicMaxWidth;
+  final double maxBodyHeight;
+  final double sectionGap;
+
+  final TextStyle arabicStyle;
+  final TextStyle markerStyle;
+  final TextStyle bismillahStyle;
+  final TextStyle bannerEnStyle;
+  final TextStyle bannerArStyle;
+  final TextStyle mlStyle;
+  final TextStyle enStyle;
+  final TextStyle arTafsirStyle;
+
+  ExportLayoutSpec._({
+    required this.pageSize,
+    required this.isA4,
+    required this.cardWidth,
+    required this.cardHeight,
+    required this.hPad,
+    required this.vPad,
+    required this.innerWidth,
+    required this.arabicMaxWidth,
+    required this.maxBodyHeight,
+    required this.sectionGap,
+    required this.arabicStyle,
+    required this.markerStyle,
+    required this.bismillahStyle,
+    required this.bannerEnStyle,
+    required this.bannerArStyle,
+    required this.mlStyle,
+    required this.enStyle,
+    required this.arTafsirStyle,
+  });
+
+  factory ExportLayoutSpec.forPageSize(ExportPageSize pageSize) {
+    final bool isA4 = pageSize == ExportPageSize.a4;
+    final double cardWidth = isA4 ? a4Width : automaticWidth;
+    final double? cardHeight = isA4 ? a4Height : null;
+    final double hPad = isA4 ? 26.0 : 20.0;
+    final double vPad = isA4 ? 22.0 : 20.0;
+    final double innerWidth = cardWidth - hPad * 2;
+    // Arabic wrapper uses Padding(horizontal: 4, vertical: 2).
+    final double arabicMaxWidth = innerWidth - 8.0;
+    // A4 fills ~794pt out of 798pt usable vertical budget cleanly; Automatic caps safely under 4096px GPU texture limit.
+    final double maxBodyHeight = isA4 ? (a4Height - vPad * 2 - 4.0) : 1350.0;
+
+    final double arabicFontSize = isA4 ? 16.5 : 21.5;
+    final double arabicLineHeight = isA4 ? 1.80 : 1.92;
+
+    return ExportLayoutSpec._(
+      pageSize: pageSize,
+      isA4: isA4,
+      cardWidth: cardWidth,
+      cardHeight: cardHeight,
+      hPad: hPad,
+      vPad: vPad,
+      innerWidth: innerWidth,
+      arabicMaxWidth: arabicMaxWidth,
+      maxBodyHeight: maxBodyHeight,
+      sectionGap: isA4 ? 12.0 : 14.0,
+      arabicStyle: GoogleFonts.amiri(
+        fontSize: arabicFontSize,
+        height: arabicLineHeight,
+        color: inkPrimary,
+        decoration: TextDecoration.none,
+      ),
+      markerStyle: GoogleFonts.amiri(
+        fontSize: arabicFontSize * 0.86,
+        height: arabicLineHeight,
+        fontWeight: FontWeight.w700,
+        color: emerald,
+        decoration: TextDecoration.none,
+      ),
+      bismillahStyle: GoogleFonts.amiri(
+        fontSize: isA4 ? 18.0 : 20.5,
+        height: 1.55,
+        fontWeight: FontWeight.w700,
+        color: inkPrimary,
+        decoration: TextDecoration.none,
+      ),
+      bannerEnStyle: TextStyle(
+        color: emerald,
+        fontSize: isA4 ? 12.0 : 13.0,
+        height: 1.3,
+        fontWeight: FontWeight.w700,
+        decoration: TextDecoration.none,
+      ),
+      bannerArStyle: GoogleFonts.amiri(
+        color: emerald,
+        fontSize: isA4 ? 16.5 : 18.5,
+        height: 1.35,
+        fontWeight: FontWeight.w700,
+        decoration: TextDecoration.none,
+      ),
+      mlStyle: GoogleFonts.notoSansMalayalam(
+        fontSize: isA4 ? 10.2 : 13.0,
+        height: isA4 ? 1.45 : 1.52,
+        color: inkPrimary,
+        decoration: TextDecoration.none,
+      ),
+      enStyle: GoogleFonts.plusJakartaSans(
+        fontSize: isA4 ? 10.0 : 12.5,
+        height: isA4 ? 1.40 : 1.45,
+        color: inkPrimary,
+        decoration: TextDecoration.none,
+      ),
+      arTafsirStyle: GoogleFonts.notoSansArabic(
+        fontSize: isA4 ? 11.2 : 14.0,
+        height: isA4 ? 1.50 : 1.58,
+        color: inkPrimary,
+        decoration: TextDecoration.none,
+      ),
+    );
+  }
+
+  TextStyle translationStyle(String code) {
+    if (code == 'ml') return mlStyle;
+    if (code == 'ar') return arTafsirStyle;
+    return enStyle;
+  }
+
+  List<InlineSpan> buildArabicSpans(List<ExportAyahBlock> ayahs) {
+    final spans = <InlineSpan>[];
+    for (final ayah in ayahs) {
+      spans.add(TextSpan(text: ayah.arabicText, style: arabicStyle));
+      spans.add(
+        TextSpan(
+          text: ApiConfig.ayahEndMarker(ayah.numberInSurah),
+          style: markerStyle,
+        ),
+      );
+    }
+    return spans;
+  }
+
+  double measureBannerHeight(SurahSummary summary) {
+    final arPainter = TextPainter(
+      text: TextSpan(text: summary.nameArabic, style: bannerArStyle),
+      textDirection: TextDirection.rtl,
+      maxLines: 1,
+    )..layout(maxWidth: innerWidth);
+    final arH = arPainter.height;
+    arPainter.dispose();
+
+    final enPainter = TextPainter(
+      text: TextSpan(
+        text: '${summary.number}. ${summary.englishName}',
+        style: bannerEnStyle,
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout(maxWidth: innerWidth);
+    final enH = enPainter.height;
+    enPainter.dispose();
+
+    // Vertical padding 7*2 (14) + border 1*2 (2)
+    return (arH > enH ? arH : enH) + 16.0;
+  }
+
+  double measureBismillahHeight() {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
+        style: bismillahStyle,
+      ),
+      textDirection: TextDirection.rtl,
+    )..layout(maxWidth: innerWidth);
+    final h = tp.height;
+    tp.dispose();
+    // SizedBox(height: 8) + text height
+    return 8.0 + h;
+  }
+
+  double measureArabicBlockHeight(List<ExportAyahBlock> ayahs) {
+    final tp = TextPainter(
+      text: TextSpan(children: buildArabicSpans(ayahs)),
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.right,
+    )..layout(maxWidth: arabicMaxWidth);
+    final h = tp.height;
+    tp.dispose();
+    // Padding vertical: 2 * 2 = 4
+    return h + 4.0;
+  }
+
+  double measureAyahTranslationHeight(
+    ExportAyahBlock block,
+    List<String> translationCodes,
+  ) {
+    if (block.translations.isEmpty) return 0.0;
+    double total = 0.0;
+    for (final code in translationCodes) {
+      final text = block.translations[code];
+      if (text == null || text.isEmpty) continue;
+      final style = translationStyle(code);
+      final isAr = code == 'ar';
+      final tp = TextPainter(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '${block.numberInSurah}. ',
+              style: style.copyWith(
+                fontWeight: FontWeight.w700,
+                color: emerald,
+              ),
+            ),
+            TextSpan(text: text, style: style),
+          ],
+        ),
+        textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+      )..layout(maxWidth: innerWidth);
+      total += tp.height + 2.0; // Padding(bottom: 2)
+      tp.dispose();
+    }
+    if (total <= 0.0) return 0.0;
+    return total + 4.0; // Outer Padding(bottom: 4)
+  }
+}
+
+class ExportService {
+  static const double automaticWidth = ExportLayoutSpec.automaticWidth;
+  static const double a4Width = ExportLayoutSpec.a4Width;
+  static const double a4Height = ExportLayoutSpec.a4Height;
+
+  static Future<List<ExportPageData>> paginateSurah({
     required SurahDetail detail,
     required int fromAyah,
     required int toAyah,
@@ -28,7 +264,7 @@ class ExportService {
     required List<String> translationCodes,
     required String headerTitle,
     required String headerSubtitle,
-  }) {
+  }) async {
     final blocks = <ExportAyahBlock>[];
     for (int i = 0; i < detail.ayahs.length; i++) {
       final ayah = detail.ayahs[i];
@@ -64,19 +300,20 @@ class ExportService {
       ],
       pageSize: pageSize,
       includeTranslation: includeTranslation,
+      translationCodes: translationCodes,
       headerTitle: headerTitle,
       headerSubtitle: headerSubtitle,
     );
   }
 
-  static List<ExportPageData> paginateJuz({
+  static Future<List<ExportPageData>> paginateJuz({
     required JuzDetail detail,
     required ExportPageSize pageSize,
     required bool includeTranslation,
     required List<String> translationCodes,
     required String headerTitle,
     required String headerSubtitle,
-  }) {
+  }) async {
     if (detail.entries.isEmpty) return const [];
 
     final units = <_SurahUnit>[];
@@ -118,100 +355,133 @@ class ExportService {
       units: units,
       pageSize: pageSize,
       includeTranslation: includeTranslation,
+      translationCodes: translationCodes,
       headerTitle: headerTitle,
       headerSubtitle: headerSubtitle,
     );
   }
 
-  static List<ExportPageData> _paginateSectionUnits({
+  static Future<List<ExportPageData>> _paginateSectionUnits({
     required List<_SurahUnit> units,
     required ExportPageSize pageSize,
     required bool includeTranslation,
+    required List<String> translationCodes,
     required String headerTitle,
     required String headerSubtitle,
-  }) {
-    final bool isA4 = pageSize == ExportPageSize.a4;
-    // Automatic keeps selected ranges/short Surahs together on one clean page (~1350pt max
-    // so 2.5x pixelRatio stays safely below 4096px GPU texture limit on budget phones).
-    final double maxBodyWeight = isA4 ? 530.0 : 1350.0;
-    final double headerBannerWeight = isA4 ? 54.0 : 58.0;
-    final double bismillahWeight = isA4 ? 38.0 : 40.0;
-    final double arabicCharsPerLine = isA4 ? 48.0 : 28.0;
-    final double arabicLineHeight = isA4 ? 38.0 : 41.0;
-    final double transCharsPerLine = isA4 ? 68.0 : 38.0;
-    final double transLineHeight = isA4 ? 19.0 : 21.5;
+  }) async {
+    // Instantiate GoogleFonts styles and await completion so TextPainter measures exact glyph metrics.
+    final spec = ExportLayoutSpec.forPageSize(pageSize);
+    await GoogleFonts.pendingFonts();
+
+    final double bismillahHeight = spec.measureBismillahHeight();
+    // SizedBox(height: 8) + Container(padding: top 7, top border 0.8) = 15.8 -> 16.0
+    const double translationHeaderChrome = 16.0;
+    const double gapBeforeArabic = 8.0;
 
     final rawPages = <List<ExportSurahSection>>[];
     List<ExportSurahSection> currentPageSections = [];
-    double currentWeight = 0.0;
+    double currentHeight = 0.0;
 
     for (final unit in units) {
+      final double bannerHeight = spec.measureBannerHeight(unit.summary);
+      // Pre-compute prefix sums for each ayah's translation height so slice translation height is O(1).
+      final transPrefix = List<double>.filled(unit.blocks.length + 1, 0.0);
+      final hasTransPrefix = List<int>.filled(unit.blocks.length + 1, 0);
+      if (includeTranslation) {
+        for (int i = 0; i < unit.blocks.length; i++) {
+          final h = spec.measureAyahTranslationHeight(
+            unit.blocks[i],
+            translationCodes,
+          );
+          transPrefix[i + 1] = transPrefix[i] + h;
+          hasTransPrefix[i + 1] = hasTransPrefix[i] + (h > 0.0 ? 1 : 0);
+        }
+      }
+
       bool isFirstSliceOfUnit = true;
       int idx = 0;
 
       while (idx < unit.blocks.length) {
         final firstAyahNo = unit.blocks[idx].numberInSurah;
+        final bool showBanner = isFirstSliceOfUnit;
         final bool showBismillah = isFirstSliceOfUnit &&
             firstAyahNo == 1 &&
             unit.summary.number != 1 &&
             unit.summary.number != 9;
 
-        final double sectionHeaderCost =
-            headerBannerWeight + (showBismillah ? bismillahWeight : 0.0);
+        final double sectionChromeHeight = (showBanner ? bannerHeight : 0.0) +
+            (showBismillah ? bismillahHeight : 0.0) +
+            ((showBanner || showBismillah) ? gapBeforeArabic : 0.0);
 
-        final double firstAyahWeight = _estimateAyahWeight(
-          block: unit.blocks[idx],
-          includeTranslation: includeTranslation,
-          arabicCharsPerLine: arabicCharsPerLine,
-          arabicLineHeight: arabicLineHeight,
-          transCharsPerLine: transCharsPerLine,
-          transLineHeight: transLineHeight,
-        );
+        double measureSliceHeight(int start, int endExclusive) {
+          final slice = unit.blocks.sublist(start, endExclusive);
+          double total = sectionChromeHeight + spec.measureArabicBlockHeight(slice);
+          if (includeTranslation &&
+              (hasTransPrefix[endExclusive] - hasTransPrefix[start]) > 0) {
+            total += translationHeaderChrome +
+                (transPrefix[endExclusive] - transPrefix[start]);
+          }
+          return total;
+        }
+
+        final double interSectionGap =
+            currentPageSections.isNotEmpty ? spec.sectionGap : 0.0;
+        final double minOneAyahHeight = measureSliceHeight(idx, idx + 1);
 
         if (currentPageSections.isNotEmpty &&
-            currentWeight + sectionHeaderCost + firstAyahWeight >
-                maxBodyWeight) {
+            currentHeight + interSectionGap + minOneAyahHeight >
+                spec.maxBodyHeight) {
           rawPages.add(currentPageSections);
           currentPageSections = [];
-          currentWeight = 0.0;
+          currentHeight = 0.0;
         }
 
-        final sliceBlocks = <ExportAyahBlock>[];
-        currentWeight += sectionHeaderCost;
+        final double effectiveGap =
+            currentPageSections.isNotEmpty ? spec.sectionGap : 0.0;
+        final double remainingBudget =
+            spec.maxBodyHeight - currentHeight - effectiveGap;
 
-        while (idx < unit.blocks.length) {
-          final block = unit.blocks[idx];
-          final w = _estimateAyahWeight(
-            block: block,
-            includeTranslation: includeTranslation,
-            arabicCharsPerLine: arabicCharsPerLine,
-            arabicLineHeight: arabicLineHeight,
-            transCharsPerLine: transCharsPerLine,
-            transLineHeight: transLineHeight,
-          );
+        int chosenEnd;
+        final double fullRemainingHeight =
+            measureSliceHeight(idx, unit.blocks.length);
 
-          if (sliceBlocks.isNotEmpty && currentWeight + w > maxBodyWeight) {
-            break;
+        if (fullRemainingHeight <= remainingBudget) {
+          chosenEnd = unit.blocks.length;
+        } else if (minOneAyahHeight >= remainingBudget) {
+          chosenEnd = idx + 1;
+        } else {
+          int lo = idx + 1;
+          int hi = unit.blocks.length;
+          while (lo < hi) {
+            final mid = (lo + hi + 1) >> 1;
+            if (measureSliceHeight(idx, mid) <= remainingBudget) {
+              lo = mid;
+            } else {
+              hi = mid - 1;
+            }
           }
-
-          sliceBlocks.add(block);
-          currentWeight += w;
-          idx++;
+          chosenEnd = lo;
         }
+
+        final double sliceHeight = measureSliceHeight(idx, chosenEnd);
+        currentHeight += effectiveGap + sliceHeight;
 
         currentPageSections.add(
           ExportSurahSection(
             summary: unit.summary,
+            showBanner: showBanner,
             showBismillah: showBismillah,
-            ayahs: sliceBlocks,
+            ayahs: unit.blocks.sublist(idx, chosenEnd),
           ),
         );
+
+        idx = chosenEnd;
         isFirstSliceOfUnit = false;
 
         if (idx < unit.blocks.length) {
           rawPages.add(currentPageSections);
           currentPageSections = [];
-          currentWeight = 0.0;
+          currentHeight = 0.0;
         }
       }
     }
@@ -230,31 +500,6 @@ class ExportService {
         sections: rawPages[i],
       );
     });
-  }
-
-  static double _estimateAyahWeight({
-    required ExportAyahBlock block,
-    required bool includeTranslation,
-    required double arabicCharsPerLine,
-    required double arabicLineHeight,
-    required double transCharsPerLine,
-    required double transLineHeight,
-  }) {
-    final arLines = ((block.arabicText.length + 7) / arabicCharsPerLine)
-        .ceil()
-        .clamp(1, 120);
-    double weight = arLines * arabicLineHeight + 10.0;
-
-    if (includeTranslation && block.translations.isNotEmpty) {
-      weight += 8.0;
-      for (final text in block.translations.values) {
-        final trLines = ((text.length + 6) / transCharsPerLine)
-            .ceil()
-            .clamp(1, 220);
-        weight += trLines * transLineHeight + 6.0;
-      }
-    }
-    return weight;
   }
 
   static Future<Uint8List> buildPdfBytes({
