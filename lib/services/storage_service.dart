@@ -9,7 +9,7 @@ class AppSettings {
   final double translationFontSize;
   final bool showTranslation;
   final List<String> selectedTranslations; // any subset of ['en', 'ml', 'ar']
-  final double autoScrollSpeed; // 0.5x to 4.0x
+  final double autoScrollSpeed; // 0.25x to 4.0x
   /// Normalized relative position (0.0 .. 1.0) inside safe viewport
   final double? fabRelX;
   final double? fabRelY;

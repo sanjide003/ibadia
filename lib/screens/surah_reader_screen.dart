@@ -1080,7 +1080,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
             final notifier = modalRef.read(settingsProvider.notifier);
             final t = modalRef.watch(stringsProvider);
             final cs = Theme.of(context).colorScheme;
-            const presets = [0.5, 1.0, 1.5, 2.0, 3.0, 4.0];
+            const presets = [0.25, 0.35, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0];
 
             return SafeArea(
               child: Directionality(
@@ -1096,7 +1096,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${t.autoScrollSpeed}: ${settings.autoScrollSpeed.toStringAsFixed(1)}x',
+                            '${t.autoScrollSpeed}: ${_formatScrollSpeed(settings.autoScrollSpeed)}',
                             style: const TextStyle(
                               fontSize: 15.5,
                               fontWeight: FontWeight.w700,
@@ -1128,8 +1128,9 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                           IconButton.filledTonal(
                             icon: const Icon(Icons.remove_rounded),
                             onPressed: () {
-                              final next = (settings.autoScrollSpeed - 0.5)
-                                  .clamp(0.5, 4.0);
+                              final next = _stepDownAutoScrollSpeed(
+                                settings.autoScrollSpeed,
+                              );
                               notifier.update(
                                 settings.copyWith(autoScrollSpeed: next),
                               );
@@ -1137,10 +1138,10 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                           ),
                           Expanded(
                             child: Slider(
-                              min: 0.5,
+                              min: 0.25,
                               max: 4.0,
-                              divisions: 7,
-                              value: settings.autoScrollSpeed,
+                              divisions: 75,
+                              value: settings.autoScrollSpeed.clamp(0.25, 4.0),
                               onChanged: (v) => notifier.update(
                                 settings.copyWith(autoScrollSpeed: v),
                               ),
@@ -1149,8 +1150,9 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                           IconButton.filledTonal(
                             icon: const Icon(Icons.add_rounded),
                             onPressed: () {
-                              final next = (settings.autoScrollSpeed + 0.5)
-                                  .clamp(0.5, 4.0);
+                              final next = _stepUpAutoScrollSpeed(
+                                settings.autoScrollSpeed,
+                              );
                               notifier.update(
                                 settings.copyWith(autoScrollSpeed: next),
                               );
@@ -1165,9 +1167,9 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                         alignment: WrapAlignment.center,
                         children: presets.map((spd) {
                           final selected =
-                              (settings.autoScrollSpeed - spd).abs() < 0.05;
+                              (settings.autoScrollSpeed - spd).abs() < 0.02;
                           return ChoiceChip(
-                            label: Text('${spd.toStringAsFixed(1)}x'),
+                            label: Text(_formatScrollSpeed(spd)),
                             selected: selected,
                             onSelected: (_) => notifier.update(
                               settings.copyWith(autoScrollSpeed: spd),
@@ -1207,7 +1209,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                             icon: const Icon(Icons.remove_rounded),
                             onPressed: () {
                               final next = (settings.arabicFontSize - 1.0)
-                                  .clamp(20.0, 44.0);
+                                  .clamp(20.0, 50.0);
                               notifier.update(
                                 settings.copyWith(arabicFontSize: next),
                               );
@@ -1216,9 +1218,9 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                           Expanded(
                             child: Slider(
                               min: 20,
-                              max: 44,
-                              divisions: 24,
-                              value: settings.arabicFontSize.clamp(20.0, 44.0),
+                              max: 50,
+                              divisions: 30,
+                              value: settings.arabicFontSize.clamp(20.0, 50.0),
                               onChanged: (v) => notifier.update(
                                 settings.copyWith(arabicFontSize: v),
                               ),
@@ -1228,7 +1230,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                             icon: const Icon(Icons.add_rounded),
                             onPressed: () {
                               final next = (settings.arabicFontSize + 1.0)
-                                  .clamp(20.0, 44.0);
+                                  .clamp(20.0, 50.0);
                               notifier.update(
                                 settings.copyWith(arabicFontSize: next),
                               );
@@ -2283,9 +2285,9 @@ class _DraggableAutoScrollFabState
                                         : cs.onPrimaryContainer,
                                   ),
                                   Text(
-                                    '${speed.toStringAsFixed(1)}x',
+                                    _formatScrollSpeed(speed),
                                     style: TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 9.5,
                                       fontWeight: FontWeight.w700,
                                       fontFeatures: const [
                                         FontFeature.tabularFigures(),
@@ -2361,70 +2363,67 @@ class _SurahOrnamentalBanner extends StatelessWidget {
           goldColor: _gold,
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 11),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Top bar: Juz badge + Surah # + Whole-Surah Bookmark icon
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Calligraphic Arabic Surah Title strictly centered, with bookmark button in top-end corner
+              Stack(
+                alignment: Alignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: _gold.withValues(alpha: 0.45),
-                      ),
-                    ),
-                    child: Text(
-                      '${strings.juzLabel} $juzNumber',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: badgeTextColor,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: badgeBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: cs.primary.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: Text(
-                      '${strings.surahLabel} ${summary.number}',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: badgeTextColor,
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 36),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '۞',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _gold.withValues(alpha: 0.85),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            summary.nameArabic,
+                            textDirection: TextDirection.rtl,
+                            textAlign: TextAlign.center,
+                            style: titleStyle.copyWith(
+                              fontSize: 29,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          '۞',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _gold.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Material(
-                    color: isBookmarked ? cs.primary : badgeBg,
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: onToggleBookmark,
-                      child: Padding(
-                        padding: const EdgeInsets.all(6),
-                        child: Icon(
-                          isBookmarked
-                              ? Icons.bookmark_rounded
-                              : Icons.bookmark_add_outlined,
-                          size: 18,
-                          color: isBookmarked ? cs.onPrimary : cs.primary,
+                  PositionedDirectional(
+                    top: 0,
+                    end: 0,
+                    child: Material(
+                      color: isBookmarked ? cs.primary : badgeBg,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: onToggleBookmark,
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(
+                            isBookmarked
+                                ? Icons.bookmark_rounded
+                                : Icons.bookmark_add_outlined,
+                            size: 18,
+                            color: isBookmarked ? cs.onPrimary : cs.primary,
+                          ),
                         ),
                       ),
                     ),
@@ -2434,49 +2433,77 @@ class _SurahOrnamentalBanner extends StatelessWidget {
 
               const SizedBox(height: 6),
 
-              // Calligraphic Arabic Surah Title flanked by traditional rosettes
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '۞',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: _gold.withValues(alpha: 0.85),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      summary.nameArabic,
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                      style: titleStyle.copyWith(
-                        fontSize: 29,
-                        height: 1.35,
+              // Single bottom line: Juz (left) • English Name & Ayahs count (center) • Surah # (right)
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _gold.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      child: Text(
+                        '${strings.juzLabel} $juzNumber',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: badgeTextColor,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '۞',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: _gold.withValues(alpha: 0.85),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${summary.englishName}  •  ${summary.numberOfAyahs} ${strings.ayahsLabel}',
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  cs.onPrimaryContainer.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 3),
-
-              // English Name & Total Ayahs Count
-              Text(
-                '${summary.englishName}  •  ${summary.numberOfAyahs} ${strings.ayahsLabel}',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: cs.onPrimaryContainer.withValues(alpha: 0.88),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: badgeBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: cs.primary.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Text(
+                        '${strings.surahLabel} ${summary.number}',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: badgeTextColor,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -2485,6 +2512,26 @@ class _SurahOrnamentalBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatScrollSpeed(double speed) {
+  final hundredths = (speed * 100).round();
+  if (hundredths % 10 != 0) {
+    return '${(hundredths / 100).toStringAsFixed(2)}x';
+  }
+  return '${(hundredths / 100).toStringAsFixed(1)}x';
+}
+
+double _stepDownAutoScrollSpeed(double current) {
+  if (current > 0.55) return (current - 0.5).clamp(0.5, 4.0);
+  if (current > 0.36) return 0.35;
+  return 0.25;
+}
+
+double _stepUpAutoScrollSpeed(double current) {
+  if (current < 0.34) return 0.35;
+  if (current < 0.49) return 0.5;
+  return (current + 0.5).clamp(0.25, 4.0);
 }
 
 class _MushafCalligraphyFramePainter extends CustomPainter {
