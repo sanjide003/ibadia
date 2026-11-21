@@ -185,6 +185,20 @@ class AppStrings {
         'اضغط مطولاً على زر التشغيل العائم أثناء القراءة لتعديل سرعة التمرير التلقائي وحجم الخط العربي والترجمة.',
       );
 
+  // Home Surah & Juz Tab Redesign
+  String get commonlyRecited => _pick(
+        'Commonly Recited',
+        'പതിവായി ഓതുന്നവ',
+        'سور مختارة',
+      );
+  String get searchSurah => _pick(
+        'Search Surah',
+        'സൂറത്ത് തിരയുക',
+        'ابحث عن سورة',
+      );
+  String get surahTabLabel => _pick('Surah', 'സൂറത്ത്', 'السور');
+  String get juzTabLabel => _pick('Juz', 'ജുസ്അ്', 'الأجزاء');
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

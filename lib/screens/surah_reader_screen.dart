@@ -69,8 +69,13 @@ class _ReaderTextStyles {
 
 class SurahReaderScreen extends ConsumerStatefulWidget {
   final int initialSurahNumber;
+  final int? initialAyahNumber;
 
-  const SurahReaderScreen({super.key, required this.initialSurahNumber});
+  const SurahReaderScreen({
+    super.key,
+    required this.initialSurahNumber,
+    this.initialAyahNumber,
+  });
 
   @override
   ConsumerState<SurahReaderScreen> createState() => _SurahReaderScreenState();
@@ -94,6 +99,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
 
   /// GlobalKeys on Surah header banners ONLY — used for flicker-free header detection
   final Map<int, GlobalKey> _headerKeys = {};
+  final GlobalKey _targetAyahKey = GlobalKey();
 
   /// Isolated AppBar header notifier so Surah transitions never rebuild the scroll view
   final ValueNotifier<SurahSummary?> _headerSummaryNotifier =
@@ -227,6 +233,59 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
     return blocks;
   }
 
+  bool _isTargetAyahBlock(_ReaderBlock block, int targetAyah) {
+    if (block.type == 'mushaf_page' && block.segments != null) {
+      for (final seg in block.segments!) {
+        if (seg.detail.summary.number != widget.initialSurahNumber) continue;
+        for (final idx in seg.ayahIndices) {
+          if (seg.detail.ayahs[idx].numberInSurah == targetAyah) {
+            return true;
+          }
+        }
+      }
+    } else if (block.type == 'verse_row' && block.ayahIndex != null) {
+      if (block.detail.summary.number == widget.initialSurahNumber &&
+          block.detail.ayahs[block.ayahIndex!].numberInSurah == targetAyah) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _scrollToInitialAyah(int targetAyah) async {
+    if (!mounted || !_scrollController.hasClients || _forwardBlocks.isEmpty) {
+      return;
+    }
+    final targetIndex = _forwardBlocks.indexWhere(
+      (b) => _isTargetAyahBlock(b, targetAyah),
+    );
+    if (targetIndex <= 0) return;
+
+    final maxExt = _scrollController.position.maxScrollExtent;
+    final approx =
+        ((targetIndex / _forwardBlocks.length) * maxExt).clamp(0.0, maxExt);
+    _scrollController.jumpTo(approx);
+
+    for (int attempt = 0; attempt < 4; attempt++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final ctx = _targetAyahKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.04,
+          duration: Duration.zero,
+        );
+        return;
+      }
+      if (!_scrollController.hasClients) return;
+      final curMax = _scrollController.position.maxScrollExtent;
+      final nextApprox =
+          ((targetIndex / _forwardBlocks.length) * curMax).clamp(0.0, curMax);
+      _scrollController.jumpTo(nextApprox);
+    }
+  }
+
   Future<void> _loadInitialSurah() async {
     setState(() {
       _isInitialLoading = true;
@@ -289,7 +348,11 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         _isInitialLoading = false;
       });
 
-      if (prepended.isNotEmpty) {
+      if (widget.initialAyahNumber != null && widget.initialAyahNumber! > 1) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToInitialAyah(widget.initialAyahNumber!);
+        });
+      } else if (prepended.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           final targetCtx =
               _headerKeys[widget.initialSurahNumber]?.currentContext;
@@ -308,7 +371,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
               surahNumber: detail.summary.number,
               surahName: detail.summary.englishName,
               surahArabicName: detail.summary.nameArabic,
-              ayahNumber: 1,
+              ayahNumber: widget.initialAyahNumber ?? 1,
             ),
           );
 
@@ -975,19 +1038,27 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                       padding: const EdgeInsets.fromLTRB(14, 10, 14, 100),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (context, index) => RepaintBoundary(
-                            child: _renderBlock(
-                              _forwardBlocks[index],
-                              showTranslation: showTranslation,
-                              selectedTranslations: selectedTranslations,
-                              bookmarks: bookmarks,
-                              t: t,
-                              cs: cs,
-                              scaffoldBg: scaffoldBg,
-                              styles: styles,
-                              isFirst: index == 0,
-                            ),
-                          ),
+                          (context, index) {
+                            final block = _forwardBlocks[index];
+                            final isTarget = widget.initialAyahNumber != null &&
+                                widget.initialAyahNumber! > 1 &&
+                                _isTargetAyahBlock(
+                                    block, widget.initialAyahNumber!);
+                            return RepaintBoundary(
+                              key: isTarget ? _targetAyahKey : null,
+                              child: _renderBlock(
+                                block,
+                                showTranslation: showTranslation,
+                                selectedTranslations: selectedTranslations,
+                                bookmarks: bookmarks,
+                                t: t,
+                                cs: cs,
+                                scaffoldBg: scaffoldBg,
+                                styles: styles,
+                                isFirst: index == 0,
+                              ),
+                            );
+                          },
                           childCount: _forwardBlocks.length,
                         ),
                       ),
