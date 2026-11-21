@@ -166,6 +166,25 @@ class AppStrings {
       );
   String get pagesLabel => _pick('Pages', 'പേജുകൾ', 'صفحات');
 
+  // Mushaf Header, Whole-Surah Bookmark & Compact Settings Tip
+  String get fullSurahBadge =>
+      _pick('Full Surah', 'പൂർണ്ണ സൂറത്ത്', 'سورة كاملة');
+  String get bookmarkSurah => _pick(
+        'Bookmark Surah',
+        'സൂറത്ത് ബുക്ക്‌മാർക്ക് ചെയ്യുക',
+        'حفظ السورة',
+      );
+  String get floatingControlsTipTitle => _pick(
+        'Speed & Font Size Controls',
+        'സ്പീഡും ഫോണ്ട് സൈസും മാറ്റാൻ',
+        'التحكم بالسرعة وحجم الخط',
+      );
+  String get floatingControlsTipDesc => _pick(
+        'Long-press the floating Play button in the reader to adjust Auto-Scroll Speed and Arabic / Translation font sizes.',
+        'റീഡറിലെ ഫ്ലോട്ടിംഗ് പ്ലേ ബട്ടണിൽ ലോങ്-പ്രസ് ചെയ്താൽ ഓട്ടോ-സ്ക്രോൾ വേഗതയും അറബിക് / പരിഭാഷ ഫോണ്ട് സൈസും എളുപ്പത്തിൽ മാറ്റാം.',
+        'اضغط مطولاً على زر التشغيل العائم أثناء القراءة لتعديل سرعة التمرير التلقائي وحجم الخط العربي والترجمة.',
+      );
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

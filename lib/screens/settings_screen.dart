@@ -1,191 +1,316 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/quran_providers.dart';
 
-class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({super.key});
+/// Compact slide-in side panel (endDrawer) mounted on both Home & Reader screens.
+/// Speed and font size sliders are intentionally omitted here and documented via
+/// the quick-controls info tip pointing to the floating button's long-press menu.
+class CompactSettingsDrawer extends ConsumerWidget {
+  const CompactSettingsDrawer({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
     final t = ref.watch(stringsProvider);
+    final cs = Theme.of(context).colorScheme;
+    final drawerWidth =
+        math.min(MediaQuery.sizeOf(context).width * 0.85, 336.0);
 
     return Directionality(
       textDirection: t.textDirection,
-      child: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          title: Text(t.settings),
+      child: Drawer(
+        width: drawerWidth,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadiusDirectional.only(
+            topStart: Radius.circular(20),
+            bottomStart: Radius.circular(20),
+          ),
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // 1. Reading Mode: Mushaf Page View vs Verse List View
-            Text(
-              t.readingMode,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(
-                  value: 'mushaf',
-                  icon: const Icon(Icons.menu_book_rounded, size: 18),
-                  label: Text(t.modeMushaf),
-                ),
-                ButtonSegment(
-                  value: 'verse',
-                  icon: const Icon(Icons.view_agenda_outlined, size: 18),
-                  label: Text(t.modeVerse),
-                ),
-              ],
-              selected: {settings.readingMode},
-              onSelectionChanged: (s) =>
-                  notifier.update(settings.copyWith(readingMode: s.first)),
-            ),
-
-            const Divider(height: 30),
-
-            // 2. App Language Switcher (Default: English, plus Malayalam & Arabic)
-            Text(
-              t.appLanguage,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'en', label: Text('English')),
-                ButtonSegment(value: 'ml', label: Text('മലയാളം')),
-                ButtonSegment(value: 'ar', label: Text('العربية')),
-              ],
-              selected: {settings.appLanguage},
-              onSelectionChanged: (s) =>
-                  notifier.update(settings.copyWith(appLanguage: s.first)),
-            ),
-
-            const Divider(height: 30),
-
-            // 3. Translation Toggle + Multi-Language Selection
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                t.showTranslation,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(t.showTranslationDesc),
-              value: settings.showTranslation,
-              onChanged: (val) =>
-                  notifier.update(settings.copyWith(showTranslation: val)),
-            ),
-            if (settings.showTranslation) ...[
-              const SizedBox(height: 6),
-              Text(
-                t.translationLanguages,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Compact Drawer Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.tune_rounded, size: 22, color: cs.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        t.settings,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: t.done,
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
                 ),
               ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(t.langEnglish),
-                value: settings.selectedTranslations.contains('en'),
-                onChanged: (_) => notifier.toggleTranslationLang('en'),
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(t.langMalayalam),
-                value: settings.selectedTranslations.contains('ml'),
-                onChanged: (_) => notifier.toggleTranslationLang('ml'),
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(t.langArabicTafsir),
-                value: settings.selectedTranslations.contains('ar'),
-                onChanged: (_) => notifier.toggleTranslationLang('ar'),
+              const Divider(height: 1),
+
+              // Compact Controls
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                  children: [
+                    // 1. Reading Mode
+                    Text(
+                      t.readingMode,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<String>(
+                        showSelectedIcon: false,
+                        segments: [
+                          ButtonSegment(
+                            value: 'mushaf',
+                            icon: const Icon(Icons.menu_book_rounded, size: 16),
+                            label: Text(
+                              t.modeMushaf,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                          ButtonSegment(
+                            value: 'verse',
+                            icon: const Icon(Icons.view_agenda_outlined,
+                                size: 16),
+                            label: Text(
+                              t.modeVerse,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                        selected: {settings.readingMode},
+                        onSelectionChanged: (s) => notifier
+                            .update(settings.copyWith(readingMode: s.first)),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // 2. Reading Theme
+                    Text(
+                      t.readingTheme,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<String>(
+                        showSelectedIcon: false,
+                        segments: [
+                          ButtonSegment(
+                            value: 'light',
+                            label: Text(
+                              t.themeLight,
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                          ButtonSegment(
+                            value: 'sepia',
+                            label: Text(
+                              t.themeSepia,
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                          ButtonSegment(
+                            value: 'dark',
+                            label: Text(
+                              t.themeDark,
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                        ],
+                        selected: {settings.themeMode},
+                        onSelectionChanged: (s) =>
+                            notifier.update(settings.copyWith(themeMode: s.first)),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // 3. App Language
+                    Text(
+                      t.appLanguage,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<String>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(
+                            value: 'en',
+                            label: Text('English', style: TextStyle(fontSize: 12)),
+                          ),
+                          ButtonSegment(
+                            value: 'ml',
+                            label: Text('മലയാളം', style: TextStyle(fontSize: 12)),
+                          ),
+                          ButtonSegment(
+                            value: 'ar',
+                            label: Text('العربية', style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                        selected: {settings.appLanguage},
+                        onSelectionChanged: (s) => notifier
+                            .update(settings.copyWith(appLanguage: s.first)),
+                      ),
+                    ),
+
+                    const Divider(height: 26),
+
+                    // 4. Translation Toggle + Multi-Language Chips
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: Text(
+                        t.showTranslation,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        t.showTranslationDesc,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      value: settings.showTranslation,
+                      onChanged: (val) => notifier
+                          .update(settings.copyWith(showTranslation: val)),
+                    ),
+                    if (settings.showTranslation) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          FilterChip(
+                            label: Text(t.langEnglish),
+                            selected:
+                                settings.selectedTranslations.contains('en'),
+                            onSelected: (_) =>
+                                notifier.toggleTranslationLang('en'),
+                          ),
+                          FilterChip(
+                            label: Text(t.langMalayalam),
+                            selected:
+                                settings.selectedTranslations.contains('ml'),
+                            onSelected: (_) =>
+                                notifier.toggleTranslationLang('ml'),
+                          ),
+                          FilterChip(
+                            label: Text(t.langArabicTafsir),
+                            selected:
+                                settings.selectedTranslations.contains('ar'),
+                            onSelected: (_) =>
+                                notifier.toggleTranslationLang('ar'),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    const Divider(height: 26),
+
+                    // 5. Reset Floating Button Position
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                        label: Text(
+                          t.resetButtonPos,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        onPressed: () {
+                          notifier.update(settings.copyWith(clearFabPos: true));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(t.done),
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // 6. Information Note about Speed & Font Size in Floating Button
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: cs.primary.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.touch_app_rounded,
+                            size: 20,
+                            color: cs.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.floatingControlsTipTitle,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: cs.onPrimaryContainer,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  t.floatingControlsTipDesc,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    color: cs.onPrimaryContainer
+                                        .withValues(alpha: 0.88),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
-
-            const Divider(height: 30),
-
-            // 4. Auto-Scroll Speed & Floating Button Reset
-            Text(
-              '${t.autoScrollSpeed}: ${settings.autoScrollSpeed.toStringAsFixed(1)}x',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-            Slider(
-              min: 0.5,
-              max: 4.0,
-              divisions: 7,
-              value: settings.autoScrollSpeed,
-              onChanged: (v) =>
-                  notifier.update(settings.copyWith(autoScrollSpeed: v)),
-            ),
-            Text(
-              t.autoScrollHint,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                icon: const Icon(Icons.restart_alt_rounded, size: 18),
-                label: Text(t.resetButtonPos),
-                onPressed: () =>
-                    notifier.update(settings.copyWith(clearFabPos: true)),
-              ),
-            ),
-
-            const Divider(height: 30),
-
-            // 5. Reading Theme
-            Text(
-              t.readingTheme,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(value: 'light', label: Text(t.themeLight)),
-                ButtonSegment(value: 'sepia', label: Text(t.themeSepia)),
-                ButtonSegment(value: 'dark', label: Text(t.themeDark)),
-              ],
-              selected: {settings.themeMode},
-              onSelectionChanged: (s) =>
-                  notifier.update(settings.copyWith(themeMode: s.first)),
-            ),
-
-            const SizedBox(height: 22),
-
-            // 6. Font Sizes
-            Text(
-              '${t.arabicFontSize}: ${settings.arabicFontSize.round()}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            Slider(
-              min: 20,
-              max: 44,
-              value: settings.arabicFontSize,
-              onChanged: (v) =>
-                  notifier.update(settings.copyWith(arabicFontSize: v)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${t.translationFontSize}: ${settings.translationFontSize.round()}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            Slider(
-              min: 13,
-              max: 24,
-              value: settings.translationFontSize,
-              onChanged: (v) =>
-                  notifier.update(settings.copyWith(translationFontSize: v)),
-            ),
-          ],
+          ),
         ),
       ),
     );
