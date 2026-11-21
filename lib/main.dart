@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'core/config/app_branding.dart';
 import 'providers/quran_providers.dart';
 import 'screens/home_screen.dart';
 
@@ -31,7 +32,7 @@ class QuranMalayalamApp extends ConsumerWidget {
         return ThemeData(
           useMaterial3: true,
           brightness: Brightness.dark,
-          colorSchemeSeed: const Color(0xFF047857),
+          colorSchemeSeed: AppBranding.primaryEmerald,
           scaffoldBackgroundColor: const Color(0xFF0A0D0C),
           textTheme: applyFont(ThemeData.dark().textTheme),
         );
@@ -40,7 +41,7 @@ class QuranMalayalamApp extends ConsumerWidget {
         return ThemeData(
           useMaterial3: true,
           brightness: Brightness.light,
-          colorSchemeSeed: const Color(0xFF065F46),
+          colorSchemeSeed: AppBranding.darkEmerald,
           scaffoldBackgroundColor: const Color(0xFFFBF6E9),
           appBarTheme: const AppBarTheme(
             backgroundColor: Color(0xFFF5ECD7),
@@ -52,14 +53,14 @@ class QuranMalayalamApp extends ConsumerWidget {
       return ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        colorSchemeSeed: const Color(0xFF047857),
+        colorSchemeSeed: AppBranding.primaryEmerald,
         scaffoldBackgroundColor: Colors.white,
         textTheme: applyFont(ThemeData.light().textTheme),
       );
     }
 
     return MaterialApp(
-      title: 'Al-Quran',
+      title: AppBranding.appName,
       debugShowCheckedModeBanner: false,
       theme: buildTheme(settings.themeMode),
       home: const HomeScreen(),

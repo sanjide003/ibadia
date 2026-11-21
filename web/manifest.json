@@ -1,11 +1,11 @@
 {
-    "name": "quran_malayalam_app",
-    "short_name": "quran_malayalam_app",
+    "name": "Al-Quran",
+    "short_name": "Al-Quran",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#047857",
+    "theme_color": "#047857",
+    "description": "Fast offline-cached Quran reader with Mushaf Page View, Verse List View, bi-directional continuous Surah scroll, and clean mobile PNG/PDF export.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/config/api_config.dart';
+import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
 import '../models/surah_model.dart';
 import '../providers/quran_providers.dart';
@@ -47,7 +48,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final isSepia = settings.themeMode == 'sepia';
 
     final Color headerBg =
-        isDark ? const Color(0xFF064E3B) : const Color(0xFF065F46);
+        isDark ? AppBranding.darkEmerald : AppBranding.headerEmerald;
     final Color canvasBg = isDark
         ? const Color(0xFF0A0D0C)
         : (isSepia ? const Color(0xFFFBF6E9) : const Color(0xFFF3F6F4));
@@ -72,14 +73,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
-          title: Text(
-            appBarTitle,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
+          title: _tabIndex == 0
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.28),
+                          width: 1,
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.asset(
+                        AppBranding.logoAsset,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Text(
+                      appBarTitle,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  appBarTitle,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    color: Colors.white,
+                  ),
+                ),
           actions: [
             Builder(
               builder: (drawerCtx) => IconButton(
