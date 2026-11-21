@@ -27,6 +27,8 @@ if [ -z "${WEB_APP_URL:-}" ] && [ -n "${VERCEL_PROJECT_PRODUCTION_URL:-}" ]; the
   WEB_APP_URL="https://${VERCEL_PROJECT_PRODUCTION_URL}"
 elif [ -z "${WEB_APP_URL:-}" ] && [ -n "${VERCEL_URL:-}" ]; then
   WEB_APP_URL="https://${VERCEL_URL}"
+elif [ -z "${WEB_APP_URL:-}" ]; then
+  WEB_APP_URL="https://a1-quran.vercel.app"
 fi
 
 APP_BUILD_NUMBER="${APP_BUILD_NUMBER:-$(( $(date -u +%s) - 1700000000 ))}"

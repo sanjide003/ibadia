@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +14,111 @@ import '../services/web_platform_bridge.dart';
 import 'update_dialog.dart';
 
 const String _hasDownloadedApkKey = 'has_downloaded_apk_v1';
+
+OverlayEntry? _activeTopNoticeEntry;
+Timer? _activeTopNoticeTimer;
+
+/// Displays a sleek foreground banner at the very top of the root overlay,
+/// painting cleanly ABOVE any open Settings Drawer or modal scrim.
+void showTopForegroundNotice(
+  BuildContext context, {
+  required String message,
+  required TextDirection textDirection,
+  bool isError = false,
+  IconData? icon,
+}) {
+  _activeTopNoticeTimer?.cancel();
+  _activeTopNoticeEntry?.remove();
+  _activeTopNoticeEntry = null;
+
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) return;
+
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (ctx) {
+      final topInset = MediaQuery.paddingOf(ctx).top;
+      final cs = Theme.of(ctx).colorScheme;
+      final Color bg = isError ? cs.errorContainer : AppBranding.darkEmerald;
+      final Color fg = isError ? cs.onErrorContainer : Colors.white;
+
+      return Positioned(
+        top: topInset + 12,
+        left: 16,
+        right: 16,
+        child: Directionality(
+          textDirection: textDirection,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Material(
+                color: bg,
+                elevation: 8,
+                shadowColor: Colors.black.withValues(alpha: 0.28),
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () {
+                    _activeTopNoticeTimer?.cancel();
+                    if (_activeTopNoticeEntry == entry) {
+                      entry.remove();
+                      _activeTopNoticeEntry = null;
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          icon ??
+                              (isError
+                                  ? Icons.info_outline_rounded
+                                  : Icons.check_circle_rounded),
+                          color: fg,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            message,
+                            style: TextStyle(
+                              color: fg,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.close_rounded,
+                          color: fg.withValues(alpha: 0.78),
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  _activeTopNoticeEntry = entry;
+  overlay.insert(entry);
+  _activeTopNoticeTimer = Timer(const Duration(seconds: 4), () {
+    if (_activeTopNoticeEntry == entry) {
+      entry.remove();
+      _activeTopNoticeEntry = null;
+    }
+  });
+}
 
 Future<void> triggerPwaInstall(BuildContext context, AppStrings t) async {
   final bridge = WebPlatformBridge.instance;
@@ -42,20 +149,14 @@ Future<void> triggerPwaInstall(BuildContext context, AppStrings t) async {
 Future<void> triggerShareApp(BuildContext context, AppStrings t) async {
   final bridge = WebPlatformBridge.instance;
   final String runtimeOrigin = kIsWeb ? bridge.currentWebUrl : '';
-  final String webUrl = runtimeOrigin.isNotEmpty
+  final bool isLocalPreview = runtimeOrigin.contains('localhost') ||
+      runtimeOrigin.contains('127.0.0.1') ||
+      runtimeOrigin.contains('run.app');
+  final String webUrl = (!isLocalPreview && runtimeOrigin.isNotEmpty)
       ? runtimeOrigin
       : AppBranding.webAppUrl;
-  const String apkUrl = AppBranding.androidApkUrl;
 
-  final buffer = StringBuffer()
-    ..writeln('${AppBranding.appName} — ${AppBranding.appTagline}');
-  if (webUrl.isNotEmpty) {
-    buffer.writeln('Web App: $webUrl');
-  }
-  if (apkUrl.isNotEmpty) {
-    buffer.writeln('Android APK: $apkUrl');
-  }
-  final shareText = buffer.toString().trim();
+  final shareText = '${AppBranding.appName} — ${AppBranding.appTagline}\n$webUrl';
 
   try {
     await Share.share(shareText, subject: AppBranding.appName);
@@ -63,11 +164,11 @@ Future<void> triggerShareApp(BuildContext context, AppStrings t) async {
   } catch (_) {
     await Clipboard.setData(ClipboardData(text: shareText));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(t.shareAppCopied),
-          duration: const Duration(seconds: 2),
-        ),
+      showTopForegroundNotice(
+        context,
+        message: t.shareAppCopied,
+        textDirection: t.textDirection,
+        icon: Icons.copy_rounded,
       );
     }
   }
@@ -162,10 +263,10 @@ class OfflineStatusBanner extends StatelessWidget {
 }
 
 /// Bottom-anchored actions inside CompactSettingsDrawer:
-/// - Check for Updates / Update Now (with live update badge)
+/// - Check for Updates / Update Now (with top foreground overlay + inline drawer status card)
 /// - Install App (only on Web when eligible & not yet installed as PWA)
 /// - Download Android APK (only on Web before APK download / PWA install)
-/// - Share App (automatically shown inside Android APK, installed PWA, or after APK download)
+/// - Share App (shares https://a1-quran.vercel.app cleanly)
 class DrawerBottomAppActions extends ConsumerStatefulWidget {
   final AppStrings strings;
 
@@ -211,18 +312,19 @@ class _DrawerBottomAppActionsState
       case UpdateCheckOutcome.updateAvailable:
         await showAppUpdateDialog(context);
       case UpdateCheckOutcome.upToDate:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(t.upToDateMessage),
-            duration: const Duration(seconds: 2),
-          ),
+        showTopForegroundNotice(
+          context,
+          message: t.upToDateMessage,
+          textDirection: t.textDirection,
+          icon: Icons.verified_rounded,
         );
       case UpdateCheckOutcome.unavailable:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(t.updateCheckUnavailable),
-            duration: const Duration(seconds: 3),
-          ),
+        showTopForegroundNotice(
+          context,
+          message: t.updateCheckUnavailable,
+          textDirection: t.textDirection,
+          isError: true,
+          icon: Icons.cloud_off_rounded,
         );
     }
   }
@@ -233,6 +335,7 @@ class _DrawerBottomAppActionsState
     final bridge = WebPlatformBridge.instance;
     final cs = Theme.of(context).colorScheme;
     final update = ref.watch(updateProvider);
+    final manualOutcome = update.lastManualOutcome;
 
     return ValueListenableBuilder<bool>(
       valueListenable: bridge.isStandaloneNotifier,
@@ -328,6 +431,74 @@ class _DrawerBottomAppActionsState
                       ),
                     ),
             ),
+
+            // Inline update check status card inside the open Settings drawer
+            if (!update.isChecking &&
+                (manualOutcome == UpdateCheckOutcome.upToDate ||
+                    manualOutcome == UpdateCheckOutcome.unavailable))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: manualOutcome == UpdateCheckOutcome.upToDate
+                        ? cs.primaryContainer.withValues(alpha: 0.45)
+                        : cs.errorContainer.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(
+                      color: manualOutcome == UpdateCheckOutcome.upToDate
+                          ? cs.primary.withValues(alpha: 0.3)
+                          : cs.error.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        manualOutcome == UpdateCheckOutcome.upToDate
+                            ? Icons.verified_rounded
+                            : Icons.info_outline_rounded,
+                        size: 17,
+                        color: manualOutcome == UpdateCheckOutcome.upToDate
+                            ? cs.primary
+                            : cs.error,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          manualOutcome == UpdateCheckOutcome.upToDate
+                              ? t.upToDateMessage
+                              : t.updateCheckUnavailable,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                            color: manualOutcome == UpdateCheckOutcome.upToDate
+                                ? cs.onPrimaryContainer
+                                : cs.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => ref
+                            .read(updateProvider.notifier)
+                            .clearManualOutcome(),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
             if (kIsWeb && !isStandalone)
               ValueListenableBuilder<bool>(

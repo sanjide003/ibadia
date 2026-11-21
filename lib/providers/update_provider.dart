@@ -22,6 +22,7 @@ class AppUpdateState {
   final String? downloadedApkPath;
   final bool needsInstallPermission;
   final String? errorMessage;
+  final UpdateCheckOutcome? lastManualOutcome;
 
   const AppUpdateState({
     this.currentVersion = AppBranding.appVersion,
@@ -37,6 +38,7 @@ class AppUpdateState {
     this.downloadedApkPath,
     this.needsInstallPermission = false,
     this.errorMessage,
+    this.lastManualOutcome,
   });
 
   bool get isBusy => isChecking || isDownloading || isInstalling;
@@ -58,6 +60,8 @@ class AppUpdateState {
     bool? needsInstallPermission,
     String? errorMessage,
     bool clearError = false,
+    UpdateCheckOutcome? lastManualOutcome,
+    bool clearLastManualOutcome = false,
   }) {
     return AppUpdateState(
       currentVersion: currentVersion ?? this.currentVersion,
@@ -78,6 +82,9 @@ class AppUpdateState {
       needsInstallPermission:
           needsInstallPermission ?? this.needsInstallPermission,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      lastManualOutcome: clearLastManualOutcome
+          ? null
+          : (lastManualOutcome ?? this.lastManualOutcome),
     );
   }
 }
@@ -119,14 +126,21 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
           : UpdateCheckOutcome.upToDate;
     }
 
-    state = state.copyWith(isChecking: true, clearError: true);
+    state = state.copyWith(
+      isChecking: true,
+      clearError: true,
+      clearLastManualOutcome: !silent,
+    );
 
     try {
       await _hydrateLocalVersion();
 
       final String? manifestUrl = _resolveManifestUrl();
       if (manifestUrl == null || manifestUrl.isEmpty) {
-        state = state.copyWith(isChecking: false);
+        state = state.copyWith(
+          isChecking: false,
+          lastManualOutcome: silent ? null : UpdateCheckOutcome.unavailable,
+        );
         return UpdateCheckOutcome.unavailable;
       }
 
@@ -146,6 +160,7 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
         state = state.copyWith(
           isChecking: false,
           errorMessage: silent ? null : 'HTTP ${response.statusCode}',
+          lastManualOutcome: silent ? null : UpdateCheckOutcome.unavailable,
         );
         return UpdateCheckOutcome.unavailable;
       }
@@ -153,13 +168,19 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
       final trimmedBody = response.body.trimLeft();
       if (!trimmedBody.startsWith('{')) {
         // Local dev / SPA fallback returning HTML instead of JSON.
-        state = state.copyWith(isChecking: false);
+        state = state.copyWith(
+          isChecking: false,
+          lastManualOutcome: silent ? null : UpdateCheckOutcome.unavailable,
+        );
         return UpdateCheckOutcome.unavailable;
       }
 
       final decoded = jsonDecode(trimmedBody);
       if (decoded is! Map<String, dynamic>) {
-        state = state.copyWith(isChecking: false);
+        state = state.copyWith(
+          isChecking: false,
+          lastManualOutcome: silent ? null : UpdateCheckOutcome.unavailable,
+        );
         return UpdateCheckOutcome.unavailable;
       }
 
@@ -182,6 +203,8 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
           latestVersion: remoteVersion,
           latestBuildNumber: remoteBuild,
           downloadUrl: resolvedDownloadUrl,
+          lastManualOutcome:
+              silent ? null : UpdateCheckOutcome.updateAvailable,
         );
         return UpdateCheckOutcome.updateAvailable;
       }
@@ -191,15 +214,21 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
         updateAvailable: false,
         latestVersion: remoteVersion,
         latestBuildNumber: remoteBuild,
+        lastManualOutcome: silent ? null : UpdateCheckOutcome.upToDate,
       );
       return UpdateCheckOutcome.upToDate;
     } catch (e) {
       state = state.copyWith(
         isChecking: false,
         errorMessage: silent ? null : e.toString(),
+        lastManualOutcome: silent ? null : UpdateCheckOutcome.unavailable,
       );
       return UpdateCheckOutcome.unavailable;
     }
+  }
+
+  void clearManualOutcome() {
+    state = state.copyWith(clearLastManualOutcome: true);
   }
 
   String? _resolveManifestUrl() {

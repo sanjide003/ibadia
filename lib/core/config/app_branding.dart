@@ -53,11 +53,11 @@ class AppBranding {
     return '';
   }
 
-  /// Optional live website URL shared by the Android APK's Share App action.
-  /// Set via `WEB_APP_URL` or update defaultValue after publishing to Vercel.
+  /// Live website URL shared by the Share App action.
+  /// Set via `WEB_APP_URL` or defaults to https://a1-quran.vercel.app.
   static const String webAppUrl = String.fromEnvironment(
     'WEB_APP_URL',
-    defaultValue: '',
+    defaultValue: 'https://a1-quran.vercel.app',
   );
 
   /// Primary brand emerald palette.

@@ -47,10 +47,12 @@ jobs:
       - name: Generate fresh Android Gradle wrapper
         run: flutter create . --platforms=android --org com.quranapp.malayalam && rm -f test/widget_test.dart
 
-      - name: Apply Custom Android Manifest, FileProvider & Updater MainActivity
+      - name: Apply Custom Android Manifest, FileProvider, Splash & Updater MainActivity
         run: |
+          rm -rf android/app/src/main/res/mipmap-*
           mkdir -p android/app/src/main/res/xml
           mkdir -p android/app/src/main/kotlin/com/quranapp/malayalam/quran_malayalam_app
+          cp -r android_config/res/. android/app/src/main/res/
           cp android_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           cp android_config/file_paths.xml android/app/src/main/res/xml/file_paths.xml
           cp android_config/MainActivity.kt android/app/src/main/kotlin/com/quranapp/malayalam/quran_malayalam_app/MainActivity.kt
@@ -115,11 +117,12 @@ jobs:
           BUILD_NUMBER=$((1000 + ${{ github.run_number }}))
           APK_LINK="https://github.com/${{ github.repository }}/releases/download/latest/Al-Quran.apk"
           MANIFEST_LINK="https://github.com/${{ github.repository }}/releases/download/latest/version.json"
+          SHARE_WEB_URL="${WEB_APP_URL:-https://a1-quran.vercel.app}"
           flutter build apk --release \
             --build-number="${BUILD_NUMBER}" \
             --dart-define=QURAN_API_KEY="${QURAN_API_KEY}" \
             --dart-define=ANDROID_APK_URL="${APK_LINK}" \
-            --dart-define=WEB_APP_URL="${WEB_APP_URL}" \
+            --dart-define=WEB_APP_URL="${SHARE_WEB_URL}" \
             --dart-define=APP_BUILD_NUMBER="${BUILD_NUMBER}" \
             --dart-define=UPDATE_MANIFEST_URL="${MANIFEST_LINK}"
           cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Al-Quran.apk
