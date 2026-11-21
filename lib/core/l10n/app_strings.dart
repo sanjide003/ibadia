@@ -110,6 +110,62 @@ class AppStrings {
   String get play => _pick('Start', 'തുടങ്ങുക', 'تشغيل');
   String get done => _pick('Done', 'ശരി', 'تم');
 
+  // Export labels
+  String get exportTab => _pick('Export', 'എക്സ്പോർട്ട്', 'تصدير');
+  String get exportTitle =>
+      _pick('Export Quran', 'ഖുർആൻ എക്സ്പോർട്ട്', 'تصدير القرآن');
+  String get exportScope =>
+      _pick('What to Export', 'എന്താണ് എക്സ്പോർട്ട് ചെയ്യേണ്ടത്', 'نطاق التصدير');
+  String get scopeRange =>
+      _pick('Ayah Range', 'ആയത്ത് റേഞ്ച്', 'نطاق آيات');
+  String get scopeSurah =>
+      _pick('Full Surah', 'പൂർണ്ണ സൂറത്ത്', 'سورة كاملة');
+  String get scopeJuz => _pick('Full Juz', 'പൂർണ്ണ ജുസ്അ്', 'جزء كامل');
+  String get selectSurah =>
+      _pick('Select Surah', 'സൂറത്ത് തിരഞ്ഞെടുക്കുക', 'اختر السورة');
+  String get selectJuz =>
+      _pick('Select Juz', 'ജുസ്അ് തിരഞ്ഞെടുക്കുക', 'اختر الجزء');
+  String get fromAyah =>
+      _pick('From Ayah', 'തുടങ്ങുന്ന ആയത്ത്', 'من الآية');
+  String get toAyah =>
+      _pick('To Ayah', 'അവസാനിക്കുന്ന ആയത്ത്', 'إلى الآية');
+  String get pageSize => _pick('Page Size', 'പേജ് സൈസ്', 'حجم الصفحة');
+  String get sizeAutomatic =>
+      _pick('Automatic', 'ഓട്ടോമാറ്റിക്', 'تلقائي');
+  String get sizeAutomaticDesc => _pick(
+        'Mobile-friendly width with normal readable text',
+        'മൊബൈൽ സ്ക്രീനിന് അനുയോജ്യമായ നോർമൽ ടെക്സ്റ്റ് സൈസ്',
+        'حجم مناسب لشاشة الجوال بخط واضح ومريح',
+      );
+  String get sizeA4 => _pick('A4', 'A4', 'A4');
+  String get exportFormat => _pick('Format', 'ഫോർമാറ്റ്', 'الصيغة');
+  String get formatPdf => _pick('PDF', 'PDF', 'PDF');
+  String get formatImage =>
+      _pick('Image (PNG)', 'ഇമേജ് (PNG)', 'صورة (PNG)');
+  String get includeTranslation =>
+      _pick('Include Translation', 'പരിഭാഷ ഉൾപ്പെടുത്തുക', 'تضمين الترجمة');
+  String get generatePreview =>
+      _pick('Preview & Export', 'പ്രിവ്യൂ കാണുക', 'معاينة وتصدير');
+  String get exportPreview =>
+      _pick('Export Preview', 'എക്സ്പോർട്ട് പ്രിവ്യൂ', 'معاينة التصدير');
+  String get download => _pick('Download', 'ഡൗൺലോഡ്', 'تنزيل');
+  String get share => _pick('Share', 'ഷെയർ', 'مشاركة');
+  String get preparingPages =>
+      _pick('Preparing pages...', 'പേജുകൾ തയ്യാറാക്കുന്നു...', 'جاري تجهيز الصفحات...');
+  String get exportSuccess =>
+      _pick('Saved successfully', 'വിജയകരമായി സേവ് ചെയ്തു', 'تم الحفظ بنجاح');
+  String get exportError => _pick(
+        'Export failed. Please try again.',
+        'എക്സ്പോർട്ട് ചെയ്യാനായില്ല. വീണ്ടും ശ്രമിക്കുക.',
+        'فشل التصدير. يرجى المحاولة مرة أخرى.',
+      );
+  String get invalidAyahRange => _pick(
+        'Enter a valid Ayah range',
+        'ശരിയായ ആയത്ത് നമ്പറുകൾ നൽകുക',
+        'أدخل نطاق آيات صحيح',
+      );
+  String get pagesLabel => _pick('Pages', 'പേജുകൾ', 'صفحات');
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

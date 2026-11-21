@@ -9,6 +9,8 @@ class QuranApiService {
   static List<SurahSummary>? _memSurahList;
   static final Map<int, SurahDetail> _memArabicCache = {};
   static final Map<String, List<String>> _memTranslationCache = {};
+  static final Map<int, JuzDetail> _memJuzArabicCache = {};
+  static final Map<String, List<String>> _memJuzTranslationCache = {};
 
   Future<List<SurahSummary>> fetchSurahList() async {
     if (_memSurahList != null) return _memSurahList!;
@@ -185,6 +187,156 @@ class QuranApiService {
         .toList();
 
     _memTranslationCache[cacheKey] = texts;
+    await prefs.setString(cacheKey, jsonEncode(texts));
+    return texts;
+  }
+
+  Future<JuzDetail> fetchJuzDetail({
+    required int juzNumber,
+    required List<String> requiredTranslations,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final baseData = await _fetchJuzArabic(prefs, juzNumber);
+
+    final Map<String, List<String>> loadedTranslations = {};
+    if (requiredTranslations.isNotEmpty) {
+      final futures = requiredTranslations.map((code) async {
+        final texts = await _fetchJuzTranslationEdition(prefs, juzNumber, code);
+        return MapEntry(code, texts);
+      });
+      final entries = await Future.wait(futures);
+      for (final entry in entries) {
+        loadedTranslations[entry.key] = entry.value;
+      }
+    }
+
+    return JuzDetail(
+      juzNumber: juzNumber,
+      entries: baseData.entries,
+      translations: loadedTranslations,
+    );
+  }
+
+  Future<JuzDetail> _fetchJuzArabic(
+    SharedPreferences prefs,
+    int juzNumber,
+  ) async {
+    final memHit = _memJuzArabicCache[juzNumber];
+    if (memHit != null) return memHit;
+
+    final cacheKey = 'cache_juz_ar_v3_$juzNumber';
+    final cached = prefs.getString(cacheKey);
+    if (cached != null) {
+      final decoded = jsonDecode(cached) as List<dynamic>;
+      final entries = decoded.map((item) {
+        final m = item as Map<String, dynamic>;
+        return JuzAyahEntry(
+          surah: SurahSummary.fromJson(m['surah'] as Map<String, dynamic>),
+          ayah: AyahItem.fromJson(m['ayah'] as Map<String, dynamic>),
+        );
+      }).toList();
+      final detail = JuzDetail(juzNumber: juzNumber, entries: entries);
+      _memJuzArabicCache[juzNumber] = detail;
+      return detail;
+    }
+
+    final res = await http
+        .get(
+          Uri.parse(
+            '${ApiConfig.baseUrl}/juz/$juzNumber/${ApiConfig.arabicEdition}',
+          ),
+          headers: ApiConfig.buildHeaders(),
+        )
+        .timeout(const Duration(seconds: 25));
+
+    if (res.statusCode != 200) {
+      throw Exception('Failed to load Juz $juzNumber');
+    }
+
+    final juzData = (jsonDecode(res.body) as Map<String, dynamic>)['data']
+        as Map<String, dynamic>;
+    final rawAyahs = juzData['ayahs'] as List<dynamic>;
+
+    final entries = rawAyahs.map((item) {
+      final map = item as Map<String, dynamic>;
+      final surahMap = map['surah'] as Map<String, dynamic>;
+      final surah = SurahSummary.fromJson(surahMap);
+      final numInSurah = map['numberInSurah'] as int;
+      String text = (map['text'] ?? '') as String;
+
+      if (surah.number != 1 && surah.number != 9 && numInSurah == 1) {
+        const bismillahPrefix = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ';
+        if (text.startsWith(bismillahPrefix)) {
+          text = text.substring(bismillahPrefix.length).trim();
+        }
+      }
+
+      final ayah = AyahItem(
+        numberInSurah: numInSurah,
+        globalNumber: map['number'] as int,
+        arabicText: text,
+        juz: (map['juz'] ?? juzNumber) as int,
+        page: (map['page'] ?? 1) as int,
+      );
+      return JuzAyahEntry(surah: surah, ayah: ayah);
+    }).toList();
+
+    await prefs.setString(
+      cacheKey,
+      jsonEncode(
+        entries
+            .map(
+              (e) => {
+                'surah': e.surah.toJson(),
+                'ayah': e.ayah.toJson(),
+              },
+            )
+            .toList(),
+      ),
+    );
+
+    final detail = JuzDetail(juzNumber: juzNumber, entries: entries);
+    _memJuzArabicCache[juzNumber] = detail;
+    return detail;
+  }
+
+  Future<List<String>> _fetchJuzTranslationEdition(
+    SharedPreferences prefs,
+    int juzNumber,
+    String langCode,
+  ) async {
+    final cacheKey = 'cache_juz_tr_v3_${juzNumber}_$langCode';
+    final memHit = _memJuzTranslationCache[cacheKey];
+    if (memHit != null) return memHit;
+
+    final cached = prefs.getString(cacheKey);
+    if (cached != null) {
+      final list = (jsonDecode(cached) as List<dynamic>)
+          .map((e) => e.toString())
+          .toList();
+      _memJuzTranslationCache[cacheKey] = list;
+      return list;
+    }
+
+    final edition = _editionForCode(langCode);
+    final res = await http
+        .get(
+          Uri.parse('${ApiConfig.baseUrl}/juz/$juzNumber/$edition'),
+          headers: ApiConfig.buildHeaders(),
+        )
+        .timeout(const Duration(seconds: 25));
+
+    if (res.statusCode != 200) {
+      return const [];
+    }
+
+    final data = (jsonDecode(res.body) as Map<String, dynamic>)['data']
+        as Map<String, dynamic>;
+    final texts = (data['ayahs'] as List<dynamic>)
+        .map((e) => ((e as Map<String, dynamic>)['text'] ?? '') as String)
+        .toList();
+
+    _memJuzTranslationCache[cacheKey] = texts;
     await prefs.setString(cacheKey, jsonEncode(texts));
     return texts;
   }

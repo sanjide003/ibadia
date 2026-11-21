@@ -5,6 +5,7 @@ import '../core/config/api_config.dart';
 import '../core/l10n/app_strings.dart';
 import '../models/surah_model.dart';
 import '../providers/quran_providers.dart';
+import 'export_screen.dart';
 import 'settings_screen.dart';
 import 'surah_reader_screen.dart';
 
@@ -225,11 +226,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ],
               )
-            : _BookmarksTab(
-                bookmarks: bookmarks,
-                strings: t,
-                onOpenSurah: (surahNo) => _openSurah(context, surahNo),
-              ),
+            : _tabIndex == 1
+                ? _BookmarksTab(
+                    bookmarks: bookmarks,
+                    strings: t,
+                    onOpenSurah: (surahNo) => _openSurah(context, surahNo),
+                  )
+                : const ExportScreen(),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _tabIndex,
           onDestinationSelected: (i) => setState(() => _tabIndex = i),
@@ -243,6 +246,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: const Icon(Icons.bookmark_border_rounded),
               selectedIcon: const Icon(Icons.bookmark_rounded),
               label: t.bookmarksTab,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.file_download_outlined),
+              selectedIcon: const Icon(Icons.file_download_rounded),
+              label: t.exportTab,
             ),
           ],
         ),

@@ -88,3 +88,78 @@ class SurahDetail {
     return list[index];
   }
 }
+
+class JuzAyahEntry {
+  final SurahSummary surah;
+  final AyahItem ayah;
+
+  const JuzAyahEntry({
+    required this.surah,
+    required this.ayah,
+  });
+}
+
+class JuzDetail {
+  final int juzNumber;
+  final List<JuzAyahEntry> entries;
+  final Map<String, List<String>> translations;
+
+  const JuzDetail({
+    required this.juzNumber,
+    required this.entries,
+    this.translations = const {},
+  });
+
+  String translationAt(String langCode, int index) {
+    final list = translations[langCode];
+    if (list == null || index < 0 || index >= list.length) return '';
+    return list[index];
+  }
+}
+
+enum ExportScope { range, surah, juz }
+
+enum ExportPageSize { automatic, a4 }
+
+enum ExportFormat { pdf, image }
+
+class ExportAyahBlock {
+  final int numberInSurah;
+  final String arabicText;
+  final Map<String, String> translations;
+
+  const ExportAyahBlock({
+    required this.numberInSurah,
+    required this.arabicText,
+    this.translations = const {},
+  });
+}
+
+class ExportSurahSection {
+  final SurahSummary summary;
+  final bool showBismillah;
+  final List<ExportAyahBlock> ayahs;
+
+  const ExportSurahSection({
+    required this.summary,
+    required this.showBismillah,
+    required this.ayahs,
+  });
+}
+
+class ExportPageData {
+  final int pageIndex;
+  final int totalPages;
+  final String headerTitle;
+  final String headerSubtitle;
+  final List<ExportSurahSection> sections;
+
+  const ExportPageData({
+    required this.pageIndex,
+    required this.totalPages,
+    required this.headerTitle,
+    required this.headerSubtitle,
+    required this.sections,
+  });
+}
+
