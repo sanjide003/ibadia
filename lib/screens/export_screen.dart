@@ -1,7 +1,4 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -30,7 +27,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   List<String> _selectedTranslations = ['ml'];
   bool _syncedSettingsOnce = false;
 
-  ExportPageSize _pageSize = ExportPageSize.automatic;
   ExportFormat _format = ExportFormat.pdf;
 
   bool _isGenerating = false;
@@ -76,6 +72,26 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       _toController.text = '${match.numberOfAyahs}';
       _errorMessage = null;
     });
+  }
+
+  Future<void> _openSurahSearchSheet(
+    List<SurahSummary> surahs,
+    AppStrings t,
+  ) async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SurahSearchBottomSheet(
+        surahs: surahs,
+        selectedSurah: _selectedSurah,
+        strings: t,
+      ),
+    );
+    if (picked != null && mounted) {
+      _onSurahChanged(picked, surahs);
+    }
   }
 
   Future<void> _generateAndOpenPreview(
@@ -124,7 +140,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         baseFileName = 'quran_juz_$_selectedJuz';
         pages = await ExportService.paginateJuz(
           detail: juzDetail,
-          pageSize: _pageSize,
           includeTranslation: _includeTranslation,
           translationCodes: activeTranslations,
           headerTitle: docTitle,
@@ -160,7 +175,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           detail: detail,
           fromAyah: fromAyah,
           toAyah: toAyah,
-          pageSize: _pageSize,
           includeTranslation: _includeTranslation,
           translationCodes: activeTranslations,
           headerTitle: docTitle,
@@ -180,7 +194,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         MaterialPageRoute(
           builder: (_) => ExportPreviewScreen(
             pages: pages,
-            pageSize: _pageSize,
             format: _format,
             includeTranslation: _includeTranslation,
             translationCodes: activeTranslations,
@@ -356,34 +369,32 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                         ),
                       ),
                     ] else ...[
-                      InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: t.selectSurah,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => _openSurahSearchSheet(surahs, t),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: t.selectSurah,
+                            prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                            suffixIcon: const Icon(Icons.arrow_drop_down_rounded),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            value: _selectedSurah,
-                            isExpanded: true,
-                            items: surahs.map((s) {
-                              final title = t.lang == 'ar'
-                                  ? '${s.number}. ${s.nameArabic}'
-                                  : '${s.number}. ${s.englishName} — ${s.nameArabic}';
-                              return DropdownMenuItem<int>(
-                                value: s.number,
-                                child: Text(
-                                  '$title (${s.numberOfAyahs})',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) => _onSurahChanged(val, surahs),
+                          child: Text(
+                            t.lang == 'ar'
+                                ? '${currentSurah.number}. ${currentSurah.nameArabic} (${currentSurah.numberOfAyahs})'
+                                : '${currentSurah.number}. ${currentSurah.englishName} — ${currentSurah.nameArabic} (${currentSurah.numberOfAyahs})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
@@ -521,7 +532,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
             const SizedBox(height: 12),
 
-            // 3. Page Size & Format Card
+            // 3. Export Format Card (Mobile-optimized clean layout by default)
             Card(
               elevation: 0,
               color: cs.surfaceContainerLow,
@@ -534,46 +545,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      t.pageSize,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SegmentedButton<ExportPageSize>(
-                        segments: [
-                          ButtonSegment(
-                            value: ExportPageSize.automatic,
-                            label: Text(t.sizeAutomatic),
-                            icon: const Icon(Icons.smartphone_rounded, size: 18),
-                          ),
-                          ButtonSegment(
-                            value: ExportPageSize.a4,
-                            label: Text(t.sizeA4),
-                            icon: const Icon(Icons.description_outlined,
-                                size: 18),
-                          ),
-                        ],
-                        selected: {_pageSize},
-                        onSelectionChanged: (sel) =>
-                            setState(() => _pageSize = sel.first),
-                      ),
-                    ),
-                    if (_pageSize == ExportPageSize.automatic) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        t.sizeAutomaticDesc,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
                     Text(
                       t.exportFormat,
                       style: const TextStyle(
@@ -645,7 +616,6 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
 class ExportPreviewScreen extends StatefulWidget {
   final List<ExportPageData> pages;
-  final ExportPageSize pageSize;
   final ExportFormat format;
   final bool includeTranslation;
   final List<String> translationCodes;
@@ -656,7 +626,6 @@ class ExportPreviewScreen extends StatefulWidget {
   const ExportPreviewScreen({
     super.key,
     required this.pages,
-    required this.pageSize,
     required this.format,
     required this.includeTranslation,
     required this.translationCodes,
@@ -670,9 +639,7 @@ class ExportPreviewScreen extends StatefulWidget {
 }
 
 class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
-  final GlobalKey _captureKey = GlobalKey();
-  ExportPageData? _capturingPage;
-  int _capturingIndex = -1;
+  ExportPageData? _renderingPage;
   bool _isExporting = false;
   double _progress = 0.0;
   String _progressLabel = '';
@@ -690,56 +657,32 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
     final List<Size> logicalSizes = [];
 
     try {
-      // Pre-warm fonts before mounting page 1 into the visible capture modal.
-      ExportLayoutSpec.forPageSize(widget.pageSize);
       await GoogleFonts.pendingFonts();
 
       for (int i = 0; i < widget.pages.length; i++) {
         if (!mounted) return;
+        final page = widget.pages[i];
         setState(() {
-          _capturingIndex = i;
-          _capturingPage = widget.pages[i];
+          _renderingPage = page;
           _progress = (i + 0.5) / widget.pages.length;
           _progressLabel = '${t.preparingPages} ${i + 1}/${widget.pages.length}';
         });
 
-        await WidgetsBinding.instance.endOfFrame;
-        await GoogleFonts.pendingFonts();
-        await WidgetsBinding.instance.endOfFrame;
-        await Future<void>.delayed(Duration(milliseconds: i == 0 ? 120 : 50));
-        await WidgetsBinding.instance.endOfFrame;
-
-        final renderObject = _captureKey.currentContext?.findRenderObject();
-        if (renderObject is! RenderRepaintBoundary || !renderObject.hasSize) {
-          throw Exception('Capture boundary unavailable');
-        }
-
-        final pageSize = renderObject.size;
-        logicalSizes.add(pageSize);
-
-        double pixelRatio =
-            widget.pageSize == ExportPageSize.a4 ? 2.4 : 2.6;
-        if (pageSize.height * pixelRatio > 3800.0 && pageSize.height > 0) {
-          pixelRatio = (3800.0 / pageSize.height).clamp(1.2, 2.6);
-        }
-
-        final image = await renderObject.toImage(pixelRatio: pixelRatio);
-        try {
-          final byteData =
-              await image.toByteData(format: ui.ImageByteFormat.png);
-          if (byteData == null) {
-            throw Exception('Failed to encode PNG bytes');
-          }
-          capturedPngs.add(byteData.buffer.asUint8List());
-        } finally {
-          image.dispose();
-        }
+        // Allow UI progress indicator to paint cleanly, then render offscreen on isolated Canvas
+        await Future<void>.delayed(const Duration(milliseconds: 18));
+        final rendered = await ExportService.renderPagePng(
+          page: page,
+          includeTranslation: widget.includeTranslation,
+          translationCodes: widget.translationCodes,
+        );
+        capturedPngs.add(rendered.bytes);
+        logicalSizes.add(rendered.logicalSize);
       }
 
       if (!mounted) return;
       setState(() {
-        _capturingPage = null;
-        _capturingIndex = -1;
+        _renderingPage = null;
+        _progress = 1.0;
       });
 
       bool saved = false;
@@ -748,7 +691,6 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
       if (widget.format == ExportFormat.pdf) {
         final pdfBytes = await ExportService.buildPdfBytes(
           pagePngs: capturedPngs,
-          pageSize: widget.pageSize,
           pageLogicalSizes: logicalSizes,
         );
         if (share) {
@@ -799,8 +741,7 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _capturingPage = null;
-          _capturingIndex = -1;
+          _renderingPage = null;
           _isExporting = false;
         });
       }
@@ -811,9 +752,6 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
   Widget build(BuildContext context) {
     final t = widget.strings;
     final cs = Theme.of(context).colorScheme;
-    final sizeLabel = widget.pageSize == ExportPageSize.a4
-        ? t.sizeA4
-        : t.sizeAutomatic;
     final formatLabel =
         widget.format == ExportFormat.pdf ? t.formatPdf : t.formatImage;
 
@@ -835,7 +773,7 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
                     ),
                   ),
                   Text(
-                    '${widget.pages.length} ${t.pagesLabel} • $formatLabel • $sizeLabel',
+                    '${widget.pages.length} ${t.pagesLabel} • $formatLabel',
                     style: TextStyle(
                       fontSize: 12,
                       color: cs.onSurfaceVariant,
@@ -872,7 +810,6 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
                       alignment: Alignment.topCenter,
                       child: _ExportPageCard(
                         page: page,
-                        pageSize: widget.pageSize,
                         includeTranslation: widget.includeTranslation,
                         translationCodes: widget.translationCodes,
                       ),
@@ -930,7 +867,6 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
             ),
           ),
 
-          // Visible centered modal preview stage so RepaintBoundary paints cleanly with zero GPU occlusion/corruption
           if (_isExporting)
             Positioned.fill(
               child: ColoredBox(
@@ -939,8 +875,8 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
                   child: Center(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth: 420,
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+                        maxWidth: 400,
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.80,
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(20),
@@ -982,7 +918,7 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                   child: LinearProgressIndicator(value: _progress),
                                 ),
-                                if (_capturingPage != null) ...[
+                                if (_renderingPage != null) ...[
                                   const SizedBox(height: 14),
                                   Flexible(
                                     child: Center(
@@ -1005,16 +941,11 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
                                         child: FittedBox(
                                           fit: BoxFit.contain,
                                           alignment: Alignment.center,
-                                          child: RepaintBoundary(
-                                            key: _captureKey,
-                                            child: _ExportPageCard(
-                                              key: ValueKey('cap_card_$_capturingIndex'),
-                                              page: _capturingPage!,
-                                              pageSize: widget.pageSize,
-                                              includeTranslation:
-                                                  widget.includeTranslation,
-                                              translationCodes: widget.translationCodes,
-                                            ),
+                                          child: _ExportPageCard(
+                                            page: _renderingPage!,
+                                            includeTranslation:
+                                                widget.includeTranslation,
+                                            translationCodes: widget.translationCodes,
                                           ),
                                         ),
                                       ),
@@ -1039,21 +970,18 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
 
 class _ExportPageCard extends StatelessWidget {
   final ExportPageData page;
-  final ExportPageSize pageSize;
   final bool includeTranslation;
   final List<String> translationCodes;
 
   const _ExportPageCard({
-    super.key,
     required this.page,
-    required this.pageSize,
     required this.includeTranslation,
     required this.translationCodes,
   });
 
   @override
   Widget build(BuildContext context) {
-    final spec = ExportLayoutSpec.forPageSize(pageSize);
+    final spec = ExportLayoutSpec.mobile();
 
     final bodyContent = Column(
       mainAxisSize: MainAxisSize.min,
@@ -1069,8 +997,6 @@ class _ExportPageCard extends StatelessWidget {
       ],
     );
 
-    // Isolate export paper from OS accessibility font scaling and remove inner FittedBox shrinking
-    // so every page renders at exact identical width & readable font size matching TextPainter metrics.
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
       child: Material(
@@ -1086,21 +1012,12 @@ class _ExportPageCard extends StatelessWidget {
           ),
           child: Container(
             width: spec.cardWidth,
-            height: spec.cardHeight,
             color: ExportLayoutSpec.paperBg,
             padding: EdgeInsets.symmetric(
               horizontal: spec.hPad,
               vertical: spec.vPad,
             ),
-            child: spec.isA4
-                ? Align(
-                    alignment: Alignment.topCenter,
-                    child: SizedBox(
-                      width: spec.innerWidth,
-                      child: bodyContent,
-                    ),
-                  )
-                : bodyContent,
+            child: bodyContent,
           ),
         ),
       ),
@@ -1248,6 +1165,189 @@ class _ExportPageCard extends StatelessWidget {
           ],
         ),
         textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+      ),
+    );
+  }
+}
+
+class _SurahSearchBottomSheet extends StatefulWidget {
+  final List<SurahSummary> surahs;
+  final int selectedSurah;
+  final AppStrings strings;
+
+  const _SurahSearchBottomSheet({
+    required this.surahs,
+    required this.selectedSurah,
+    required this.strings,
+  });
+
+  @override
+  State<_SurahSearchBottomSheet> createState() =>
+      _SurahSearchBottomSheetState();
+}
+
+class _SurahSearchBottomSheetState extends State<_SurahSearchBottomSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.strings;
+    final cs = Theme.of(context).colorScheme;
+    final q = _query.trim().toLowerCase();
+
+    final filtered = q.isEmpty
+        ? widget.surahs
+        : widget.surahs.where((s) {
+            return '${s.number}' == q ||
+                '${s.number}'.contains(q) ||
+                s.englishName.toLowerCase().contains(q) ||
+                s.englishNameTranslation.toLowerCase().contains(q) ||
+                s.nameArabic.contains(_query.trim());
+          }).toList();
+
+    return FractionallySizedBox(
+      heightFactor: 0.85,
+      child: Material(
+        color: cs.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        clipBehavior: Clip.antiAlias,
+        child: Directionality(
+          textDirection: t.textDirection,
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: cs.outlineVariant,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.selectSurah,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      onChanged: (val) => setState(() => _query = val),
+                      decoration: InputDecoration(
+                        hintText: t.searchSurah,
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        suffixIcon: _query.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _query = '');
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: cs.surfaceContainerHighest
+                            .withValues(alpha: 0.45),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.4)),
+                  itemBuilder: (context, index) {
+                    final s = filtered[index];
+                    final isSelected = s.number == widget.selectedSurah;
+                    return ListTile(
+                      selected: isSelected,
+                      selectedTileColor:
+                          cs.primaryContainer.withValues(alpha: 0.35),
+                      onTap: () => Navigator.pop(context, s.number),
+                      leading: Container(
+                        width: 36,
+                        height: 36,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? cs.primary
+                              : cs.primaryContainer.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${s.number}',
+                          style: TextStyle(
+                            color: isSelected ? cs.onPrimary : cs.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        s.englishName,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        '${s.numberOfAyahs} ${t.ayahsLabel} • ${t.revelationLabel(s.revelationType)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            s.nameArabic,
+                            textDirection: TextDirection.rtl,
+                            style: GoogleFonts.amiri(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w700,
+                              color: cs.primary,
+                            ),
+                          ),
+                          if (isSelected) ...[
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.check_circle_rounded,
+                              color: cs.primary,
+                              size: 20,
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -10,12 +12,20 @@ import 'package:share_plus/share_plus.dart';
 import '../core/config/api_config.dart';
 import '../models/surah_model.dart';
 
-/// Shared exact typography & spacing specification used identically by both
-/// [ExportService] TextPainter pagination and [_ExportPageCard] rendering.
+class RenderedExportPage {
+  final Uint8List bytes;
+  final Size logicalSize;
+
+  const RenderedExportPage({
+    required this.bytes,
+    required this.logicalSize,
+  });
+}
+
+/// Exact mobile-first typography & spacing specification shared identically
+/// between TextPainter pagination, preview cards, and offscreen PNG canvas rendering.
 class ExportLayoutSpec {
-  static const double automaticWidth = 360.0;
-  static const double a4Width = 595.0;
-  static const double a4Height = 842.0;
+  static const double mobileWidth = 360.0;
 
   static const Color paperBg = Color(0xFFFFFFFF);
   static const Color inkPrimary = Color(0xFF181C1A);
@@ -24,10 +34,7 @@ class ExportLayoutSpec {
   static const Color emeraldBorder = Color(0xFFA7F3D0);
   static const Color divider = Color(0xFFE2E8F0);
 
-  final ExportPageSize pageSize;
-  final bool isA4;
   final double cardWidth;
-  final double? cardHeight;
   final double hPad;
   final double vPad;
   final double innerWidth;
@@ -45,10 +52,7 @@ class ExportLayoutSpec {
   final TextStyle arTafsirStyle;
 
   ExportLayoutSpec._({
-    required this.pageSize,
-    required this.isA4,
     required this.cardWidth,
-    required this.cardHeight,
     required this.hPad,
     required this.vPad,
     required this.innerWidth,
@@ -65,32 +69,27 @@ class ExportLayoutSpec {
     required this.arTafsirStyle,
   });
 
-  factory ExportLayoutSpec.forPageSize(ExportPageSize pageSize) {
-    final bool isA4 = pageSize == ExportPageSize.a4;
-    final double cardWidth = isA4 ? a4Width : automaticWidth;
-    final double? cardHeight = isA4 ? a4Height : null;
-    final double hPad = isA4 ? 26.0 : 20.0;
-    final double vPad = isA4 ? 22.0 : 20.0;
-    final double innerWidth = cardWidth - hPad * 2;
-    // Arabic wrapper uses Padding(horizontal: 4, vertical: 2).
-    final double arabicMaxWidth = innerWidth - 8.0;
-    // A4 fills ~784pt out of 798pt usable vertical height cleanly with headroom so pages never shrink or clip.
-    final double maxBodyHeight = isA4 ? (a4Height - vPad * 2 - 14.0) : 1350.0;
+  factory ExportLayoutSpec.mobile() {
+    const double cardWidth = mobileWidth;
+    const double hPad = 20.0;
+    const double vPad = 20.0;
+    const double innerWidth = cardWidth - hPad * 2;
+    const double arabicMaxWidth = innerWidth - 8.0;
+    // Screen-sized mobile page (~700pt body -> ~740pt total -> ~1480px tall at 2.0x)
+    // eliminates mobile GPU glyph-atlas overflow while keeping pages compact and crisp.
+    const double maxBodyHeight = 700.0;
 
-    final double arabicFontSize = isA4 ? 19.5 : 21.5;
-    final double arabicLineHeight = isA4 ? 1.80 : 1.92;
+    const double arabicFontSize = 21.0;
+    const double arabicLineHeight = 1.88;
 
     return ExportLayoutSpec._(
-      pageSize: pageSize,
-      isA4: isA4,
       cardWidth: cardWidth,
-      cardHeight: cardHeight,
       hPad: hPad,
       vPad: vPad,
       innerWidth: innerWidth,
       arabicMaxWidth: arabicMaxWidth,
       maxBodyHeight: maxBodyHeight,
-      sectionGap: isA4 ? 12.0 : 14.0,
+      sectionGap: 14.0,
       arabicStyle: GoogleFonts.amiri(
         fontSize: arabicFontSize,
         height: arabicLineHeight,
@@ -105,41 +104,41 @@ class ExportLayoutSpec {
         decoration: TextDecoration.none,
       ),
       bismillahStyle: GoogleFonts.amiri(
-        fontSize: isA4 ? 19.5 : 20.5,
+        fontSize: 20.0,
         height: 1.55,
         fontWeight: FontWeight.w700,
         color: inkPrimary,
         decoration: TextDecoration.none,
       ),
-      bannerEnStyle: TextStyle(
+      bannerEnStyle: const TextStyle(
         color: emerald,
-        fontSize: isA4 ? 12.5 : 13.0,
+        fontSize: 13.0,
         height: 1.3,
         fontWeight: FontWeight.w700,
         decoration: TextDecoration.none,
       ),
       bannerArStyle: GoogleFonts.amiri(
         color: emerald,
-        fontSize: isA4 ? 17.5 : 18.5,
+        fontSize: 18.5,
         height: 1.35,
         fontWeight: FontWeight.w700,
         decoration: TextDecoration.none,
       ),
       mlStyle: GoogleFonts.notoSansMalayalam(
-        fontSize: isA4 ? 11.2 : 13.0,
-        height: isA4 ? 1.48 : 1.52,
+        fontSize: 12.8,
+        height: 1.50,
         color: inkPrimary,
         decoration: TextDecoration.none,
       ),
       enStyle: GoogleFonts.plusJakartaSans(
-        fontSize: isA4 ? 10.8 : 12.5,
-        height: isA4 ? 1.42 : 1.45,
+        fontSize: 12.2,
+        height: 1.45,
         color: inkPrimary,
         decoration: TextDecoration.none,
       ),
       arTafsirStyle: GoogleFonts.notoSansArabic(
-        fontSize: isA4 ? 12.2 : 14.0,
-        height: isA4 ? 1.52 : 1.58,
+        fontSize: 13.8,
+        height: 1.55,
         color: inkPrimary,
         decoration: TextDecoration.none,
       ),
@@ -172,7 +171,7 @@ class ExportLayoutSpec {
       textDirection: TextDirection.rtl,
       textScaler: TextScaler.noScaling,
       maxLines: 1,
-    )..layout(maxWidth: innerWidth);
+    )..layout(maxWidth: innerWidth * 0.48);
     final arH = arPainter.height;
     arPainter.dispose();
 
@@ -216,7 +215,7 @@ class ExportLayoutSpec {
       textDirection: TextDirection.rtl,
       textAlign: TextAlign.right,
       textScaler: TextScaler.noScaling,
-    )..layout(maxWidth: arabicMaxWidth);
+    )..layout(minWidth: arabicMaxWidth, maxWidth: arabicMaxWidth);
     final h = tp.height;
     tp.dispose();
     // Padding vertical: 2 * 2 = 4
@@ -250,7 +249,7 @@ class ExportLayoutSpec {
         ),
         textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
         textScaler: TextScaler.noScaling,
-      )..layout(maxWidth: innerWidth);
+      )..layout(minWidth: innerWidth, maxWidth: innerWidth);
       total += tp.height + 2.0; // Padding(bottom: 2)
       tp.dispose();
     }
@@ -260,15 +259,12 @@ class ExportLayoutSpec {
 }
 
 class ExportService {
-  static const double automaticWidth = ExportLayoutSpec.automaticWidth;
-  static const double a4Width = ExportLayoutSpec.a4Width;
-  static const double a4Height = ExportLayoutSpec.a4Height;
+  static const double mobileWidth = ExportLayoutSpec.mobileWidth;
 
   static Future<List<ExportPageData>> paginateSurah({
     required SurahDetail detail,
     required int fromAyah,
     required int toAyah,
-    required ExportPageSize pageSize,
     required bool includeTranslation,
     required List<String> translationCodes,
     required String headerTitle,
@@ -307,7 +303,6 @@ class ExportService {
           blocks: blocks,
         ),
       ],
-      pageSize: pageSize,
       includeTranslation: includeTranslation,
       translationCodes: translationCodes,
       headerTitle: headerTitle,
@@ -317,7 +312,6 @@ class ExportService {
 
   static Future<List<ExportPageData>> paginateJuz({
     required JuzDetail detail,
-    required ExportPageSize pageSize,
     required bool includeTranslation,
     required List<String> translationCodes,
     required String headerTitle,
@@ -362,7 +356,6 @@ class ExportService {
 
     return _paginateSectionUnits(
       units: units,
-      pageSize: pageSize,
       includeTranslation: includeTranslation,
       translationCodes: translationCodes,
       headerTitle: headerTitle,
@@ -372,14 +365,12 @@ class ExportService {
 
   static Future<List<ExportPageData>> _paginateSectionUnits({
     required List<_SurahUnit> units,
-    required ExportPageSize pageSize,
     required bool includeTranslation,
     required List<String> translationCodes,
     required String headerTitle,
     required String headerSubtitle,
   }) async {
-    // Instantiate GoogleFonts styles and await completion so TextPainter measures exact glyph metrics.
-    final spec = ExportLayoutSpec.forPageSize(pageSize);
+    final spec = ExportLayoutSpec.mobile();
     await GoogleFonts.pendingFonts();
 
     final double bismillahHeight = spec.measureBismillahHeight();
@@ -393,7 +384,6 @@ class ExportService {
 
     for (final unit in units) {
       final double bannerHeight = spec.measureBannerHeight(unit.summary);
-      // Pre-compute prefix sums for each ayah's translation height so slice translation height is O(1).
       final transPrefix = List<double>.filled(unit.blocks.length + 1, 0.0);
       final hasTransPrefix = List<int>.filled(unit.blocks.length + 1, 0);
       if (includeTranslation) {
@@ -511,9 +501,224 @@ class ExportService {
     });
   }
 
+  /// Renders a single export page directly via an isolated offscreen PictureRecorder
+  /// at crisp 2.0x resolution (720px wide), completely immune to GPU widget layer glitches.
+  static Future<RenderedExportPage> renderPagePng({
+    required ExportPageData page,
+    required bool includeTranslation,
+    required List<String> translationCodes,
+  }) async {
+    final spec = ExportLayoutSpec.mobile();
+    await GoogleFonts.pendingFonts();
+
+    double totalBodyHeight = 0.0;
+    for (int sIdx = 0; sIdx < page.sections.length; sIdx++) {
+      if (sIdx > 0) totalBodyHeight += spec.sectionGap;
+      final section = page.sections[sIdx];
+      if (section.showBanner) {
+        totalBodyHeight += spec.measureBannerHeight(section.summary);
+      }
+      if (section.showBismillah) {
+        totalBodyHeight += spec.measureBismillahHeight();
+      }
+      if (section.showBanner || section.showBismillah) {
+        totalBodyHeight += 8.0;
+      }
+      totalBodyHeight += spec.measureArabicBlockHeight(section.ayahs);
+      final hasTrans = includeTranslation &&
+          section.ayahs.any((a) => a.translations.isNotEmpty);
+      if (hasTrans) {
+        totalBodyHeight += 15.0;
+        for (final ayah in section.ayahs) {
+          totalBodyHeight +=
+              spec.measureAyahTranslationHeight(ayah, translationCodes);
+        }
+      }
+    }
+
+    final double totalLogicalHeight =
+        (spec.vPad * 2 + totalBodyHeight).ceilToDouble();
+
+    double pixelRatio = 2.0;
+    if (totalLogicalHeight * pixelRatio > 3200.0 && totalLogicalHeight > 0) {
+      pixelRatio = (3200.0 / totalLogicalHeight).clamp(1.2, 2.0);
+    }
+
+    final int pxW = (spec.cardWidth * pixelRatio).round();
+    final int pxH = (totalLogicalHeight * pixelRatio).round();
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.scale(pixelRatio, pixelRatio);
+
+    // Solid opaque white background so shared/exported photos have zero transparency issues
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, spec.cardWidth, totalLogicalHeight),
+      Paint()..color = ExportLayoutSpec.paperBg,
+    );
+
+    double y = spec.vPad;
+
+    for (int sIdx = 0; sIdx < page.sections.length; sIdx++) {
+      if (sIdx > 0) y += spec.sectionGap;
+      final section = page.sections[sIdx];
+      final surah = section.summary;
+
+      if (section.showBanner) {
+        final bannerH = spec.measureBannerHeight(surah);
+        final rrect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(spec.hPad, y, spec.innerWidth, bannerH),
+          const Radius.circular(8),
+        );
+        canvas.drawRRect(
+          rrect,
+          Paint()..color = ExportLayoutSpec.emeraldTint,
+        );
+        canvas.drawRRect(
+          rrect,
+          Paint()
+            ..color = ExportLayoutSpec.emeraldBorder
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.0,
+        );
+
+        final arTp = TextPainter(
+          text: TextSpan(text: surah.nameArabic, style: spec.bannerArStyle),
+          textDirection: TextDirection.rtl,
+          textScaler: TextScaler.noScaling,
+          maxLines: 1,
+        )..layout(maxWidth: spec.innerWidth * 0.48);
+
+        final double enMaxW =
+            (spec.innerWidth - 28.0 - arTp.width - 8.0).clamp(40.0, spec.innerWidth);
+        final enTp = TextPainter(
+          text: TextSpan(
+            text: '${surah.number}. ${surah.englishName}',
+            style: spec.bannerEnStyle,
+          ),
+          textDirection: TextDirection.ltr,
+          textScaler: TextScaler.noScaling,
+          maxLines: 1,
+          ellipsis: '...',
+        )..layout(maxWidth: enMaxW);
+
+        enTp.paint(
+          canvas,
+          Offset(spec.hPad + 14.0, y + (bannerH - enTp.height) / 2),
+        );
+        arTp.paint(
+          canvas,
+          Offset(
+            spec.cardWidth - spec.hPad - 14.0 - arTp.width,
+            y + (bannerH - arTp.height) / 2,
+          ),
+        );
+        enTp.dispose();
+        arTp.dispose();
+        y += bannerH;
+      }
+
+      if (section.showBismillah) {
+        y += 8.0;
+        final bisTp = TextPainter(
+          text: TextSpan(
+            text: 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
+            style: spec.bismillahStyle,
+          ),
+          textDirection: TextDirection.rtl,
+          textScaler: TextScaler.noScaling,
+        )..layout(maxWidth: spec.innerWidth);
+        bisTp.paint(canvas, Offset((spec.cardWidth - bisTp.width) / 2, y));
+        y += bisTp.height;
+        bisTp.dispose();
+      }
+
+      if (section.showBanner || section.showBismillah) {
+        y += 8.0;
+      }
+
+      final arTp = TextPainter(
+        text: TextSpan(
+          style: spec.arabicStyle,
+          children: spec.buildArabicSpans(section.ayahs),
+        ),
+        textDirection: TextDirection.rtl,
+        textAlign: TextAlign.right,
+        textScaler: TextScaler.noScaling,
+      )..layout(minWidth: spec.arabicMaxWidth, maxWidth: spec.arabicMaxWidth);
+      arTp.paint(canvas, Offset(spec.hPad + 4.0, y + 2.0));
+      y += arTp.height + 4.0;
+      arTp.dispose();
+
+      final hasTrans = includeTranslation &&
+          section.ayahs.any((a) => a.translations.isNotEmpty);
+      if (hasTrans) {
+        y += 8.0;
+        canvas.drawLine(
+          Offset(spec.hPad, y + 0.4),
+          Offset(spec.cardWidth - spec.hPad, y + 0.4),
+          Paint()
+            ..color = ExportLayoutSpec.divider
+            ..strokeWidth = 0.8,
+        );
+        y += 7.0;
+
+        for (final ayah in section.ayahs) {
+          if (ayah.translations.isEmpty) continue;
+          bool paintedAny = false;
+          for (final code in translationCodes) {
+            final text = ayah.translations[code];
+            if (text == null || text.isEmpty) continue;
+            paintedAny = true;
+            final style = spec.translationStyle(code);
+            final bool isAr = code == 'ar';
+            final trTp = TextPainter(
+              text: TextSpan(
+                style: style,
+                children: [
+                  TextSpan(
+                    text: '${ayah.numberInSurah}. ',
+                    style: style.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: ExportLayoutSpec.emerald,
+                    ),
+                  ),
+                  TextSpan(text: text, style: style),
+                ],
+              ),
+              textDirection: isAr ? TextDirection.rtl : TextDirection.ltr,
+              textScaler: TextScaler.noScaling,
+            )..layout(minWidth: spec.innerWidth, maxWidth: spec.innerWidth);
+            trTp.paint(canvas, Offset(spec.hPad, y));
+            y += trTp.height + 2.0;
+            trTp.dispose();
+          }
+          if (paintedAny) {
+            y += 4.0;
+          }
+        }
+      }
+    }
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(pxW, pxH);
+    picture.dispose();
+    try {
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        throw Exception('Failed to encode PNG bytes');
+      }
+      return RenderedExportPage(
+        bytes: byteData.buffer.asUint8List(),
+        logicalSize: Size(spec.cardWidth, totalLogicalHeight),
+      );
+    } finally {
+      image.dispose();
+    }
+  }
+
   static Future<Uint8List> buildPdfBytes({
     required List<Uint8List> pagePngs,
-    required ExportPageSize pageSize,
     required List<Size> pageLogicalSizes,
   }) async {
     final doc = pw.Document(
@@ -524,19 +729,14 @@ class ExportService {
     for (int i = 0; i < pagePngs.length; i++) {
       final png = pagePngs[i];
       final memImg = pw.MemoryImage(png);
-      final PdfPageFormat format;
-      if (pageSize == ExportPageSize.a4) {
-        format = PdfPageFormat.a4;
-      } else {
-        final sz = i < pageLogicalSizes.length
-            ? pageLogicalSizes[i]
-            : const Size(automaticWidth, 620);
-        format = PdfPageFormat(
-          sz.width * PdfPageFormat.point,
-          sz.height * PdfPageFormat.point,
-          marginAll: 0,
-        );
-      }
+      final sz = i < pageLogicalSizes.length
+          ? pageLogicalSizes[i]
+          : const Size(mobileWidth, 620);
+      final format = PdfPageFormat(
+        sz.width * PdfPageFormat.point,
+        sz.height * PdfPageFormat.point,
+        marginAll: 0,
+      );
 
       doc.addPage(
         pw.Page(
@@ -615,24 +815,25 @@ class ExportService {
     return false;
   }
 
-  /// Shares PDF via native share sheet; falls back to download if unsupported (e.g. iframe/desktop web).
+  /// Shares PDF via native share sheet with explicit .pdf filename override.
   static Future<bool> sharePdfBytes({
     required Uint8List bytes,
     required String baseName,
     required String title,
   }) async {
     final cleanBase = _sanitizeName(baseName);
+    final fileName = '$cleanBase.pdf';
     try {
       await Share.shareXFiles(
         [
           XFile.fromData(
             bytes,
-            name: '$cleanBase.pdf',
+            name: fileName,
             mimeType: 'application/pdf',
           ),
         ],
+        fileNameOverrides: [fileName],
         subject: title,
-        text: title,
       );
       return true;
     } catch (_) {
@@ -641,26 +842,29 @@ class ExportService {
     }
   }
 
-  /// Shares all paginated PNG images via native share sheet; falls back to download if unsupported.
+  /// Shares all paginated PNG images cleanly as pure photo attachments with explicit
+  /// .png fileNameOverrides (no conflicting text/subject extras) so WhatsApp opens them directly.
   static Future<bool> sharePngPages({
     required List<Uint8List> pages,
     required String baseName,
     required String title,
   }) async {
     final cleanBase = _sanitizeName(baseName);
-    final files = List<XFile>.generate(pages.length, (i) {
+    final fileNames = List<String>.generate(pages.length, (i) {
       final suffix = pages.length > 1 ? '_page_${i + 1}' : '';
+      return '$cleanBase$suffix.png';
+    });
+    final files = List<XFile>.generate(pages.length, (i) {
       return XFile.fromData(
         pages[i],
-        name: '$cleanBase$suffix.png',
+        name: fileNames[i],
         mimeType: 'image/png',
       );
     });
     try {
       await Share.shareXFiles(
         files,
-        subject: title,
-        text: title,
+        fileNameOverrides: fileNames,
       );
       return true;
     } catch (_) {
