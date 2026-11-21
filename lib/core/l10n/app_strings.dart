@@ -154,6 +154,11 @@ class AppStrings {
       _pick('Preparing pages...', 'പേജുകൾ തയ്യാറാക്കുന്നു...', 'جاري تجهيز الصفحات...');
   String get exportSuccess =>
       _pick('Saved successfully', 'വിജയകരമായി സേവ് ചെയ്തു', 'تم الحفظ بنجاح');
+  String savedToGallery(int count) => _pick(
+        'Saved $count image(s) to Gallery (Al-Quran)',
+        '$count ഇമേജ് ഗ്യാലറിയിൽ (Al-Quran) സേവ് ചെയ്തു',
+        'تم حفظ $count صورة في المعرض (Al-Quran)',
+      );
   String get exportError => _pick(
         'Export failed. Please try again.',
         'എക്സ്പോർട്ട് ചെയ്യാനായില്ല. വീണ്ടും ശ്രമിക്കുക.',

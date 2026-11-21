@@ -673,6 +673,7 @@ class ExportPreviewScreen extends StatefulWidget {
 class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
   final GlobalKey _captureKey = GlobalKey();
   ExportPageData? _capturingPage;
+  int _capturingIndex = -1;
   bool _isExporting = false;
   double _progress = 0.0;
   String _progressLabel = '';
@@ -693,27 +694,39 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
 
     final List<Uint8List> capturedPngs = [];
     final List<Size> logicalSizes = [];
-    final double pixelRatio =
-        widget.pageSize == ExportPageSize.a4 ? 2.1 : 2.5;
 
     try {
+      // Ensure Arabic & translation Google Fonts are completely loaded before capturing page 1
+      await GoogleFonts.pendingFonts();
+
       for (int i = 0; i < widget.pages.length; i++) {
         if (!mounted) return;
         setState(() {
+          _capturingIndex = i;
           _capturingPage = widget.pages[i];
           _progress = (i + 0.5) / widget.pages.length;
           _progressLabel = '${t.preparingPages} ${i + 1}/${widget.pages.length}';
         });
 
         await WidgetsBinding.instance.endOfFrame;
+        await WidgetsBinding.instance.endOfFrame;
+        await GoogleFonts.pendingFonts();
         await Future<void>.delayed(const Duration(milliseconds: 24));
 
         final renderObject = _captureKey.currentContext?.findRenderObject();
-        if (renderObject is! RenderRepaintBoundary) {
+        if (renderObject is! RenderRepaintBoundary || !renderObject.hasSize) {
           throw Exception('Capture boundary unavailable');
         }
 
-        logicalSizes.add(renderObject.size);
+        final pageSize = renderObject.size;
+        logicalSizes.add(pageSize);
+
+        double pixelRatio =
+            widget.pageSize == ExportPageSize.a4 ? 2.1 : 2.5;
+        if (pageSize.height * pixelRatio > 3800.0 && pageSize.height > 0) {
+          pixelRatio = (3800.0 / pageSize.height).clamp(1.2, 2.5);
+        }
+
         final image = await renderObject.toImage(pixelRatio: pixelRatio);
         try {
           final byteData =
@@ -728,7 +741,13 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
       }
 
       if (!mounted) return;
-      setState(() => _capturingPage = null);
+      setState(() {
+        _capturingPage = null;
+        _capturingIndex = -1;
+      });
+
+      bool saved = false;
+      bool savedToGallery = false;
 
       if (widget.format == ExportFormat.pdf) {
         final pdfBytes = await ExportService.buildPdfBytes(
@@ -743,7 +762,7 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
             title: widget.documentTitle,
           );
         } else {
-          await ExportService.savePdfBytes(
+          saved = await ExportService.savePdfBytes(
             bytes: pdfBytes,
             baseName: widget.baseFileName,
           );
@@ -756,17 +775,24 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
             title: widget.documentTitle,
           );
         } else {
-          await ExportService.savePngPages(
+          savedToGallery = await ExportService.savePngPages(
             pages: capturedPngs,
             baseName: widget.baseFileName,
           );
+          saved = true;
         }
       }
 
       if (!mounted) return;
-      if (!share) {
+      if (!share && saved) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.exportSuccess)),
+          SnackBar(
+            content: Text(
+              savedToGallery
+                  ? t.savedToGallery(capturedPngs.length)
+                  : t.exportSuccess,
+            ),
+          ),
         );
       }
     } catch (_) {
@@ -778,6 +804,7 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
       if (mounted) {
         setState(() {
           _capturingPage = null;
+          _capturingIndex = -1;
           _isExporting = false;
         });
       }
@@ -797,24 +824,24 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
     return Directionality(
       textDirection: t.textDirection,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          // Off-screen paint layer underneath opaque scaffold for crisp PNG/PDF capture
+          // Unconstrained exact-size capture layer behind opaque preview scaffold
           if (_capturingPage != null)
             Positioned(
               left: 0,
               top: 0,
+              width: _cardLogicalWidth,
+              height: widget.pageSize == ExportPageSize.a4
+                  ? ExportService.a4Height
+                  : 4000.0,
               child: IgnorePointer(
-                child: OverflowBox(
-                  minWidth: _cardLogicalWidth,
-                  maxWidth: _cardLogicalWidth,
-                  minHeight: 0,
-                  maxHeight: widget.pageSize == ExportPageSize.a4
-                      ? ExportService.a4Height
-                      : double.infinity,
+                child: Align(
                   alignment: Alignment.topLeft,
                   child: RepaintBoundary(
                     key: _captureKey,
                     child: _ExportPageCard(
+                      key: ValueKey('cap_card_$_capturingIndex'),
                       page: _capturingPage!,
                       pageSize: widget.pageSize,
                       includeTranslation: widget.includeTranslation,
@@ -965,6 +992,7 @@ class _ExportPageCard extends StatelessWidget {
   final AppStrings strings;
 
   const _ExportPageCard({
+    super.key,
     required this.page,
     required this.pageSize,
     required this.includeTranslation,
@@ -985,8 +1013,8 @@ class _ExportPageCard extends StatelessWidget {
     final bool isA4 = pageSize == ExportPageSize.a4;
     final double cardWidth =
         isA4 ? ExportService.a4Width : ExportService.automaticWidth;
-    final double hPad = isA4 ? 32.0 : 20.0;
-    final double vPad = isA4 ? 26.0 : 18.0;
+    final double hPad = isA4 ? 34.0 : 22.0;
+    final double vPad = isA4 ? 28.0 : 20.0;
     final double innerWidth = cardWidth - hPad * 2;
 
     final double arabicFontSize = isA4 ? 19.0 : 22.0;
@@ -1167,33 +1195,37 @@ class _ExportPageCard extends StatelessWidget {
 
         const SizedBox(height: 10),
 
-        // Continuous Mushaf Arabic block for this section
-        Directionality(
-          textDirection: TextDirection.rtl,
-          child: Text.rich(
-            TextSpan(
-              children: [
-                for (final ayah in section.ayahs) ...[
-                  TextSpan(
-                    text: ayah.arabicText,
-                    style: GoogleFonts.amiri(
-                      fontSize: arabicFontSize,
-                      height: 1.85,
-                      color: _inkPrimary,
+        // Continuous RTL Mushaf Arabic block with generous padding so diacritics never clip
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  for (final ayah in section.ayahs) ...[
+                    TextSpan(
+                      text: ayah.arabicText,
+                      style: GoogleFonts.amiri(
+                        fontSize: arabicFontSize,
+                        height: 1.95,
+                        color: _inkPrimary,
+                      ),
                     ),
-                  ),
-                  TextSpan(
-                    text: ApiConfig.ayahEndMarker(ayah.numberInSurah),
-                    style: GoogleFonts.amiri(
-                      fontSize: arabicFontSize * 0.86,
-                      fontWeight: FontWeight.w700,
-                      color: _emerald,
+                    TextSpan(
+                      text: ApiConfig.ayahEndMarker(ayah.numberInSurah),
+                      style: GoogleFonts.amiri(
+                        fontSize: arabicFontSize * 0.86,
+                        fontWeight: FontWeight.w700,
+                        color: _emerald,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.right,
             ),
-            textAlign: TextAlign.justify,
           ),
         ),
 

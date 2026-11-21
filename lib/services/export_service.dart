@@ -2,6 +2,8 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:file_saver/file_saver.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:gal/gal.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
@@ -10,8 +12,9 @@ import '../models/surah_model.dart';
 
 class ExportService {
   /// Logical widths for page layouts.
-  /// Automatic uses a mobile-friendly 360px logical width with normal text sizes.
-  /// A4 uses standard 595x842 point proportions.
+  /// Automatic uses a mobile-friendly 360px logical width with normal text sizes
+  /// and packs selected ranges together cleanly onto one page (splitting only
+  /// when approaching safe mobile GPU texture height limits).
   static const double automaticWidth = 360.0;
   static const double a4Width = 595.0;
   static const double a4Height = 842.0;
@@ -127,15 +130,16 @@ class ExportService {
     required String headerTitle,
     required String headerSubtitle,
   }) {
-    // Budget in approximate vertical points of body content inside the card.
     final bool isA4 = pageSize == ExportPageSize.a4;
-    final double maxBodyWeight = isA4 ? 575.0 : 490.0;
+    // Automatic keeps selected ranges/short Surahs together on one clean page (~1350pt max
+    // so 2.5x pixelRatio stays safely below 4096px GPU texture limit on budget phones).
+    final double maxBodyWeight = isA4 ? 530.0 : 1350.0;
     final double headerBannerWeight = isA4 ? 54.0 : 58.0;
     final double bismillahWeight = isA4 ? 38.0 : 40.0;
-    final double arabicCharsPerLine = isA4 ? 56.0 : 30.0;
-    final double arabicLineHeight = isA4 ? 34.0 : 39.0;
-    final double transCharsPerLine = isA4 ? 76.0 : 40.0;
-    final double transLineHeight = isA4 ? 17.5 : 21.0;
+    final double arabicCharsPerLine = isA4 ? 48.0 : 28.0;
+    final double arabicLineHeight = isA4 ? 38.0 : 41.0;
+    final double transCharsPerLine = isA4 ? 68.0 : 38.0;
+    final double transLineHeight = isA4 ? 19.0 : 21.5;
 
     final rawPages = <List<ExportSurahSection>>[];
     List<ExportSurahSection> currentPageSections = [];
@@ -155,7 +159,6 @@ class ExportService {
         final double sectionHeaderCost =
             headerBannerWeight + (showBismillah ? bismillahWeight : 0.0);
 
-        // If the section header + first ayah won't fit on the current page, flush page first.
         final double firstAyahWeight = _estimateAyahWeight(
           block: unit.blocks[idx],
           includeTranslation: includeTranslation,
@@ -237,10 +240,9 @@ class ExportService {
     required double transCharsPerLine,
     required double transLineHeight,
   }) {
-    // Include ayah number ornament length (+7 chars)
     final arLines = ((block.arabicText.length + 7) / arabicCharsPerLine)
         .ceil()
-        .clamp(1, 100);
+        .clamp(1, 120);
     double weight = arLines * arabicLineHeight + 10.0;
 
     if (includeTranslation && block.translations.isNotEmpty) {
@@ -248,7 +250,7 @@ class ExportService {
       for (final text in block.translations.values) {
         final trLines = ((text.length + 6) / transCharsPerLine)
             .ceil()
-            .clamp(1, 200);
+            .clamp(1, 220);
         weight += trLines * transLineHeight + 6.0;
       }
     }
@@ -300,23 +302,50 @@ class ExportService {
     return doc.save();
   }
 
-  static Future<void> savePdfBytes({
+  /// Saves PDF directly via browser download on Web or native Save As (Downloads) on Android.
+  static Future<bool> savePdfBytes({
     required Uint8List bytes,
     required String baseName,
   }) async {
-    await FileSaver.instance.saveFile(
-      name: _sanitizeName(baseName),
+    final cleanBase = _sanitizeName(baseName);
+    if (kIsWeb) {
+      await FileSaver.instance.saveFile(
+        name: cleanBase,
+        bytes: bytes,
+        ext: 'pdf',
+        mimeType: MimeType.pdf,
+      );
+      return true;
+    }
+
+    final savedPath = await FileSaver.instance.saveAs(
+      name: cleanBase,
       bytes: bytes,
       ext: 'pdf',
       mimeType: MimeType.pdf,
     );
+    return savedPath != null && savedPath.isNotEmpty;
   }
 
-  static Future<void> savePngPages({
+  /// Saves every PNG page directly into Android Gallery ('Al-Quran' album) via MediaStore,
+  /// or triggers browser downloads on Web.
+  static Future<bool> savePngPages({
     required List<Uint8List> pages,
     required String baseName,
   }) async {
     final cleanBase = _sanitizeName(baseName);
+    if (!kIsWeb) {
+      for (int i = 0; i < pages.length; i++) {
+        final suffix = pages.length > 1 ? '_page_${i + 1}' : '';
+        await Gal.putImageBytes(
+          pages[i],
+          album: 'Al-Quran',
+          name: '$cleanBase$suffix',
+        );
+      }
+      return true;
+    }
+
     for (int i = 0; i < pages.length; i++) {
       final suffix = pages.length > 1 ? '_page_${i + 1}' : '';
       await FileSaver.instance.saveFile(
@@ -326,12 +355,13 @@ class ExportService {
         mimeType: MimeType.png,
       );
       if (i < pages.length - 1) {
-        await Future<void>.delayed(const Duration(milliseconds: 120));
+        await Future<void>.delayed(const Duration(milliseconds: 380));
       }
     }
+    return false;
   }
 
-  /// Shares PDF via native share sheet; falls back to download if unsupported (e.g. desktop/iframe web).
+  /// Shares PDF via native share sheet; falls back to download if unsupported (e.g. iframe/desktop web).
   static Future<bool> sharePdfBytes({
     required Uint8List bytes,
     required String baseName,
@@ -357,7 +387,7 @@ class ExportService {
     }
   }
 
-  /// Shares paginated PNG images via native share sheet; falls back to download if unsupported.
+  /// Shares all paginated PNG images via native share sheet; falls back to download if unsupported.
   static Future<bool> sharePngPages({
     required List<Uint8List> pages,
     required String baseName,
