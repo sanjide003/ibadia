@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import '../core/l10n/app_strings.dart';
 import '../models/surah_model.dart';
 import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
+import '../services/storage_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/web_pwa_widgets.dart';
 import 'export_screen.dart';
@@ -23,25 +25,192 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TabController _quranTabController;
+  ScrollController? _surahScrollCtrl;
+  ScrollController? _juzScrollCtrl;
+  ScrollController? _bookmarksScrollCtrl;
+
+  ScrollController get _surahScrollController =>
+      _surahScrollCtrl ??= ScrollController()..addListener(_onHomeListScrolled);
+  ScrollController get _juzScrollController =>
+      _juzScrollCtrl ??= ScrollController()..addListener(_onHomeListScrolled);
+  ScrollController get _bookmarksScrollController => _bookmarksScrollCtrl ??=
+      ScrollController()..addListener(_onHomeListScrolled);
+
   int _tabIndex = 0;
   bool _shownStartupUpdatePrompt = false;
+  bool? _hasRestoredStartupStateBacking;
+  bool get _hasRestoredStartupState => _hasRestoredStartupStateBacking ?? false;
+  set _hasRestoredStartupState(bool v) => _hasRestoredStartupStateBacking = v;
+
+  bool? _isReaderOpenBacking;
+  bool get _isReaderOpen => _isReaderOpenBacking ?? false;
+  set _isReaderOpen(bool v) => _isReaderOpenBacking = v;
+
+  double? _pendingSurahScrollOffset;
+  double? _pendingJuzScrollOffset;
+  double? _pendingBookmarksScrollOffset;
+  Timer? _homeScrollDebounce;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _quranTabController = TabController(length: 2, vsync: this);
+    _quranTabController.addListener(_onQuranSubTabChanged);
+    // Initialize lazy scroll controllers
+    _surahScrollController;
+    _juzScrollController;
+    _bookmarksScrollController;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(updateProvider.notifier).checkForUpdates(silent: true);
+      _restoreAppResumeState();
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _homeScrollDebounce?.cancel();
+    _quranTabController.removeListener(_onQuranSubTabChanged);
     _quranTabController.dispose();
+    _surahScrollCtrl?.removeListener(_onHomeListScrolled);
+    _juzScrollCtrl?.removeListener(_onHomeListScrolled);
+    _bookmarksScrollCtrl?.removeListener(_onHomeListScrolled);
+    _surahScrollCtrl?.dispose();
+    _juzScrollCtrl?.dispose();
+    _bookmarksScrollCtrl?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_isReaderOpen &&
+        (state == AppLifecycleState.inactive ||
+            state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden ||
+            state == AppLifecycleState.detached)) {
+      _persistHomeState(forceHomeActive: true);
+    }
+  }
+
+  void _onQuranSubTabChanged() {
+    if (_quranTabController.indexIsChanging) return;
+    _persistHomeState(forceHomeActive: !_isReaderOpen);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyPendingHomeScrollOffsets();
+    });
+  }
+
+  void _onHomeListScrolled() {
+    _homeScrollDebounce?.cancel();
+    _homeScrollDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (mounted && !_isReaderOpen) {
+        _persistHomeState(forceHomeActive: true);
+      }
+    });
+  }
+
+  void _persistHomeState({bool forceHomeActive = false}) {
+    ref.read(appResumeProvider.notifier).updateHomeTabsAndScroll(
+          lastScreen: forceHomeActive ? 'home' : null,
+          homeTabIndex: _tabIndex,
+          quranSubTabIndex: _quranTabController.index,
+          surahListScrollOffset: _surahScrollController.hasClients
+              ? _surahScrollController.offset
+              : null,
+          juzListScrollOffset: _juzScrollController.hasClients
+              ? _juzScrollController.offset
+              : null,
+          bookmarksScrollOffset: _bookmarksScrollController.hasClients
+              ? _bookmarksScrollController.offset
+              : null,
+        );
+  }
+
+  void _applyPendingHomeScrollOffsets() {
+    if (!mounted) return;
+    if (_pendingSurahScrollOffset != null &&
+        _surahScrollController.hasClients) {
+      final maxExt = _surahScrollController.position.maxScrollExtent;
+      if (maxExt > 0 || _pendingSurahScrollOffset == 0) {
+        _surahScrollController.jumpTo(
+          _pendingSurahScrollOffset!.clamp(0.0, maxExt),
+        );
+        _pendingSurahScrollOffset = null;
+      }
+    }
+    if (_pendingJuzScrollOffset != null && _juzScrollController.hasClients) {
+      final maxExt = _juzScrollController.position.maxScrollExtent;
+      if (maxExt > 0 || _pendingJuzScrollOffset == 0) {
+        _juzScrollController.jumpTo(
+          _pendingJuzScrollOffset!.clamp(0.0, maxExt),
+        );
+        _pendingJuzScrollOffset = null;
+      }
+    }
+    if (_pendingBookmarksScrollOffset != null &&
+        _bookmarksScrollController.hasClients) {
+      final maxExt = _bookmarksScrollController.position.maxScrollExtent;
+      if (maxExt > 0 || _pendingBookmarksScrollOffset == 0) {
+        _bookmarksScrollController.jumpTo(
+          _pendingBookmarksScrollOffset!.clamp(0.0, maxExt),
+        );
+        _pendingBookmarksScrollOffset = null;
+      }
+    }
+  }
+
+  Future<void> _restoreAppResumeState() async {
+    if (_hasRestoredStartupState) return;
+    _hasRestoredStartupState = true;
+
+    final resume = await ref.read(appResumeProvider.notifier).ensureLoaded();
+    final lastRead = await ref.read(lastReadProvider.notifier).ensureLoaded();
+    await ref.read(settingsProvider.notifier).ensureLoaded();
+    if (!mounted) return;
+
+    final restoredTab = resume.homeTabIndex.clamp(0, 2);
+    final restoredSubTab = resume.quranSubTabIndex.clamp(0, 1);
+
+    setState(() {
+      _tabIndex = restoredTab;
+      if (_quranTabController.index != restoredSubTab) {
+        _quranTabController.index = restoredSubTab;
+      }
+      _pendingSurahScrollOffset = resume.surahListScrollOffset;
+      _pendingJuzScrollOffset = resume.juzListScrollOffset;
+      _pendingBookmarksScrollOffset = resume.bookmarksScrollOffset;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyPendingHomeScrollOffsets();
+    });
+
+    if (resume.lastScreen == 'reader') {
+      final targetSurah = resume.activeSurahNumber ?? lastRead?.surahNumber;
+      if (targetSurah != null) {
+        final targetAyah = resume.activeAyahNumber ?? lastRead?.ayahNumber;
+        final targetAnchorPx = resume.activeSurahNumber != null
+            ? resume.activeAnchorOffsetPx
+            : lastRead?.anchorOffsetPx;
+        final targetMode = resume.activeSurahNumber != null
+            ? resume.activeReadingMode
+            : lastRead?.readingMode;
+
+        await _openSurah(
+          context,
+          targetSurah,
+          ayahNo: targetAyah,
+          anchorOffsetPx: targetAnchorPx,
+          savedReadingMode: targetMode,
+          instantTransition: true,
+        );
+      }
+    }
   }
 
   @override
@@ -52,6 +221,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final settings = ref.watch(settingsProvider);
     final t = ref.watch(stringsProvider);
     final updateState = ref.watch(updateProvider);
+    ref.listen<AsyncValue<List<SurahSummary>>>(surahListProvider, (_, next) {
+      if (next.hasValue) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _applyPendingHomeScrollOffsets();
+        });
+      }
+    });
     ref.listen<AppUpdateState>(updateProvider, (prev, next) {
       if (!_shownStartupUpdatePrompt &&
           next.updateAvailable &&
@@ -195,6 +371,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           children: [
                             // 1. Surah Tab View
                             _SurahTabView(
+                              scrollController: _surahScrollController,
                               surahsAsync: surahsAsync,
                               lastRead: lastRead,
                               appLanguage: settings.appLanguage,
@@ -203,16 +380,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               cardBg: cardBg,
                               cardBorder: cardBorder,
                               onRetry: () => ref.invalidate(surahListProvider),
-                              onOpenSurah: (surahNo, {int? ayahNo}) =>
+                              onOpenSurah: (
+                                surahNo, {
+                                int? ayahNo,
+                                double? anchorOffsetPx,
+                                String? savedReadingMode,
+                              }) =>
                                   _openSurah(
                                 context,
                                 surahNo,
-                                initialAyah: ayahNo,
+                                ayahNo: ayahNo,
+                                anchorOffsetPx: anchorOffsetPx,
+                                savedReadingMode: savedReadingMode,
                               ),
                             ),
 
                             // 2. Juz Tab View
                             _JuzTabView(
+                              scrollController: _juzScrollController,
                               strings: t,
                               cs: cs,
                               cardBg: cardBg,
@@ -221,6 +406,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 context,
                                 juz.startSurah,
                                 initialAyah: juz.startAyah,
+                                ayahNo: juz.startAyah,
                               ),
                             ),
                           ],
@@ -265,11 +451,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     )
                   : _tabIndex == 1
                       ? _BookmarksTab(
+                          scrollController: _bookmarksScrollController,
                           bookmarks: bookmarks,
                           surahs: surahsAsync.valueOrNull ?? const [],
                           strings: t,
                           onOpenSurah: (surahNo, {int? ayahNo}) =>
-                              _openSurah(context, surahNo, initialAyah: ayahNo),
+                              _openSurah(context, surahNo, ayahNo: ayahNo),
                         )
                       : const ExportScreen(),
             ),
@@ -277,7 +464,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: _tabIndex,
-          onDestinationSelected: (i) => setState(() => _tabIndex = i),
+          onDestinationSelected: (i) {
+            setState(() => _tabIndex = i);
+            _persistHomeState(forceHomeActive: true);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _applyPendingHomeScrollOffsets();
+            });
+          },
           destinations: [
             NavigationDestination(
               icon: const Icon(Icons.auto_stories_outlined),
@@ -300,16 +493,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  void _openSurah(BuildContext context, int surahNumber, {int? initialAyah}) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SurahReaderScreen(
-          initialSurahNumber: surahNumber,
-          initialAyahNumber: initialAyah,
-        ),
-      ),
-    );
+  Future<void> _openSurah(
+    BuildContext context,
+    int surahNumber, {
+    int? initialAyah,
+    int? ayahNo,
+    double? anchorOffsetPx,
+    String? savedReadingMode,
+    bool instantTransition = false,
+  }) async {
+    final resolvedAyah = ayahNo ?? initialAyah;
+    _persistHomeState();
+    _isReaderOpen = true;
+    final currentMode = ref.read(settingsProvider).readingMode;
+    await ref.read(appResumeProvider.notifier).setReaderActive(
+          surahNumber: surahNumber,
+          ayahNumber: resolvedAyah ?? 1,
+          anchorOffsetPx: anchorOffsetPx ?? 0.0,
+          readingMode: savedReadingMode ?? currentMode,
+        );
+    if (!context.mounted) {
+      _isReaderOpen = false;
+      return;
+    }
+
+    final Route<void> route = instantTransition
+        ? PageRouteBuilder<void>(
+            transitionDuration: Duration.zero,
+            reverseTransitionDuration: const Duration(milliseconds: 220),
+            pageBuilder: (_, __, ___) => SurahReaderScreen(
+              initialSurahNumber: surahNumber,
+              initialAyahNumber: resolvedAyah,
+              initialAnchorOffsetPx: anchorOffsetPx,
+              initialSavedReadingMode: savedReadingMode,
+            ),
+          )
+        : MaterialPageRoute<void>(
+            builder: (_) => SurahReaderScreen(
+              initialSurahNumber: surahNumber,
+              initialAyahNumber: resolvedAyah,
+              initialAnchorOffsetPx: anchorOffsetPx,
+              initialSavedReadingMode: savedReadingMode,
+            ),
+          );
+
+    await Navigator.push<void>(context, route);
+    _isReaderOpen = false;
+    if (!mounted) return;
+    ref.read(appResumeProvider.notifier).markReturnedHome();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyPendingHomeScrollOffsets();
+    });
   }
 
   void _showSurahSearchSheet({
@@ -398,17 +632,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 }
 
 class _SurahTabView extends StatelessWidget {
+  final ScrollController scrollController;
   final AsyncValue<List<SurahSummary>> surahsAsync;
-  final dynamic lastRead;
+  final LastReadPosition? lastRead;
   final String appLanguage;
   final AppStrings strings;
   final ColorScheme cs;
   final Color cardBg;
   final Color cardBorder;
   final VoidCallback onRetry;
-  final void Function(int surahNo, {int? ayahNo}) onOpenSurah;
+  final void Function(
+    int surahNo, {
+    int? ayahNo,
+    double? anchorOffsetPx,
+    String? savedReadingMode,
+  }) onOpenSurah;
 
   const _SurahTabView({
+    required this.scrollController,
     required this.surahsAsync,
     required this.lastRead,
     required this.appLanguage,
@@ -441,17 +682,19 @@ class _SurahTabView extends StatelessWidget {
       ),
       data: (surahs) {
         final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+        final currentLastRead = lastRead;
         return ListView.builder(
+          controller: scrollController,
           padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 92),
           itemCount: surahs.length + 2,
           itemBuilder: (context, index) {
             // Item 0: Optional Last Read resume banner
             if (index == 0) {
-              if (lastRead == null) return const SizedBox.shrink();
+              if (currentLastRead == null) return const SizedBox.shrink();
               final surahLabel = appLanguage == 'ar' &&
-                      (lastRead.surahArabicName as String).isNotEmpty
-                  ? lastRead.surahArabicName
-                  : lastRead.surahName;
+                      currentLastRead.surahArabicName.isNotEmpty
+                  ? currentLastRead.surahArabicName
+                  : currentLastRead.surahName;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: Material(
@@ -460,8 +703,10 @@ class _SurahTabView extends StatelessWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () => onOpenSurah(
-                      lastRead.surahNumber as int,
-                      ayahNo: lastRead.ayahNumber as int,
+                      currentLastRead.surahNumber,
+                      ayahNo: currentLastRead.ayahNumber,
+                      anchorOffsetPx: currentLastRead.anchorOffsetPx,
+                      savedReadingMode: currentLastRead.readingMode,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -488,7 +733,7 @@ class _SurahTabView extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '$surahLabel — ${strings.ayahLabel} ${lastRead.ayahNumber}',
+                                  '$surahLabel — ${strings.ayahLabel} ${currentLastRead.ayahNumber}',
                                   style: TextStyle(
                                     fontSize: 15.5,
                                     fontWeight: FontWeight.w700,
@@ -630,6 +875,7 @@ class _SurahTabView extends StatelessWidget {
 }
 
 class _JuzTabView extends StatelessWidget {
+  final ScrollController scrollController;
   final AppStrings strings;
   final ColorScheme cs;
   final Color cardBg;
@@ -637,6 +883,7 @@ class _JuzTabView extends StatelessWidget {
   final ValueChanged<JuzInfo> onOpenJuz;
 
   const _JuzTabView({
+    required this.scrollController,
     required this.strings,
     required this.cs,
     required this.cardBg,
@@ -648,6 +895,7 @@ class _JuzTabView extends StatelessWidget {
   Widget build(BuildContext context) {
     final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
     return ListView.builder(
+      controller: scrollController,
       padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 92),
       itemCount: ApiConfig.juzCatalog.length,
       itemBuilder: (context, index) {
@@ -928,12 +1176,14 @@ class _RubElHizbPainter extends CustomPainter {
 }
 
 class _BookmarksTab extends StatelessWidget {
+  final ScrollController scrollController;
   final List<String> bookmarks;
   final List<SurahSummary> surahs;
   final AppStrings strings;
   final void Function(int surahNo, {int? ayahNo}) onOpenSurah;
 
   const _BookmarksTab({
+    required this.scrollController,
     required this.bookmarks,
     required this.surahs,
     required this.strings,
@@ -956,6 +1206,7 @@ class _BookmarksTab extends StatelessWidget {
     final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
 
     return ListView.separated(
+      controller: scrollController,
       padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 8),
       itemCount: bookmarks.length,
       separatorBuilder: (_, __) => const Divider(height: 1),

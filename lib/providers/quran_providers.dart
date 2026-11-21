@@ -14,16 +14,30 @@ final surahListProvider = FutureProvider<List<SurahSummary>>((ref) async {
 
 class SettingsNotifier extends StateNotifier<AppSettings> {
   final StorageService _storage;
+  Future<void>? _initFutureBacking;
+  Future<void> get _initFuture => _initFutureBacking ??= _init();
+  bool? _hasExplicitWriteBacking;
+  bool get _hasExplicitWrite => _hasExplicitWriteBacking ?? false;
+  set _hasExplicitWrite(bool v) => _hasExplicitWriteBacking = v;
 
   SettingsNotifier(this._storage) : super(const AppSettings()) {
-    _init();
+    _initFuture;
   }
 
   Future<void> _init() async {
-    state = await _storage.loadSettings();
+    final loaded = await _storage.loadSettings();
+    if (!_hasExplicitWrite) {
+      state = loaded;
+    }
+  }
+
+  Future<AppSettings> ensureLoaded() async {
+    await _initFuture;
+    return state;
   }
 
   Future<void> update(AppSettings next) async {
+    _hasExplicitWrite = true;
     state = next;
     await _storage.saveSettings(next);
   }
@@ -81,16 +95,30 @@ final bookmarksProvider =
 
 class LastReadNotifier extends StateNotifier<LastReadPosition?> {
   final StorageService _storage;
+  Future<void>? _initFutureBacking;
+  Future<void> get _initFuture => _initFutureBacking ??= _init();
+  bool? _hasExplicitWriteBacking;
+  bool get _hasExplicitWrite => _hasExplicitWriteBacking ?? false;
+  set _hasExplicitWrite(bool v) => _hasExplicitWriteBacking = v;
 
   LastReadNotifier(this._storage) : super(null) {
-    _init();
+    _initFuture;
   }
 
   Future<void> _init() async {
-    state = await _storage.loadLastRead();
+    final loaded = await _storage.loadLastRead();
+    if (!_hasExplicitWrite) {
+      state = loaded;
+    }
+  }
+
+  Future<LastReadPosition?> ensureLoaded() async {
+    await _initFuture;
+    return state;
   }
 
   Future<void> setPosition(LastReadPosition pos) async {
+    _hasExplicitWrite = true;
     state = pos;
     await _storage.saveLastRead(pos);
   }
@@ -99,4 +127,89 @@ class LastReadNotifier extends StateNotifier<LastReadPosition?> {
 final lastReadProvider =
     StateNotifierProvider<LastReadNotifier, LastReadPosition?>((ref) {
   return LastReadNotifier(ref.read(storageServiceProvider));
+});
+
+class AppResumeNotifier extends StateNotifier<AppResumeState> {
+  final StorageService _storage;
+  Future<void>? _initFutureBacking;
+  Future<void> get _initFuture => _initFutureBacking ??= _init();
+  bool? _hasExplicitWriteBacking;
+  bool get _hasExplicitWrite => _hasExplicitWriteBacking ?? false;
+  set _hasExplicitWrite(bool v) => _hasExplicitWriteBacking = v;
+
+  AppResumeNotifier(this._storage) : super(const AppResumeState()) {
+    _initFuture;
+  }
+
+  Future<void> _init() async {
+    final loaded = await _storage.loadResumeState();
+    if (!_hasExplicitWrite) {
+      state = loaded;
+    }
+  }
+
+  Future<AppResumeState> ensureLoaded() async {
+    await _initFuture;
+    return state;
+  }
+
+  Future<void> updateState(AppResumeState Function(AppResumeState) updater) async {
+    await _initFuture;
+    _hasExplicitWrite = true;
+    final next = updater(state);
+    state = next;
+    await _storage.saveResumeState(next);
+  }
+
+  Future<void> updateHomeTabsAndScroll({
+    int? homeTabIndex,
+    int? quranSubTabIndex,
+    double? surahListScrollOffset,
+    double? juzListScrollOffset,
+    double? bookmarksScrollOffset,
+    String? lastScreen,
+  }) {
+    return updateState(
+      (s) => s.copyWith(
+        lastScreen: lastScreen ?? s.lastScreen,
+        homeTabIndex: homeTabIndex ?? s.homeTabIndex,
+        quranSubTabIndex: quranSubTabIndex ?? s.quranSubTabIndex,
+        surahListScrollOffset:
+            surahListScrollOffset ?? s.surahListScrollOffset,
+        juzListScrollOffset: juzListScrollOffset ?? s.juzListScrollOffset,
+        bookmarksScrollOffset:
+            bookmarksScrollOffset ?? s.bookmarksScrollOffset,
+      ),
+    );
+  }
+
+  Future<void> setReaderActive({
+    required int surahNumber,
+    required int ayahNumber,
+    int? pageNumber,
+    required double anchorOffsetPx,
+    required String readingMode,
+  }) {
+    return updateState(
+      (s) => s.copyWith(
+        lastScreen: 'reader',
+        activeSurahNumber: surahNumber,
+        activeAyahNumber: ayahNumber,
+        activePageNumber: pageNumber,
+        activeAnchorOffsetPx: anchorOffsetPx,
+        activeReadingMode: readingMode,
+      ),
+    );
+  }
+
+  Future<void> markReturnedHome() {
+    return updateState(
+      (s) => s.copyWith(lastScreen: 'home'),
+    );
+  }
+}
+
+final appResumeProvider =
+    StateNotifierProvider<AppResumeNotifier, AppResumeState>((ref) {
+  return AppResumeNotifier(ref.read(storageServiceProvider));
 });
