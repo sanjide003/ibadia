@@ -18,4 +18,6 @@ class WebPlatformBridge {
   Future<bool> promptPwaInstall() async => false;
 
   bool openExternalUrl(String url) => false;
+
+  Future<bool> applyWebUpdate() async => false;
 }

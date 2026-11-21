@@ -26,12 +26,77 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Preserve consistent Android signing keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-signing-keystore-v1
+
+      - name: Configure optional release keystore from secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p ~/.android
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > ~/.android/release.jks
+            echo "USE_RELEASE_KEYSTORE=true" >> "$GITHUB_ENV"
+          else
+            echo "USE_RELEASE_KEYSTORE=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Generate fresh Android Gradle wrapper
         run: flutter create . --platforms=android --org com.quranapp.malayalam && rm -f test/widget_test.dart
 
-      - name: Apply Custom Android Manifest
+      - name: Apply Custom Android Manifest, FileProvider & Updater MainActivity
         run: |
+          mkdir -p android/app/src/main/res/xml
+          mkdir -p android/app/src/main/kotlin/com/quranapp/malayalam/quran_malayalam_app
           cp android_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          cp android_config/file_paths.xml android/app/src/main/res/xml/file_paths.xml
+          cp android_config/MainActivity.kt android/app/src/main/kotlin/com/quranapp/malayalam/quran_malayalam_app/MainActivity.kt
+
+      - name: Configure release keystore signing if secret is present
+        if: env.USE_RELEASE_KEYSTORE == 'true'
+        env:
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cat > android/key.properties <<EOF
+          storePassword=${ANDROID_STORE_PASSWORD}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          storeFile=${HOME}/.android/release.jks
+          EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle.kts")
+          text = p.read_text()
+          signing_block = """import java.util.Properties
+          import java.io.FileInputStream
+
+          val keystoreProperties = Properties()
+          val keystorePropertiesFile = rootProject.file("key.properties")
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+          }
+          """
+          if "keystorePropertiesFile" not in text:
+              text = signing_block + "\n" + text
+              text = text.replace(
+                  'signingConfig = signingConfigs.getByName("debug")',
+                  '''signingConfigs {
+                      create("release") {
+                          keyAlias = keystoreProperties.getProperty("keyAlias")
+                          keyPassword = keystoreProperties.getProperty("keyPassword")
+                          storeFile = file(keystoreProperties.getProperty("storeFile"))
+                          storePassword = keystoreProperties.getProperty("storePassword")
+                      }
+                  }
+                  signingConfig = signingConfigs.getByName("release")'''
+              )
+              p.write_text(text)
+          PY
 
       - name: Install dependencies
         run: flutter pub get
@@ -47,21 +112,53 @@ jobs:
           QURAN_API_KEY: ${{ secrets.QURAN_API_KEY }}
           WEB_APP_URL: ${{ vars.WEB_APP_URL }}
         run: |
+          BUILD_NUMBER=$((1000 + ${{ github.run_number }}))
           APK_LINK="https://github.com/${{ github.repository }}/releases/download/latest/Al-Quran.apk"
+          MANIFEST_LINK="https://github.com/${{ github.repository }}/releases/download/latest/version.json"
           flutter build apk --release \
+            --build-number="${BUILD_NUMBER}" \
             --dart-define=QURAN_API_KEY="${QURAN_API_KEY}" \
             --dart-define=ANDROID_APK_URL="${APK_LINK}" \
-            --dart-define=WEB_APP_URL="${WEB_APP_URL}"
+            --dart-define=WEB_APP_URL="${WEB_APP_URL}" \
+            --dart-define=APP_BUILD_NUMBER="${BUILD_NUMBER}" \
+            --dart-define=UPDATE_MANIFEST_URL="${MANIFEST_LINK}"
           cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Al-Quran.apk
 
-      - name: Publish Public Release APK
+          APP_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          cat > build/app/outputs/flutter-apk/version.json <<EOF
+          {
+            "version": "${APP_VERSION}",
+            "buildNumber": ${BUILD_NUMBER},
+            "apkUrl": "${APK_LINK}",
+            "commit": "${{ github.sha }}",
+            "updatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: Verify APK has launchable activity and valid icon
+        run: |
+          AAPT_BIN=$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -name "aapt" | sort -V | tail -n 1)
+          echo "Using aapt: ${AAPT_BIN}"
+          BADGING=$("${AAPT_BIN}" dump badging build/app/outputs/flutter-apk/Al-Quran.apk)
+          echo "${BADGING}" | head -n 30
+          echo "${BADGING}" | grep -q "launchable-activity:" || {
+            echo "ERROR: APK does not contain a launchable-activity!"
+            exit 1
+          }
+
+      - name: Publish Public Release APK & Update Manifest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest build/app/outputs/flutter-apk/Al-Quran.apk --clobber
+            gh release upload latest \
+              build/app/outputs/flutter-apk/Al-Quran.apk \
+              build/app/outputs/flutter-apk/version.json \
+              --clobber
           else
-            gh release create latest build/app/outputs/flutter-apk/Al-Quran.apk \
+            gh release create latest \
+              build/app/outputs/flutter-apk/Al-Quran.apk \
+              build/app/outputs/flutter-apk/version.json \
               --title "Al-Quran Latest Android APK" \
               --notes "Latest automated Android release build (Al-Quran.apk)."
           fi

@@ -17,6 +17,12 @@ class AppBranding {
   /// Display version string (keep in sync with pubspec.yaml version).
   static const String appVersion = '4.0.0';
 
+  /// Monotonically increasing build number injected by CI / Vercel builds.
+  static const int appBuildNumber = int.fromEnvironment(
+    'APP_BUILD_NUMBER',
+    defaultValue: 4,
+  );
+
   /// Master 1024x1024 logo asset registered in pubspec.yaml.
   static const String logoAsset = 'assets/branding/app_logo.png';
 
@@ -27,6 +33,25 @@ class AppBranding {
     'ANDROID_APK_URL',
     defaultValue: '',
   );
+
+  /// Optional JSON manifest URL for checking Android APK updates.
+  /// When omitted, automatically derived from `androidApkUrl` (`version.json`).
+  static const String updateManifestUrl = String.fromEnvironment(
+    'UPDATE_MANIFEST_URL',
+    defaultValue: '',
+  );
+
+  /// Resolved Android update manifest URL.
+  static String get resolvedAndroidUpdateManifestUrl {
+    if (updateManifestUrl.trim().isNotEmpty) {
+      return updateManifestUrl.trim();
+    }
+    const apk = androidApkUrl;
+    if (apk.endsWith('/Al-Quran.apk')) {
+      return '${apk.substring(0, apk.length - 'Al-Quran.apk'.length)}version.json';
+    }
+    return '';
+  }
 
   /// Optional live website URL shared by the Android APK's Share App action.
   /// Set via `WEB_APP_URL` or update defaultValue after publishing to Vercel.

@@ -102,4 +102,17 @@ class WebPlatformBridge {
       return false;
     }
   }
+
+  Future<bool> applyWebUpdate() async {
+    final helper = _helper;
+    if (helper == null) return false;
+    try {
+      final res = await helper
+          .callMethod<JSPromise<JSBoolean>>('applyWebUpdate'.toJS)
+          .toDart;
+      return res.toDart;
+    } catch (_) {
+      return false;
+    }
+  }
 }

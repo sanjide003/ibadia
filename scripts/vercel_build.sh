@@ -29,7 +29,12 @@ elif [ -z "${WEB_APP_URL:-}" ] && [ -n "${VERCEL_URL:-}" ]; then
   WEB_APP_URL="https://${VERCEL_URL}"
 fi
 
-DART_DEFINES=()
+APP_BUILD_NUMBER="${APP_BUILD_NUMBER:-$(( $(date -u +%s) - 1700000000 ))}"
+APP_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+
+DART_DEFINES=(
+  "--dart-define=APP_BUILD_NUMBER=${APP_BUILD_NUMBER}"
+)
 if [ -n "${QURAN_API_BASE_URL:-}" ]; then
   DART_DEFINES+=("--dart-define=QURAN_API_BASE_URL=${QURAN_API_BASE_URL}")
 fi
@@ -43,6 +48,15 @@ if [ -n "${WEB_APP_URL:-}" ]; then
   DART_DEFINES+=("--dart-define=WEB_APP_URL=${WEB_APP_URL}")
 fi
 
-echo "Building Flutter Web release bundle..."
+echo "Building Flutter Web release bundle (build ${APP_BUILD_NUMBER})..."
 flutter --suppress-analytics build web --release "${DART_DEFINES[@]}"
+
+cat > build/web/app_version.json <<EOF
+{
+  "version": "${APP_VERSION}",
+  "buildNumber": ${APP_BUILD_NUMBER},
+  "platform": "web"
+}
+EOF
+
 echo "Flutter Web build ready at build/web"

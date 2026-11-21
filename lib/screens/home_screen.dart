@@ -8,6 +8,8 @@ import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
 import '../models/surah_model.dart';
 import '../providers/quran_providers.dart';
+import '../providers/update_provider.dart';
+import '../widgets/update_dialog.dart';
 import '../widgets/web_pwa_widgets.dart';
 import 'export_screen.dart';
 import 'settings_screen.dart';
@@ -24,11 +26,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _quranTabController;
   int _tabIndex = 0;
+  bool _shownStartupUpdatePrompt = false;
 
   @override
   void initState() {
     super.initState();
     _quranTabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(updateProvider.notifier).checkForUpdates(silent: true);
+    });
   }
 
   @override
@@ -44,6 +51,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final bookmarks = ref.watch(bookmarksProvider);
     final settings = ref.watch(settingsProvider);
     final t = ref.watch(stringsProvider);
+    final updateState = ref.watch(updateProvider);
+    ref.listen<AppUpdateState>(updateProvider, (prev, next) {
+      if (!_shownStartupUpdatePrompt &&
+          next.updateAvailable &&
+          prev?.updateAvailable != true &&
+          mounted) {
+        _shownStartupUpdatePrompt = true;
+        showAppUpdateDialog(context);
+      }
+    });
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSepia = settings.themeMode == 'sepia';
@@ -117,7 +134,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Builder(
               builder: (drawerCtx) => IconButton(
                 tooltip: t.settings,
-                icon: const Icon(Icons.settings_rounded, color: Colors.white),
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.settings_rounded, color: Colors.white),
+                    if (updateState.updateAvailable)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: AppBranding.accentGold,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: headerBg, width: 1.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 onPressed: () => Scaffold.of(drawerCtx).openEndDrawer(),
               ),
             ),

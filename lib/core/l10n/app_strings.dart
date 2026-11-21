@@ -262,6 +262,76 @@ class AppStrings {
       );
   String get closeLabel => _pick('Close', 'അടയ്ക്കുക', 'إغلاق');
 
+  // App Updates (1-Click Self-Update for Android APK & Web PWA)
+  String get checkForUpdates => _pick(
+        'Check for Updates',
+        'അപ്ഡേറ്റ് പരിശോധിക്കുക',
+        'التحقق من التحديثات',
+      );
+  String get checkingUpdates => _pick(
+        'Checking for updates...',
+        'അപ്ഡേറ്റുകൾ പരിശോധിക്കുന്നു...',
+        'جاري التحقق من التحديثات...',
+      );
+  String get updateAvailableTitle => _pick(
+        'New Update Available',
+        'പുതിയ അപ്ഡേറ്റ് ലഭ്യമാണ്',
+        'يتوفر تحديث جديد',
+      );
+  String updateAvailableDesc(String version, int buildNo) => _pick(
+        'Version $version (Build #$buildNo) is ready. Tap Update Now to jump directly to the latest version while keeping all your bookmarks and settings safe.',
+        'പുതിയ വേർഷൻ $version (Build #$buildNo) ഇപ്പോൾ ലഭ്യമാണ്. "ഇപ്പോൾ അപ്ഡേറ്റ് ചെയ്യുക" ക്ലിക്ക് ചെയ്താൽ നിങ്ങളുടെ ബുക്ക്‌മാർക്കുകളും സെറ്റിംഗ്സും നഷ്ടപ്പെടാതെ ഒറ്റ ക്ലിക്കിൽ ഏറ്റവും പുതിയ വേർഷനിലേക്ക് മാറാം.',
+        'الإصدار الجديد $version (Build #$buildNo) متاح الآن. اضغط على التحديث الآن للانتقال مباشرة إلى أحدث إصدار مع الحفاظ على إشاراتك وإعداداتك.',
+      );
+  String get updateNow => _pick(
+        'Update Now',
+        'ഇപ്പോൾ അപ്ഡേറ്റ് ചെയ്യുക',
+        'التحديث الآن',
+      );
+  String get updateLater => _pick('Later', 'പിന്നീട്', 'لاحقاً');
+  String get updateAvailableBadge =>
+      _pick('Update Ready', 'അപ്ഡേറ്റ് ഉണ്ട്', 'تحديث متاح');
+  String get downloadingUpdate => _pick(
+        'Downloading latest update...',
+        'ഏറ്റവും പുതിയ അപ്ഡേറ്റ് ഡൗൺലോഡ് ചെയ്യുന്നു...',
+        'جاري تنزيل أحدث تحديث...',
+      );
+  String get installingUpdate => _pick(
+        'Opening Android installer...',
+        'ഇൻസ്റ്റാളർ തുറക്കുന്നു...',
+        'جاري فتح مثبت التطبيق...',
+      );
+  String get installDownloadedApk => _pick(
+        'Install Update',
+        'അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്യുക',
+        'تثبيت التحديث',
+      );
+  String get allowInstallPermissionTitle => _pick(
+        'Allow App Installs',
+        'ഇൻസ്റ്റാൾ അനുമതി നൽകുക',
+        'السماح بتثبيت التطبيقات',
+      );
+  String get allowInstallPermissionDesc => _pick(
+        'Enable "Allow from this source" in Android Settings, then come back and tap Install Update.',
+        'തുറന്നുവന്ന ഫോൺ സെറ്റിംഗ്സിൽ "Allow from this source" ഓൺ ആക്കുക. അതിനുശേഷം തിരികെ വന്ന് "അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്യുക" ക്ലിക്ക് ചെയ്യുക.',
+        'فعّل خيار السماح بتثبيت التطبيقات من هذا المصدر في الإعدادات ثم عد واضغط على تثبيت التحديث.',
+      );
+  String get downloadInBrowser => _pick(
+        'Download in Browser',
+        'ബ്രൗസറിൽ ഡൗൺലോഡ് ചെയ്യുക',
+        'التحميل عبر المتصفح',
+      );
+  String get upToDateMessage => _pick(
+        'You are already on the latest version.',
+        'നിങ്ങൾ ഇപ്പോൾ തന്നെ ഏറ്റവും പുതിയ വേർഷൻ ആണ് ഉപയോഗിക്കുന്നത്.',
+        'أنت تستخدم أحدث إصدار بالفعل.',
+      );
+  String get updateCheckUnavailable => _pick(
+        'Could not check for updates right now. Please verify your internet connection.',
+        'ഇപ്പോൾ അപ്ഡേറ്റ് പരിശോധിക്കാനായില്ല. ഇന്റർനെറ്റ് കണക്ഷൻ പരിശോധിക്കുക.',
+        'تعذر التحقق من التحديثات الآن. يرجى التحقق من اتصال الإنترنت.',
+      );
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/app_branding.dart';
 import '../providers/quran_providers.dart';
+import '../providers/update_provider.dart';
 import '../widgets/web_pwa_widgets.dart';
 
 /// Compact slide-in side panel (endDrawer) mounted on both Home & Reader screens.
@@ -17,6 +18,7 @@ class CompactSettingsDrawer extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
     final t = ref.watch(stringsProvider);
+    final updateState = ref.watch(updateProvider);
     final cs = Theme.of(context).colorScheme;
     final drawerWidth =
         math.min(MediaQuery.sizeOf(context).width * 0.85, 336.0);
@@ -353,7 +355,7 @@ class CompactSettingsDrawer extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 1),
                                 Text(
-                                  '${AppBranding.appTagline} • v${AppBranding.appVersion}',
+                                  '${AppBranding.appTagline} • v${updateState.currentVersion} (#${updateState.currentBuildNumber})',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
