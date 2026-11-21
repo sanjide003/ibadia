@@ -31,28 +31,28 @@ git push -u origin main
 2. **Add New → Project** ക്ലിക്ക് ചെയ്യുക.
 3. നിങ്ങളുടെ GitHub Repository (`quran-malayalam-app`) തിരഞ്ഞെടുത്ത് **Import** ക്ലിക്ക് ചെയ്യുക.
 4. `vercel.json` സ്വയമേവ റീഡ് ചെയ്യുന്നതിനാൽ **Build Command** (`bash scripts/vercel_build.sh`), **Output Directory** (`build/web`) എന്നിവ തനിയെ സെറ്റ് ആകും. *(മാറ്റം വരുത്തേണ്ടതില്ല!)*
-5. *(ഓപ്ഷണൽ)* **Environment Variables** ഭാഗത്ത് താഴെ പറയുന്നവ നൽകാം:
-   - `ANDROID_APK_URL`: വെബ്സൈറ്റിലെ **"Download Android APK"** ബട്ടൺ ക്ലിക്ക് ചെയ്യുമ്പോൾ നേരിട്ട് APK ഡൗൺലോഡ് ആകാൻ നിങ്ങളുടെ GitHub Release APK ലിങ്ക് നൽകുക (ഉദാ: `https://github.com/YOUR_USERNAME/quran-malayalam-app/releases/latest/download/Al-Quran.apk`).
-   - `QURAN_API_KEY`: ആവശ്യമുണ്ടെങ്കിൽ മാത്രം.
+5. *(ഓപ്ഷണൽ)* **Environment Variables:** Vercel-ഉം GitHub-ഉം കണക്ട് ചെയ്യുമ്പോൾ വെബ്സൈറ്റിലെ **"Download Android APK"** ലിങ്ക് (`ANDROID_APK_URL`) **സ്വയമേവ** നിങ്ങളുടെ GitHub Release APK-ലേക്ക് കണക്ട് ആകും! വേണമെങ്കിൽ മാത്രം നിങ്ങൾക്ക് സ്വന്തമായി `ANDROID_APK_URL`, `QURAN_API_KEY` എന്നിവ നൽകാവുന്നതാണ്.
 6. **Deploy** ബട്ടൺ ക്ലിക്ക് ചെയ്യുക. ഏകദേശം 1–2 മിനിറ്റിനുള്ളിൽ നിങ്ങളുടെ വെബ്സൈറ്റ് (`https://your-project.vercel.app`) ലൈവ് ആകും!
 
 ### ഘട്ടം 3: വെബ്സൈറ്റ് ഫോണിൽ ആപ്പ് പോലെ ഇൻസ്റ്റാൾ ചെയ്യാൻ (PWA)
-- **Android Chrome / Desktop Edge / Chrome:** വെബ്സൈറ്റ് തുറക്കുമ്പോൾ ഹെഡറിലോ വലതുവശത്തെ സെറ്റിംഗ്സ് ഡ്രോയറിലോ കാണുന്ന **Install App** ബട്ടൺ ക്ലിക്ക് ചെയ്താൽ ബ്രൗസർ ബാറില്ലാതെ സ്വന്തം ആപ്പ് പോലെ ഫോൺ ഹോം സ്ക്രീനിൽ ഇൻസ്റ്റാൾ ആകും.
+- **Android Chrome / Desktop Edge / Chrome:** വെബ്സൈറ്റ് തുറക്കുമ്പോൾ സെറ്റിംഗ്സ് ഡ്രോയറിന്റെ ഏറ്റവും താഴെ കാണുന്ന **Install App** ബട്ടൺ ക്ലിക്ക് ചെയ്താൽ ബ്രൗസർ ബാറില്ലാതെ സ്വന്തം ആപ്പ് പോലെ ഫോൺ ഹോം സ്ക്രീനിൽ ഇൻസ്റ്റാൾ ആകും.
 - **iPhone / iPad (Safari):** സെറ്റിംഗ്സ് ഡ്രോയറിലെ **Install App** ക്ലിക്ക് ചെയ്യുകയോ Safari-യിലെ **Share → Add to Home Screen** ഉപയോഗിക്കുകയോ ചെയ്യുക.
+- **APK ഡൗൺലോഡ് & Share App:** വെബ്സൈറ്റിൽ നിന്ന് `Al-Quran.apk` ഡൗൺലോഡ് ചെയ്ത ശേഷവും, ഇൻസ്റ്റാൾ ചെയ്ത ആപ്പിനുള്ളിലും ഡൗൺലോഡ് ബട്ടണിന് പകരം **Share App** ബട്ടൺ കാണിക്കും.
 - **Offline Reading:** ഒരിക്കൽ തുറന്ന സൂറത്തുകളും പരിഭാഷകളും ബ്രൗസറിൽ സേവ് ആകുന്നതിനാൽ ഇന്റർനെറ്റ് ഇല്ലാതെയും വായിക്കാം.
 
 ### ഘട്ടം 4: സ്വന്തം Domain കണക്ട് ചെയ്യാൻ (ഓപ്ഷണൽ)
-Vercel Dashboard → നിങ്ങളുടെ പ്രോജക്റ്റ് → **Settings → Domains** വഴി നിങ്ങളുടെ കസ്റ്റം ഡൊമെയ്ൻ (ഉദാ: `alquran.yourdomain.com`) സൗജന്യ SSL സഹിതം ചേർക്കാം.
+Vercel Dashboard → നിങ്ങളുടെ പ്രോജക്റ്റ് → **Settings → Domains** വഴി നിങ്ങളുടെ കസ്റ്റം ഡൊമെയ്ൻ (ഉദാ: `alquran.yourdomain.com`) സൗജന്യ SSL സഹിതം ചേർക്കാം. *(GitHub Repository Variables-ൽ `WEB_APP_URL` നൽകിയാൽ, Android APK-യ്ക്കുള്ളിലെ Share App ബട്ടണിലും ഈ വെബ്സൈറ്റ് ലിങ്ക് ഉൾപ്പെടും.)*
 
 ---
 
-## 3. GitHub വഴി ഓട്ടോമാറ്റിക് Android APK ബിൽഡ് ചെയ്യുന്ന വിധം
+## 3. GitHub വഴി ഓട്ടോമാറ്റിക് Android APK & Release ബിൽഡ് ചെയ്യുന്ന വിധം
 
 വെബ്സൈറ്റ് Vercel-ൽ അപ്ഡേറ്റ് ആകുന്നതോടൊപ്പം തന്നെ, GitHub-ൽ പുഷ് ചെയ്യുമ്പോഴെല്ലാം Android APK ഫയലും ഓട്ടോമാറ്റിക്കായി ബിൽഡ് ആകും:
 
 1. GitHub-ൽ നിങ്ങളുടെ റിപ്പോസിറ്ററി തുറന്ന് **Actions** ടാബിൽ ക്ലിക്ക് ചെയ്യുക.
-2. `Build Quran Android APK` വർക്ക്‌ഫ്ലോ പൂർത്തിയാകുമ്പോൾ, താഴെ കാണുന്ന **Al-Quran-APK** എന്ന ആർട്ടിഫാക്റ്റ് ഡൗൺലോഡ് ചെയ്ത് അകത്തുള്ള **`Al-Quran.apk`** ഫോണിൽ ഇൻസ്റ്റാൾ ചെയ്യുക!
-3. *(ടിപ്പ്: നിങ്ങൾ GitHub-ൽ ഒരു Release സൃഷ്ടിച്ച് `Al-Quran.apk` അപ്‌ലോഡ് ചെയ്ത ശേഷം ആ ലിങ്ക് Vercel-ലെ `ANDROID_APK_URL`-ൽ നൽകിയാൽ, വെബ്സൈറ്റിൽ നിന്ന് തന്നെ ആർക്കും APK ഡൗൺലോഡ് ചെയ്യാനാകും.)*
+2. `Build Quran Android APK` വർക്ക്‌ഫ്ലോ പൂർത്തിയാകുമ്പോൾ:
+   - റിപ്പോസിറ്ററിയിലെ **Releases (`latest`)** വിഭാഗത്തിലും, താഴെ **Al-Quran-APK** ആർട്ടിഫാക്റ്റിലും പുതിയ **`Al-Quran.apk`** ഓട്ടോമാറ്റിക്കായി അപ്‌ലോഡ് ആകും!
+   - Public Release ആയി പബ്ലിഷ് ആകുന്നതിനാൽ, നിങ്ങളുടെ Vercel വെബ്സൈറ്റിലെ **"Download Android APK"** ബട്ടൺ ക്ലിക്ക് ചെയ്താൽ ആർക്കും നേരിട്ട് `Al-Quran.apk` ഡൗൺലോഡ് ചെയ്യാൻ സാധിക്കും.
 
 ---
 

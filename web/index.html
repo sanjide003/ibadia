@@ -69,6 +69,9 @@
         isOnline: function () {
           return window.navigator.onLine !== false;
         },
+        currentUrl: function () {
+          return window.location.origin || '';
+        },
         promptInstall: function () {
           if (!deferredPrompt) {
             return Promise.resolve('unavailable');

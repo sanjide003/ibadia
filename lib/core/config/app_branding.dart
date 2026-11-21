@@ -21,11 +21,17 @@ class AppBranding {
   static const String logoAsset = 'assets/branding/app_logo.png';
 
   /// Optional Android APK download URL shown in the Web app.
-  /// Set via Vercel Environment Variable `ANDROID_APK_URL`
-  /// (e.g. https://github.com/<user>/<repo>/releases/latest/download/Al-Quran.apk)
-  /// or paste your direct link as defaultValue below.
+  /// Automatically populated on Vercel via GitHub repository metadata, or set
+  /// manually via `ANDROID_APK_URL`.
   static const String androidApkUrl = String.fromEnvironment(
     'ANDROID_APK_URL',
+    defaultValue: '',
+  );
+
+  /// Optional live website URL shared by the Android APK's Share App action.
+  /// Set via `WEB_APP_URL` or update defaultValue after publishing to Vercel.
+  static const String webAppUrl = String.fromEnvironment(
+    'WEB_APP_URL',
     defaultValue: '',
   );
 

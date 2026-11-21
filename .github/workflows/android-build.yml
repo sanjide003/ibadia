@@ -8,6 +8,8 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -43,10 +45,26 @@ jobs:
       - name: Build Single Universal Release APK
         env:
           QURAN_API_KEY: ${{ secrets.QURAN_API_KEY }}
+          WEB_APP_URL: ${{ vars.WEB_APP_URL }}
         run: |
+          APK_LINK="https://github.com/${{ github.repository }}/releases/download/latest/Al-Quran.apk"
           flutter build apk --release \
-            --dart-define=QURAN_API_KEY="${QURAN_API_KEY}"
+            --dart-define=QURAN_API_KEY="${QURAN_API_KEY}" \
+            --dart-define=ANDROID_APK_URL="${APK_LINK}" \
+            --dart-define=WEB_APP_URL="${WEB_APP_URL}"
           cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Al-Quran.apk
+
+      - name: Publish Public Release APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest build/app/outputs/flutter-apk/Al-Quran.apk --clobber
+          else
+            gh release create latest build/app/outputs/flutter-apk/Al-Quran.apk \
+              --title "Al-Quran Latest Android APK" \
+              --notes "Latest automated Android release build (Al-Quran.apk)."
+          fi
 
       - name: Upload Single Release APK
         uses: actions/upload-artifact@v4

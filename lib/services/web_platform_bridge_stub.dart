@@ -13,6 +13,8 @@ class WebPlatformBridge {
 
   bool get isIosWeb => false;
 
+  String get currentWebUrl => '';
+
   Future<bool> promptPwaInstall() async => false;
 
   bool openExternalUrl(String url) => false;

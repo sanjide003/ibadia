@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 /// Web browser bridge backed by `window.__alQuranPwa` (defined in web/index.html)
 /// for PWA install prompts, standalone detection, iOS Safari detection,
-/// live online/offline status, and safe external APK download triggers.
+/// live online/offline status, current URL, and safe external APK downloads.
 class WebPlatformBridge {
   WebPlatformBridge._() {
     _syncState();
@@ -31,6 +31,16 @@ class WebPlatformBridge {
       return helper.callMethod<JSBoolean>('isIOS'.toJS).toDart;
     } catch (_) {
       return false;
+    }
+  }
+
+  String get currentWebUrl {
+    final helper = _helper;
+    if (helper == null) return '';
+    try {
+      return helper.callMethod<JSString>('currentUrl'.toJS).toDart;
+    } catch (_) {
+      return '';
     }
   }
 
@@ -72,8 +82,9 @@ class WebPlatformBridge {
     final helper = _helper;
     if (helper == null) return false;
     try {
-      final result =
-          await helper.callMethod<JSPromise<JSString>>('promptInstall'.toJS).toDart;
+      final result = await helper
+          .callMethod<JSPromise<JSString>>('promptInstall'.toJS)
+          .toDart;
       _syncState();
       return result.toDart == 'accepted';
     } catch (_) {

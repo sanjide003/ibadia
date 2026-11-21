@@ -236,14 +236,24 @@ class AppStrings {
         'تثبيت حزمة تطبيق الأندرويد الأصلية (Al-Quran.apk)',
       );
   String get apkSetupTitle => _pick(
-        'Android APK Link',
-        'Android APK ഡൗൺലോഡ് ലിങ്ക്',
-        'رابط تطبيق الأندرويد',
+        'Android APK Release',
+        'Android APK ഡൗൺലോഡ്',
+        'إصدار تطبيق أندرويد',
       );
   String get apkSetupDesc => _pick(
-        'To enable 1-tap APK downloads on your website, add ANDROID_APK_URL (your GitHub Release Al-Quran.apk URL) in Vercel Environment Variables or AppBranding.',
-        'ഈ ബട്ടണിൽ ക്ലിക്ക് ചെയ്യുമ്പോൾ നേരിട്ട് APK ഡൗൺലോഡ് ആകാൻ, നിങ്ങളുടെ GitHub Release-ലെ Al-Quran.apk ലിങ്ക് Vercel Environment Variables-ൽ ANDROID_APK_URL എന്ന പേരിൽ നൽകുക.',
-        'لتفعيل التحميل المباشر، أضف رابط ملف Al-Quran.apk في متغيرات البيئة ANDROID_APK_URL على Vercel.',
+        'Direct 1-tap APK download turns on automatically once this repository is pushed to GitHub & published on Vercel (GitHub Releases hosts Al-Quran.apk automatically). You can still share the live web app link right now!',
+        'ഈ പ്രോജക്റ്റ് GitHub-ലേക്ക് Push ചെയ്ത് Vercel-ൽ പബ്ലിഷ് ചെയ്യുന്നതോടെ GitHub Releases വഴി Al-Quran.apk ഇവിടെ നിന്ന് നേരിട്ട് 1-ടാപ്പിൽ ഡൗൺലോഡ് ആകും. ഇപ്പോൾ തന്നെ വെബ് ആപ്പ് ലിങ്ക് മറ്റുള്ളവർക്ക് ഷെയർ ചെയ്യാവുന്നതാണ്!',
+        'يتم تفعيل التحميل المباشر تلقائياً بمجرد رفع المشروع على GitHub ونشره على Vercel. يمكنك مشاركة رابط الموقع الآن!',
+      );
+  String get shareApp => _pick(
+        'Share App',
+        'ആപ്പ് ഷെയർ ചെയ്യുക',
+        'مشاركة التطبيق',
+      );
+  String get shareAppCopied => _pick(
+        'App link copied to clipboard',
+        'ആപ്പ് ലിങ്ക് കോപ്പി ചെയ്തു',
+        'تم نسخ رابط التطبيق',
       );
   String get offlineBanner => _pick(
         'Offline Mode — Cached Surahs remain available',

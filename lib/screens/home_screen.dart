@@ -114,7 +114,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ),
           actions: [
-            PwaInstallAppBarAction(strings: t),
             Builder(
               builder: (drawerCtx) => IconButton(
                 tooltip: t.settings,
