@@ -15,6 +15,22 @@ class AppSettings {
   final double? fabRelX;
   final double? fabRelY;
 
+  // Prayer Times, Qibla & Hijri Calendar settings
+  final String prayerLocationMode; // 'city' | 'gps'
+  final String prayerCity;
+  final String prayerCountry;
+  final double prayerLat;
+  final double prayerLon;
+  final String? gpsLocalityLabel;
+  final int prayerMethod; // default 1 = Karachi (UISK)
+  final int prayerSchool; // default 0 = Shafi / Standard, 1 = Hanafi
+  final int prayerTuneFajr;
+  final int prayerTuneDhuhr;
+  final int prayerTuneAsr;
+  final int prayerTuneMaghrib;
+  final int prayerTuneIsha;
+  final int hijriAdjustment; // -1, 0, +1
+
   const AppSettings({
     this.appLanguage = 'en',
     this.readingMode = 'mushaf',
@@ -27,7 +43,81 @@ class AppSettings {
     this.reciterId = 'ar.alafasy',
     this.fabRelX,
     this.fabRelY,
+    this.prayerLocationMode = 'city',
+    this.prayerCity = 'Kochi',
+    this.prayerCountry = 'India',
+    this.prayerLat = 9.9312,
+    this.prayerLon = 76.2673,
+    this.gpsLocalityLabel,
+    this.prayerMethod = 1,
+    this.prayerSchool = 0,
+    this.prayerTuneFajr = 0,
+    this.prayerTuneDhuhr = 0,
+    this.prayerTuneAsr = 0,
+    this.prayerTuneMaghrib = 0,
+    this.prayerTuneIsha = 0,
+    this.hijriAdjustment = 0,
   });
+
+  int tuneFor(String prayerKey) {
+    switch (prayerKey) {
+      case 'fajr':
+        return prayerTuneFajr;
+      case 'dhuhr':
+        return prayerTuneDhuhr;
+      case 'asr':
+        return prayerTuneAsr;
+      case 'maghrib':
+        return prayerTuneMaghrib;
+      case 'isha':
+        return prayerTuneIsha;
+      default:
+        return 0;
+    }
+  }
+
+  bool get hasAnyTune =>
+      prayerTuneFajr != 0 ||
+      prayerTuneDhuhr != 0 ||
+      prayerTuneAsr != 0 ||
+      prayerTuneMaghrib != 0 ||
+      prayerTuneIsha != 0;
+
+  String get displayLocationLabel {
+    if (prayerLocationMode == 'gps') {
+      if (gpsLocalityLabel != null && gpsLocalityLabel!.trim().isNotEmpty) {
+        return gpsLocalityLabel!.trim();
+      }
+      return '${prayerLat.toStringAsFixed(2)}°, ${prayerLon.toStringAsFixed(2)}°';
+    }
+    return '$prayerCity, $prayerCountry';
+  }
+
+  AppSettings copyWithTune(String prayerKey, int minutes) {
+    final clamped = minutes.clamp(-60, 60);
+    switch (prayerKey) {
+      case 'fajr':
+        return copyWith(prayerTuneFajr: clamped);
+      case 'dhuhr':
+        return copyWith(prayerTuneDhuhr: clamped);
+      case 'asr':
+        return copyWith(prayerTuneAsr: clamped);
+      case 'maghrib':
+        return copyWith(prayerTuneMaghrib: clamped);
+      case 'isha':
+        return copyWith(prayerTuneIsha: clamped);
+      default:
+        return this;
+    }
+  }
+
+  AppSettings clearTunes() => copyWith(
+        prayerTuneFajr: 0,
+        prayerTuneDhuhr: 0,
+        prayerTuneAsr: 0,
+        prayerTuneMaghrib: 0,
+        prayerTuneIsha: 0,
+      );
 
   AppSettings copyWith({
     String? appLanguage,
@@ -42,6 +132,21 @@ class AppSettings {
     double? fabRelX,
     double? fabRelY,
     bool clearFabPos = false,
+    String? prayerLocationMode,
+    String? prayerCity,
+    String? prayerCountry,
+    double? prayerLat,
+    double? prayerLon,
+    String? gpsLocalityLabel,
+    bool clearGpsLocality = false,
+    int? prayerMethod,
+    int? prayerSchool,
+    int? prayerTuneFajr,
+    int? prayerTuneDhuhr,
+    int? prayerTuneAsr,
+    int? prayerTuneMaghrib,
+    int? prayerTuneIsha,
+    int? hijriAdjustment,
   }) {
     return AppSettings(
       appLanguage: appLanguage ?? this.appLanguage,
@@ -55,6 +160,22 @@ class AppSettings {
       reciterId: reciterId ?? this.reciterId,
       fabRelX: clearFabPos ? null : (fabRelX ?? this.fabRelX),
       fabRelY: clearFabPos ? null : (fabRelY ?? this.fabRelY),
+      prayerLocationMode: prayerLocationMode ?? this.prayerLocationMode,
+      prayerCity: prayerCity ?? this.prayerCity,
+      prayerCountry: prayerCountry ?? this.prayerCountry,
+      prayerLat: prayerLat ?? this.prayerLat,
+      prayerLon: prayerLon ?? this.prayerLon,
+      gpsLocalityLabel: clearGpsLocality
+          ? null
+          : (gpsLocalityLabel ?? this.gpsLocalityLabel),
+      prayerMethod: prayerMethod ?? this.prayerMethod,
+      prayerSchool: prayerSchool ?? this.prayerSchool,
+      prayerTuneFajr: prayerTuneFajr ?? this.prayerTuneFajr,
+      prayerTuneDhuhr: prayerTuneDhuhr ?? this.prayerTuneDhuhr,
+      prayerTuneAsr: prayerTuneAsr ?? this.prayerTuneAsr,
+      prayerTuneMaghrib: prayerTuneMaghrib ?? this.prayerTuneMaghrib,
+      prayerTuneIsha: prayerTuneIsha ?? this.prayerTuneIsha,
+      hijriAdjustment: (hijriAdjustment ?? this.hijriAdjustment).clamp(-1, 1),
     );
   }
 }
@@ -102,8 +223,9 @@ class LastReadPosition {
 
 class AppResumeState {
   final String lastScreen; // 'home' | 'reader'
-  final int homeTabIndex; // 0: Surahs, 1: Bookmarks, 2: Export
-  final int quranSubTabIndex; // 0: Surah, 1: Juz
+  final int homeTabIndex; // 0: Quran, 1: Features, 2: Settings
+  final int quranSubTabIndex; // 0: Surah, 1: Juz, 2: Bookmarks, 3: Export
+  final int featuresSubTabIndex; // 0: Prayer Times, 1: Qibla, 2: Hijri
   final double surahListScrollOffset;
   final double juzListScrollOffset;
   final double bookmarksScrollOffset;
@@ -117,6 +239,7 @@ class AppResumeState {
     this.lastScreen = 'home',
     this.homeTabIndex = 0,
     this.quranSubTabIndex = 0,
+    this.featuresSubTabIndex = 0,
     this.surahListScrollOffset = 0.0,
     this.juzListScrollOffset = 0.0,
     this.bookmarksScrollOffset = 0.0,
@@ -131,6 +254,7 @@ class AppResumeState {
     String? lastScreen,
     int? homeTabIndex,
     int? quranSubTabIndex,
+    int? featuresSubTabIndex,
     double? surahListScrollOffset,
     double? juzListScrollOffset,
     double? bookmarksScrollOffset,
@@ -144,6 +268,7 @@ class AppResumeState {
       lastScreen: lastScreen ?? this.lastScreen,
       homeTabIndex: homeTabIndex ?? this.homeTabIndex,
       quranSubTabIndex: quranSubTabIndex ?? this.quranSubTabIndex,
+      featuresSubTabIndex: featuresSubTabIndex ?? this.featuresSubTabIndex,
       surahListScrollOffset:
           surahListScrollOffset ?? this.surahListScrollOffset,
       juzListScrollOffset: juzListScrollOffset ?? this.juzListScrollOffset,
@@ -161,6 +286,7 @@ class AppResumeState {
         lastScreen: (json['lastScreen'] ?? 'home') as String,
         homeTabIndex: (json['homeTabIndex'] as num?)?.toInt() ?? 0,
         quranSubTabIndex: (json['quranSubTabIndex'] as num?)?.toInt() ?? 0,
+        featuresSubTabIndex: (json['featuresSubTabIndex'] as num?)?.toInt() ?? 0,
         surahListScrollOffset:
             (json['surahListScrollOffset'] as num?)?.toDouble() ?? 0.0,
         juzListScrollOffset:
@@ -179,6 +305,7 @@ class AppResumeState {
         'lastScreen': lastScreen,
         'homeTabIndex': homeTabIndex,
         'quranSubTabIndex': quranSubTabIndex,
+        'featuresSubTabIndex': featuresSubTabIndex,
         'surahListScrollOffset': surahListScrollOffset,
         'juzListScrollOffset': juzListScrollOffset,
         'bookmarksScrollOffset': bookmarksScrollOffset,
@@ -205,6 +332,26 @@ class StorageService {
   static const _reciterIdKey = 'pref_reciter_id_v4';
   static const _fabRelXKey = 'pref_fab_rel_x_v4';
   static const _fabRelYKey = 'pref_fab_rel_y_v4';
+
+  // Islamic Features preferences
+  static const _prayerLocModeKey = 'pref_prayer_loc_mode_v1';
+  static const _prayerCityKey = 'pref_prayer_city_v1';
+  static const _prayerCountryKey = 'pref_prayer_country_v1';
+  static const _prayerLatKey = 'pref_prayer_lat_v1';
+  static const _prayerLonKey = 'pref_prayer_lon_v1';
+  static const _gpsLocalityKey = 'pref_gps_locality_v1';
+  static const _prayerMethodKey = 'pref_prayer_method_v1';
+  static const _prayerSchoolKey = 'pref_prayer_school_v1';
+  static const _tuneFajrKey = 'pref_tune_fajr_v1';
+  static const _tuneDhuhrKey = 'pref_tune_dhuhr_v1';
+  static const _tuneAsrKey = 'pref_tune_asr_v1';
+  static const _tuneMaghribKey = 'pref_tune_maghrib_v1';
+  static const _tuneIshaKey = 'pref_tune_isha_v1';
+  static const _hijriAdjKey = 'pref_hijri_adj_v1';
+
+  // Offline API caches
+  static const _dailyPrayerCacheKey = 'prayer_daily_cache_v1';
+  static const _hijriCalCachePrefix = 'hijri_cal_cache_v1_';
 
   Future<SharedPreferences>? _prefsFuture;
   Future<SharedPreferences> get _prefs =>
@@ -268,6 +415,20 @@ class StorageService {
       reciterId: prefs.getString(_reciterIdKey) ?? 'ar.alafasy',
       fabRelX: prefs.getDouble(_fabRelXKey),
       fabRelY: prefs.getDouble(_fabRelYKey),
+      prayerLocationMode: prefs.getString(_prayerLocModeKey) ?? 'city',
+      prayerCity: prefs.getString(_prayerCityKey) ?? 'Kochi',
+      prayerCountry: prefs.getString(_prayerCountryKey) ?? 'India',
+      prayerLat: prefs.getDouble(_prayerLatKey) ?? 9.9312,
+      prayerLon: prefs.getDouble(_prayerLonKey) ?? 76.2673,
+      gpsLocalityLabel: prefs.getString(_gpsLocalityKey),
+      prayerMethod: prefs.getInt(_prayerMethodKey) ?? 1,
+      prayerSchool: prefs.getInt(_prayerSchoolKey) ?? 0,
+      prayerTuneFajr: prefs.getInt(_tuneFajrKey) ?? 0,
+      prayerTuneDhuhr: prefs.getInt(_tuneDhuhrKey) ?? 0,
+      prayerTuneAsr: prefs.getInt(_tuneAsrKey) ?? 0,
+      prayerTuneMaghrib: prefs.getInt(_tuneMaghribKey) ?? 0,
+      prayerTuneIsha: prefs.getInt(_tuneIshaKey) ?? 0,
+      hijriAdjustment: (prefs.getInt(_hijriAdjKey) ?? 0).clamp(-1, 1),
     );
   }
 
@@ -289,5 +450,69 @@ class StorageService {
       await prefs.remove(_fabRelXKey);
       await prefs.remove(_fabRelYKey);
     }
+
+    await prefs.setString(_prayerLocModeKey, settings.prayerLocationMode);
+    await prefs.setString(_prayerCityKey, settings.prayerCity);
+    await prefs.setString(_prayerCountryKey, settings.prayerCountry);
+    await prefs.setDouble(_prayerLatKey, settings.prayerLat);
+    await prefs.setDouble(_prayerLonKey, settings.prayerLon);
+    if (settings.gpsLocalityLabel != null) {
+      await prefs.setString(_gpsLocalityKey, settings.gpsLocalityLabel!);
+    } else {
+      await prefs.remove(_gpsLocalityKey);
+    }
+    await prefs.setInt(_prayerMethodKey, settings.prayerMethod);
+    await prefs.setInt(_prayerSchoolKey, settings.prayerSchool);
+    await prefs.setInt(_tuneFajrKey, settings.prayerTuneFajr);
+    await prefs.setInt(_tuneDhuhrKey, settings.prayerTuneDhuhr);
+    await prefs.setInt(_tuneAsrKey, settings.prayerTuneAsr);
+    await prefs.setInt(_tuneMaghribKey, settings.prayerTuneMaghrib);
+    await prefs.setInt(_tuneIshaKey, settings.prayerTuneIsha);
+    await prefs.setInt(_hijriAdjKey, settings.hijriAdjustment);
+  }
+
+  Future<Map<String, dynamic>?> loadDailyPrayerCache() async {
+    final prefs = await _prefs;
+    final raw = prefs.getString(_dailyPrayerCacheKey);
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveDailyPrayerCache(Map<String, dynamic> payload) async {
+    final prefs = await _prefs;
+    await prefs.setString(_dailyPrayerCacheKey, jsonEncode(payload));
+  }
+
+  Future<List<dynamic>?> loadHijriCalendarCache(
+    int year,
+    int month,
+    int adjustment,
+  ) async {
+    final prefs = await _prefs;
+    final raw =
+        prefs.getString('$_hijriCalCachePrefix${year}_${month}_adj$adjustment');
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as List<dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveHijriCalendarCache(
+    int year,
+    int month,
+    int adjustment,
+    List<Map<String, dynamic>> entries,
+  ) async {
+    final prefs = await _prefs;
+    await prefs.setString(
+      '$_hijriCalCachePrefix${year}_${month}_adj$adjustment',
+      jsonEncode(entries),
+    );
   }
 }

@@ -358,6 +358,117 @@ class AppStrings {
         'تعذر تشغيل الصوت. اضغط لإعادة المحاولة.',
       );
 
+  // Main Navigation & Sub-Tabs
+  String get quranTab => _pick('Quran', 'ഖുർആൻ', 'القرآن');
+  String get featuresTab => _pick('Features', 'ഫീച്ചേഴ്സ്', 'الميزات');
+  String get prayerTimesTab =>
+      _pick('Prayer Times', 'നമസ്കാരം', 'أوقات الصلاة');
+  String get qiblaTab => _pick('Qibla', 'ഖിബ്ല', 'القبلة');
+  String get hijriCalendarTab =>
+      _pick('Hijri', 'ഹിജ്രി', 'التقويم الهجري');
+
+  // Contextual Settings Titles
+  String get quranSettingsTitle =>
+      _pick('Quran Settings', 'ഖുർആൻ സെറ്റിംഗ്സ്', 'إعدادات القرآن');
+  String get featuresSettingsTitle =>
+      _pick('Features Settings', 'ഫീച്ചേഴ്സ് സെറ്റിംഗ്സ്', 'إعدادات الميزات');
+
+  // Prayer Times & Location
+  String get locationLabel => _pick('Location', 'ലൊക്കേഷൻ', 'الموقع');
+  String get useGps => _pick('Use GPS', 'GPS ഉപയോഗിക്കുക', 'استخدام GPS');
+  String get gpsActiveLabel =>
+      _pick('GPS Location', 'GPS ലൊക്കേഷൻ', 'موقع GPS');
+  String get changeCity =>
+      _pick('Change City', 'നഗരം മാറ്റുക', 'تغيير المدينة');
+  String get cityFieldLabel => _pick('City', 'നഗരം', 'المدينة');
+  String get countryFieldLabel => _pick('Country', 'രാജ്യം', 'الدولة');
+  String get popularCities =>
+      _pick('Quick Cities', 'പ്രധാന നഗരങ്ങൾ', 'مدن سريعة');
+  String get applyLabel => _pick('Apply', 'സെറ്റ് ചെയ്യുക', 'تطبيق');
+  String get cancelLabel => _pick('Cancel', 'റദ്ദാക്കുക', 'إلغاء');
+  String get calculationMethod =>
+      _pick('Calculation Method', 'കാൽക്കുലേഷൻ മെത്തേഡ്', 'طريقة الحساب');
+  String get asrSchool => _pick('Asr Juristic School', 'അസർ മദ്ഹബ്', 'مذهب العصر');
+  String get schoolShafi =>
+      _pick('Shafi / Standard', 'ശാഫിഈ (Standard)', 'الشافعي / الجمهور');
+  String get schoolHanafi => _pick('Hanafi', 'ഹനഫി', 'الحنفي');
+  String get tuneMinutes => _pick(
+        'Masjid Time Tune (Minutes)',
+        'പള്ളി സമയ ക്രമീകരണം (മിനിറ്റ്)',
+        'تعديل الدقائق حسب المسجد',
+      );
+  String get tuneShort => _pick('Tune Times', 'സമയം മാറ്റുക', 'تعديل الوقت');
+  String get resetTune => _pick('Reset Tune', 'റീസെറ്റ്', 'إعادة ضبط');
+  String get nextPrayerLabel =>
+      _pick('Next Prayer', 'അടുത്ത നമസ്കാരം', 'الصلاة القادمة');
+  String get remainingLabel => _pick('in', 'ശേഷം', 'بعد');
+  String get refreshLabel => _pick('Refresh', 'അപ്ഡേറ്റ്', 'تحديث');
+  String get offlineCachedNote =>
+      _pick('Offline cached', 'ഓഫ്‌ലൈൻ ക്യാഷ്', 'محفوظ بدون إنترنت');
+  String get gpsFetching =>
+      _pick('Fetching GPS location...', 'GPS ലൊക്കേഷൻ എടുക്കുന്നു...', 'جاري تحديد الموقع...');
+  String get gpsPermissionError => _pick(
+        'Location permission denied. Showing city timings.',
+        'ലൊക്കേഷൻ അനുമതി ലഭിച്ചില്ല. നഗര സമയം കാണിക്കുന്നു.',
+        'تم رفض إذن الموقع. يتم عرض توقيت المدينة.',
+      );
+  String get gpsServiceDisabled => _pick(
+        'Enable device GPS / Location services to update automatically.',
+        'ഓട്ടോമാറ്റിക് ലൊക്കേഷനായി ഫോണിൽ GPS ഓൺ ചെയ്യുക.',
+        'يرجى تفعيل خدمة الموقع على الجهاز.',
+      );
+
+  // Prayer Names
+  String get fajrName => _pick('Fajr', 'ഫജ്ർ', 'الفجر');
+  String get sunriseName => _pick('Sunrise', 'സൂര്യോദയം', 'الشروق');
+  String get dhuhrName => _pick('Dhuhr', 'ളുഹർ', 'الظهر');
+  String get asrName => _pick('Asr', 'അസർ', 'العصر');
+  String get maghribName => _pick('Maghrib', 'മഗ്‌രിബ്', 'المغرب');
+  String get ishaName => _pick('Isha', 'ഇശാഅ്', 'العشاء');
+
+  // Qibla Compass
+  String get qiblaDirection =>
+      _pick('Qibla Direction', 'ഖിബ്ല ദിശ', 'اتجاه القبلة');
+  String get qiblaBearingLabel =>
+      _pick('Kaaba Bearing', 'കഅ്ബ കോൺ', 'زاوية القبلة');
+  String get kaabaDistanceLabel =>
+      _pick('Distance to Makkah', 'മക്കയിലേക്കുള്ള ദൂരം', 'المسافة إلى مكة');
+  String get facingQibla =>
+      _pick('Aligned with Qibla', 'കൃത്യമായ ഖിബ്ല ദിശയിലാണ്', 'أنت باتجاه القبلة');
+  String turnDegreesLabel(bool right, int deg) => right
+      ? _pick('Turn right $deg°', 'വലത്തോട്ട് $deg° തിരിയുക', 'اتجه يميناً $deg°')
+      : _pick('Turn left $deg°', 'ഇടത്തോട്ട് $deg° തിരിയുക', 'اتجه يساراً $deg°');
+  String get compassSensorActive => _pick(
+        'Live compass sensor active',
+        'ലൈവ് കോമ്പസ് സെൻസർ പ്രവർത്തിക്കുന്നു',
+        'مستشعر البوصلة نشط',
+      );
+  String get compassUnavailableNote => _pick(
+        'Live compass sensor not detected on this browser/device. Dial points true North (top = N) toward the marked Qibla bearing.',
+        'ഈ ബ്രൗസറിൽ/ഉപകരണത്തിൽ ലൈവ് കോമ്പസ് സെൻസർ ലഭ്യമല്ല. മുകൾഭാഗം വടക്കായി (N) ഖിബ്ല ദിശ കാണിക്കുന്നു.',
+        'مستشعر البوصلة غير متاح على هذا المتصفح/الجهاز. المؤشر يوضح اتجاه القبلة نسبة للشمال.',
+      );
+  String get compassCalibrationTip => _pick(
+        'Move phone in a figure-8 motion if compass accuracy drifts.',
+        'കൃത്യതയ്ക്കായി ഫോൺ 8-ആകൃതിയിൽ പതുക്കെ ചലിപ്പിക്കുക.',
+        'حرّك الهاتف على شكل رقم 8 لمعايرة البوصلة.',
+      );
+
+  // Hijri Calendar
+  String get hijriCalendarTitle =>
+      _pick('Hijri Calendar', 'ഹിജ്രി കലണ്ടർ', 'التقويم الهجري');
+  String get hijriAdjustment => _pick(
+        'Hijri Moon Adjustment',
+        'മാസപ്പിറവി മാറ്റം (-1 / 0 / +1)',
+        'تعديل التاريخ الهجري',
+      );
+  String get todayLabel => _pick('Today', 'ഇന്ന്', 'اليوم');
+  String get selectedDayLabel =>
+      _pick('Selected Date', 'തിരഞ്ഞെടുത്ത തീയതി', 'التاريخ المحدد');
+  String get dayMinusOne => _pick('-1 Day', '-1 ദിവസം', '-1 يوم');
+  String get dayZero => _pick('0 (Default)', '0 (സാധാരണ)', '0 (افتراضي)');
+  String get dayPlusOne => _pick('+1 Day', '+1 ദിവസം', '+1 يوم');
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

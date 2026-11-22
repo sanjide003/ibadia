@@ -164,6 +164,7 @@ class AppResumeNotifier extends StateNotifier<AppResumeState> {
   Future<void> updateHomeTabsAndScroll({
     int? homeTabIndex,
     int? quranSubTabIndex,
+    int? featuresSubTabIndex,
     double? surahListScrollOffset,
     double? juzListScrollOffset,
     double? bookmarksScrollOffset,
@@ -174,6 +175,7 @@ class AppResumeNotifier extends StateNotifier<AppResumeState> {
         lastScreen: lastScreen ?? s.lastScreen,
         homeTabIndex: homeTabIndex ?? s.homeTabIndex,
         quranSubTabIndex: quranSubTabIndex ?? s.quranSubTabIndex,
+        featuresSubTabIndex: featuresSubTabIndex ?? s.featuresSubTabIndex,
         surahListScrollOffset:
             surahListScrollOffset ?? s.surahListScrollOffset,
         juzListScrollOffset: juzListScrollOffset ?? s.juzListScrollOffset,
