@@ -8,8 +8,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/config/api_config.dart';
 import '../core/l10n/app_strings.dart';
 import '../models/surah_model.dart';
+import '../providers/audio_provider.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
+import '../widgets/audio_player_bar.dart';
 import 'settings_screen.dart';
 
 class _MushafPageSegment {
@@ -174,6 +176,9 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
       _mountedSegmentsBacking ??= {};
   Map<String, _MountedAyahInfo> get _mountedAyahs =>
       _mountedAyahsBacking ??= {};
+  Map<String, BuildContext>? _playingAyahAnchorsBacking;
+  Map<String, BuildContext> get _playingAyahAnchors =>
+      _playingAyahAnchorsBacking ??= {};
   final Map<int, GlobalKey> _headerKeys = {};
 
   /// Isolated AppBar header notifier so Surah transitions never rebuild the scroll view
@@ -199,6 +204,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
 
   // Vsync-synchronized auto-scroll state
   late final Ticker _autoScrollTicker;
+  late final QuranAudioNotifier _audioNotifier;
   Duration _lastTickElapsed = Duration.zero;
   DateTime _lastHeaderCheck = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _saveDebounceTimer;
@@ -207,6 +213,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _audioNotifier = ref.read(quranAudioProvider.notifier);
     _autoScrollTicker = createTicker(_onAutoScrollTick);
     _scrollController.addListener(_onScroll);
     _loadInitialSurah();
@@ -221,6 +228,11 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
     _scrollController.dispose();
     _headerSummaryNotifier.dispose();
     _isAutoScrollingNotifier.dispose();
+    Future.microtask(() {
+      if (_audioNotifier.mounted) {
+        _audioNotifier.stopAndClose();
+      }
+    });
     super.dispose();
   }
 
@@ -562,6 +574,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         _rebuildBlockCaches(settings.readingMode);
         _isInitialLoading = false;
       });
+      _audioNotifier.registerLoadedSurahs([..._backwardSurahs, ..._forwardSurahs]);
 
       final int targetAyah = widget.initialAyahNumber ?? 1;
       final bool hasExplicitTarget = targetAyah > 1 ||
@@ -673,6 +686,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         _rebuildBlockCaches(settings.readingMode);
         _isLoadingNext = false;
       });
+      _audioNotifier.registerLoadedSurahs([nextDetail]);
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoadingNext = false);
@@ -701,9 +715,99 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         _rebuildBlockCaches(settings.readingMode);
         _isLoadingPrev = false;
       });
+      _audioNotifier.registerLoadedSurahs([prevDetail]);
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoadingPrev = false);
+    }
+  }
+
+  Future<void> _syncViewportToPlayingAyah(int surahNo, int ayahNo) async {
+    if (!mounted || _isInitialLoading || _forwardSurahs.isEmpty) return;
+
+    while (mounted &&
+        _forwardSurahs.isNotEmpty &&
+        surahNo > _forwardSurahs.last.summary.number &&
+        _forwardSurahs.last.summary.number < 114) {
+      await _loadNextSurahIfNeeded();
+      if (!mounted) return;
+      if (surahNo > _forwardSurahs.last.summary.number) break;
+    }
+
+    int earliestLoaded = _backwardSurahs.isNotEmpty
+        ? _backwardSurahs.last.summary.number
+        : _forwardSurahs.first.summary.number;
+    while (mounted && surahNo < earliestLoaded && earliestLoaded > 1) {
+      await _loadPrevSurahIfNeeded();
+      if (!mounted) return;
+      final nextEarliest = _backwardSurahs.isNotEmpty
+          ? _backwardSurahs.last.summary.number
+          : _forwardSurahs.first.summary.number;
+      if (nextEarliest >= earliestLoaded) break;
+      earliestLoaded = nextEarliest;
+    }
+
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !_scrollController.hasClients) return;
+
+    final anchorKey = '${surahNo}_$ayahNo';
+    final anchorCtx = _playingAyahAnchors[anchorKey];
+    final viewportBox =
+        _scrollViewKey.currentContext?.findRenderObject() as RenderBox?;
+    if (viewportBox == null || !viewportBox.hasSize || !viewportBox.attached) {
+      return;
+    }
+
+    final viewportTopY = viewportBox.localToGlobal(Offset.zero).dy;
+    final viewportH = viewportBox.size.height;
+
+    if (anchorCtx != null && anchorCtx.mounted) {
+      final box = anchorCtx.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize && box.attached) {
+        final topRel = box.localToGlobal(Offset.zero).dy - viewportTopY;
+        final bottomRel = topRel + box.size.height;
+        if (topRel >= 24.0 && bottomRel <= viewportH - 56.0) {
+          return;
+        }
+        final targetY = viewportH * 0.28;
+        final desiredOffset = (_scrollController.offset + (topRel - targetY))
+            .clamp(
+              _scrollController.position.minScrollExtent,
+              _scrollController.position.maxScrollExtent,
+            );
+        await _scrollController.animateTo(
+          desiredOffset,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        );
+        return;
+      }
+    }
+
+    // Off-screen target: converge cleanly to the block in forward list, then refine.
+    await _restoreInitialTargetPosition(
+      targetSurah: surahNo,
+      targetAyah: ayahNo,
+      anchorOffsetPx: null,
+      savedReadingMode: null,
+    );
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !_scrollController.hasClients) return;
+    final postCtx = _playingAyahAnchors[anchorKey];
+    if (postCtx != null && postCtx.mounted) {
+      final box = postCtx.findRenderObject() as RenderBox?;
+      if (box != null && box.hasSize && box.attached) {
+        final topRel = box.localToGlobal(Offset.zero).dy - viewportTopY;
+        final bottomRel = topRel + box.size.height;
+        if (topRel < 24.0 || bottomRel > viewportH - 56.0) {
+          final desiredOffset =
+              (_scrollController.offset + (topRel - viewportH * 0.28)).clamp(
+            _scrollController.position.minScrollExtent,
+            _scrollController.position.maxScrollExtent,
+          );
+          _scrollController.jumpTo(desiredOffset);
+        }
+      }
     }
   }
 
@@ -1408,6 +1512,22 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
       ),
     );
 
+    ref.listen<(bool, int?, int?)>(
+      quranAudioProvider.select((s) => (s.isVisible, s.surahNumber, s.ayahNumber)),
+      (prev, next) {
+        if (!next.$1 || next.$2 == null || next.$3 == null) return;
+        if (prev != null &&
+            prev.$1 == next.$1 &&
+            prev.$2 == next.$2 &&
+            prev.$3 == next.$3) {
+          return;
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _syncViewportToPlayingAyah(next.$2!, next.$3!);
+        });
+      },
+    );
+
     return Directionality(
       textDirection: t.textDirection,
       child: PopScope(
@@ -1418,6 +1538,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
             _saveDebounceTimer?.cancel();
             _stopAutoScroll();
             _persistCurrentReadingPosition(markReaderActive: false);
+            _audioNotifier.stopAndClose();
           }
         },
         child: Scaffold(
@@ -1450,9 +1571,13 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
           ),
           endDrawer: const CompactSettingsDrawer(),
           body: SafeArea(
-            child: Stack(
-              fit: StackFit.expand,
+            child: Column(
               children: [
+                const ReaderAudioPlayerBar(),
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
                 if (_isInitialLoading)
                   const Center(child: CircularProgressIndicator())
                 else if (_errorText != null)
@@ -1615,6 +1740,9 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                   isAutoScrollingListenable: _isAutoScrollingNotifier,
                   onTap: _toggleAutoScroll,
                   onLongPress: _showQuickControlSheet,
+                ),
+              ],
+            ),
                 ),
               ],
             ),
@@ -1814,87 +1942,37 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                       ),
                     if (!segments[sIdx].startsHere && sIdx == 0)
                       const SizedBox(height: 2),
-                    Directionality(
-                      textDirection: TextDirection.rtl,
-                      child: Text.rich(
-                        TextSpan(
-                          style: styles.arabicBase,
-                          children: [
-                            for (final i in segments[sIdx].ayahIndices) ...[
-                              TextSpan(
-                                text: segments[sIdx].detail.ayahs[i].arabicText,
-                              ),
-                              TextSpan(
-                                text: ApiConfig.ayahEndMarker(
-                                  segments[sIdx]
-                                      .detail
-                                      .ayahs[i]
-                                      .numberInSurah,
-                                ),
-                                style: styles.arabicMarker,
-                              ),
-                            ],
-                          ],
-                        ),
-                        textAlign: TextAlign.justify,
-                      ),
+                    _MushafSegmentBody(
+                      pageNumber: pageNumber,
+                      segment: segments[sIdx],
+                      showTranslation: showTranslation,
+                      selectedTranslations: selectedTranslations,
+                      t: t,
+                      cs: cs,
+                      styles: styles,
+                      onRegisterAnchor: (key, ctx) =>
+                          _playingAyahAnchors[key] = ctx,
+                      onUnregisterAnchor: (key, ctx) {
+                        if (_playingAyahAnchors[key] == ctx) {
+                          _playingAyahAnchors.remove(key);
+                        }
+                      },
+                      onRegisterMountedAyah: (key, info) =>
+                          _mountedAyahs[key] = info,
+                      onUnregisterMountedAyah: (key, ctx) {
+                        if (_mountedAyahs[key]?.context == ctx) {
+                          _mountedAyahs.remove(key);
+                        }
+                      },
+                      onTogglePlay: (surahNo, ayahNo, globalAyah, summary) {
+                        _audioNotifier.playOrToggleAyah(
+                          surahNumber: surahNo,
+                          ayahNumber: ayahNo,
+                          globalAyahNumber: globalAyah,
+                          summary: summary,
+                        );
+                      },
                     ),
-                    if (showTranslation) ...[
-                      const Divider(height: 22),
-                      for (final i in segments[sIdx].ayahIndices)
-                        _BlockMountTracker(
-                          blockId:
-                              'ayah_${pageNumber}_${segments[sIdx].detail.summary.number}_${segments[sIdx].detail.ayahs[i].numberInSurah}',
-                          onMount: (ctx) {
-                            final surahNo = segments[sIdx].detail.summary.number;
-                            final ayahNo =
-                                segments[sIdx].detail.ayahs[i].numberInSurah;
-                            final key = 'ayah_${pageNumber}_${surahNo}_$ayahNo';
-                            _mountedAyahs[key] = _MountedAyahInfo(
-                              surahNumber: surahNo,
-                              ayahNumber: ayahNo,
-                              pageNumber: pageNumber,
-                              context: ctx,
-                            );
-                          },
-                          onUnmount: (ctx) {
-                            final surahNo = segments[sIdx].detail.summary.number;
-                            final ayahNo =
-                                segments[sIdx].detail.ayahs[i].numberInSurah;
-                            final key = 'ayah_${pageNumber}_${surahNo}_$ayahNo';
-                            if (_mountedAyahs[key]?.context == ctx) {
-                              _mountedAyahs.remove(key);
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: selectedTranslations.map((code) {
-                                final txt =
-                                    segments[sIdx].detail.translationAt(code, i);
-                                if (txt.isEmpty) return const SizedBox.shrink();
-                                final isAr = code == 'ar';
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Directionality(
-                                    textDirection: isAr
-                                        ? TextDirection.rtl
-                                        : TextDirection.ltr,
-                                    child: Text(
-                                      '(${segments[sIdx].detail.ayahs[i].numberInSurah}) $txt',
-                                      textAlign: isAr
-                                          ? TextAlign.right
-                                          : TextAlign.left,
-                                      style: styles.forTranslation(code),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
-                    ],
                   ],
                 ),
               ),
@@ -1960,127 +2038,447 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
     required _ReaderTextStyles styles,
   }) {
     final ayah = detail.ayahs[ayahIndex];
-    final ayahKey = '${detail.summary.number}:${ayah.numberInSurah}';
+    final surahNo = detail.summary.number;
+    final ayahNo = ayah.numberInSurah;
+    final ayahKey = '$surahNo:$ayahNo';
+    final anchorKey = '${surahNo}_$ayahNo';
     final isBookmarked = bookmarks.contains(ayahKey);
+
+    return _BlockMountTracker(
+      blockId: 'verse_audio_$anchorKey',
+      onMount: (ctx) => _playingAyahAnchors[anchorKey] = ctx,
+      onUnmount: (ctx) {
+        if (_playingAyahAnchors[anchorKey] == ctx) {
+          _playingAyahAnchors.remove(anchorKey);
+        }
+      },
+      child: Consumer(
+        builder: (context, audioRef, _) {
+          final activeAudio = audioRef.watch(
+            quranAudioProvider.select(
+              (s) => s.isVisible &&
+                      s.surahNumber == surahNo &&
+                      s.ayahNumber == ayahNo
+                  ? (s.isPlaying, s.isBuffering)
+                  : null,
+            ),
+          );
+          final isTarget = activeAudio != null;
+          final isPlayingThis = activeAudio?.$1 ?? false;
+          final isBufferingThis = activeAudio?.$2 ?? false;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                decoration: BoxDecoration(
+                  color: isTarget
+                      ? cs.primaryContainer.withValues(alpha: 0.34)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: Text.rich(
+                        TextSpan(
+                          style: styles.arabicBase,
+                          children: [
+                            TextSpan(text: ayah.arabicText),
+                            TextSpan(
+                              text: ApiConfig.ayahEndMarker(ayahNo),
+                              style: styles.arabicMarker,
+                            ),
+                          ],
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                    if (showTranslation)
+                      ...selectedTranslations.map((code) {
+                        final text = detail.translationAt(code, ayahIndex);
+                        if (text.isEmpty) return const SizedBox.shrink();
+                        final isAr = code == 'ar';
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Directionality(
+                            textDirection:
+                                isAr ? TextDirection.rtl : TextDirection.ltr,
+                            child: Text(
+                              text,
+                              textAlign:
+                                  isAr ? TextAlign.right : TextAlign.left,
+                              style: styles.forTranslation(code),
+                            ),
+                          ),
+                        );
+                      }),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(
+                            isBookmarked
+                                ? Icons.bookmark_rounded
+                                : Icons.bookmark_border_rounded,
+                            size: 19,
+                            color: isBookmarked
+                                ? cs.primary
+                                : cs.onSurfaceVariant,
+                          ),
+                          onPressed: () {
+                            ref.read(bookmarksProvider.notifier).toggle(ayahKey);
+                            final captured = _captureVisibleReadingPosition();
+                            final currentMode =
+                                ref.read(settingsProvider).readingMode;
+                            ref.read(lastReadProvider.notifier).setPosition(
+                                  LastReadPosition(
+                                    surahNumber: surahNo,
+                                    surahName: detail.summary.englishName,
+                                    surahArabicName: detail.summary.nameArabic,
+                                    ayahNumber: ayahNo,
+                                    pageNumber: ayah.page,
+                                    anchorOffsetPx: captured?.summary.number ==
+                                                surahNo &&
+                                            captured?.ayahNumber == ayahNo
+                                        ? captured!.anchorOffsetPx
+                                        : 0.0,
+                                    readingMode: currentMode,
+                                  ),
+                                );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  isBookmarked
+                                      ? t.bookmarkRemoved
+                                      : t.bookmarkSaved,
+                                ),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(
+                            Icons.copy_rounded,
+                            size: 18,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          onPressed: () {
+                            final buffer = StringBuffer(
+                              '${ayah.arabicText}${ApiConfig.ayahEndMarker(ayahNo)}',
+                            );
+                            if (showTranslation) {
+                              for (final code in selectedTranslations) {
+                                final txt = detail.translationAt(code, ayahIndex);
+                                if (txt.isNotEmpty) {
+                                  buffer.write('\n\n$txt');
+                                }
+                              }
+                            }
+                            Clipboard.setData(
+                              ClipboardData(text: buffer.toString()),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(t.copiedAyah),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          tooltip: isPlayingThis ? t.pauseAyah : t.playAyah,
+                          visualDensity: VisualDensity.compact,
+                          icon: isBufferingThis
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: cs.primary,
+                                  ),
+                                )
+                              : Icon(
+                                  isPlayingThis
+                                      ? Icons.pause_circle_filled_rounded
+                                      : Icons.play_circle_outline_rounded,
+                                  size: 22,
+                                  color: isTarget
+                                      ? cs.primary
+                                      : cs.onSurfaceVariant,
+                                ),
+                          onPressed: () => _audioNotifier.playOrToggleAyah(
+                            surahNumber: surahNo,
+                            ayahNumber: ayahNo,
+                            globalAyahNumber: ayah.globalNumber,
+                            summary: detail.summary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MushafSegmentBody extends ConsumerWidget {
+  final int pageNumber;
+  final _MushafPageSegment segment;
+  final bool showTranslation;
+  final List<String> selectedTranslations;
+  final AppStrings t;
+  final ColorScheme cs;
+  final _ReaderTextStyles styles;
+  final void Function(String key, BuildContext ctx) onRegisterAnchor;
+  final void Function(String key, BuildContext ctx) onUnregisterAnchor;
+  final void Function(String key, _MountedAyahInfo info) onRegisterMountedAyah;
+  final void Function(String key, BuildContext ctx) onUnregisterMountedAyah;
+  final void Function(
+    int surahNumber,
+    int ayahNumber,
+    int globalAyahNumber,
+    SurahSummary summary,
+  ) onTogglePlay;
+
+  const _MushafSegmentBody({
+    required this.pageNumber,
+    required this.segment,
+    required this.showTranslation,
+    required this.selectedTranslations,
+    required this.t,
+    required this.cs,
+    required this.styles,
+    required this.onRegisterAnchor,
+    required this.onUnregisterAnchor,
+    required this.onRegisterMountedAyah,
+    required this.onUnregisterMountedAyah,
+    required this.onTogglePlay,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final surahNo = segment.detail.summary.number;
+    final activeAudio = ref.watch(
+      quranAudioProvider.select(
+        (s) => s.isVisible && s.surahNumber == surahNo
+            ? (s.ayahNumber, s.isPlaying, s.isBuffering)
+            : null,
+      ),
+    );
+
+    final highlightBg = cs.primaryContainer.withValues(alpha: 0.72);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Directionality(
-                textDirection: TextDirection.rtl,
-                child: Text.rich(
-                  TextSpan(
-                    style: styles.arabicBase,
-                    children: [
-                      TextSpan(text: ayah.arabicText),
-                      TextSpan(
-                        text: ApiConfig.ayahEndMarker(ayah.numberInSurah),
-                        style: styles.arabicMarker,
-                      ),
-                    ],
-                  ),
-                  textAlign: TextAlign.right,
-                ),
-              ),
-              if (showTranslation)
-                ...selectedTranslations.map((code) {
-                  final text = detail.translationAt(code, ayahIndex);
-                  if (text.isEmpty) return const SizedBox.shrink();
-                  final isAr = code == 'ar';
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Directionality(
-                      textDirection:
-                          isAr ? TextDirection.rtl : TextDirection.ltr,
-                      child: Text(
-                        text,
-                        textAlign: isAr ? TextAlign.right : TextAlign.left,
-                        style: styles.forTranslation(code),
-                      ),
-                    ),
-                  );
-                }),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      isBookmarked
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_border_rounded,
-                      size: 19,
-                      color: isBookmarked ? cs.primary : cs.onSurfaceVariant,
-                    ),
-                    onPressed: () {
-                      ref.read(bookmarksProvider.notifier).toggle(ayahKey);
-                      final captured = _captureVisibleReadingPosition();
-                      final currentMode = ref.read(settingsProvider).readingMode;
-                      ref.read(lastReadProvider.notifier).setPosition(
-                            LastReadPosition(
-                              surahNumber: detail.summary.number,
-                              surahName: detail.summary.englishName,
-                              surahArabicName: detail.summary.nameArabic,
-                              ayahNumber: ayah.numberInSurah,
-                              pageNumber: ayah.page,
-                              anchorOffsetPx: captured?.summary.number ==
-                                          detail.summary.number &&
-                                      captured?.ayahNumber == ayah.numberInSurah
-                                  ? captured!.anchorOffsetPx
-                                  : 0.0,
-                              readingMode: currentMode,
-                            ),
-                          );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isBookmarked ? t.bookmarkRemoved : t.bookmarkSaved,
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: Text.rich(
+            TextSpan(
+              style: styles.arabicBase,
+              children: [
+                for (final i in segment.ayahIndices) ...[
+                  () {
+                    final ayah = segment.detail.ayahs[i];
+                    final isTarget =
+                        activeAudio != null && activeAudio.$1 == ayah.numberInSurah;
+                    return TextSpan(
+                      text: ayah.arabicText,
+                      style: isTarget
+                          ? styles.arabicBase.copyWith(backgroundColor: highlightBg)
+                          : null,
+                    );
+                  }(),
+                  () {
+                    final ayah = segment.detail.ayahs[i];
+                    final isTarget =
+                        activeAudio != null && activeAudio.$1 == ayah.numberInSurah;
+                    return TextSpan(
+                      text: ApiConfig.ayahEndMarker(ayah.numberInSurah).trimRight(),
+                      style: isTarget
+                          ? styles.arabicMarker.copyWith(backgroundColor: highlightBg)
+                          : styles.arabicMarker,
+                    );
+                  }(),
+                  () {
+                    final ayah = segment.detail.ayahs[i];
+                    final ayahNo = ayah.numberInSurah;
+                    final isTarget =
+                        activeAudio != null && activeAudio.$1 == ayahNo;
+                    final isPlayingThis = isTarget && activeAudio.$2;
+                    final isBufferingThis = isTarget && activeAudio.$3;
+                    final anchorKey = '${surahNo}_$ayahNo';
+
+                    return WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: _BlockMountTracker(
+                        blockId: 'mushaf_anchor_$anchorKey',
+                        onMount: (ctx) => onRegisterAnchor(anchorKey, ctx),
+                        onUnmount: (ctx) => onUnregisterAnchor(anchorKey, ctx),
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                            start: 3,
+                            end: 2,
                           ),
-                          duration: const Duration(seconds: 1),
+                          child: _InlineAyahAudioChip(
+                            isTarget: isTarget,
+                            isPlaying: isPlayingThis,
+                            isBuffering: isBufferingThis,
+                            tooltip: isPlayingThis ? t.pauseAyah : t.playAyah,
+                            cs: cs,
+                            onTap: () => onTogglePlay(
+                              surahNo,
+                              ayahNo,
+                              ayah.globalNumber,
+                              segment.detail.summary,
+                            ),
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      Icons.copy_rounded,
-                      size: 18,
-                      color: cs.onSurfaceVariant,
-                    ),
-                    onPressed: () {
-                      final buffer = StringBuffer(
-                        '${ayah.arabicText}${ApiConfig.ayahEndMarker(ayah.numberInSurah)}',
-                      );
-                      if (showTranslation) {
-                        for (final code in selectedTranslations) {
-                          final txt = detail.translationAt(code, ayahIndex);
-                          if (txt.isNotEmpty) {
-                            buffer.write('\n\n$txt');
-                          }
-                        }
-                      }
-                      Clipboard.setData(ClipboardData(text: buffer.toString()));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(t.copiedAyah),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  }(),
+                  const TextSpan(text: ' '),
                 ],
-              ),
-            ],
+              ],
+            ),
+            textAlign: TextAlign.justify,
           ),
         ),
-        const Divider(height: 1),
+        if (showTranslation) ...[
+          const Divider(height: 22),
+          for (final i in segment.ayahIndices)
+            () {
+              final ayahNo = segment.detail.ayahs[i].numberInSurah;
+              final isTarget = activeAudio != null && activeAudio.$1 == ayahNo;
+              final mountedKey = 'ayah_${pageNumber}_${surahNo}_$ayahNo';
+              return _BlockMountTracker(
+                blockId: mountedKey,
+                onMount: (ctx) {
+                  onRegisterMountedAyah(
+                    mountedKey,
+                    _MountedAyahInfo(
+                      surahNumber: surahNo,
+                      ayahNumber: ayahNo,
+                      pageNumber: pageNumber,
+                      context: ctx,
+                    ),
+                  );
+                },
+                onUnmount: (ctx) => onUnregisterMountedAyah(mountedKey, ctx),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: isTarget
+                      ? const EdgeInsets.symmetric(horizontal: 8, vertical: 6)
+                      : EdgeInsets.zero,
+                  decoration: BoxDecoration(
+                    color: isTarget
+                        ? cs.primaryContainer.withValues(alpha: 0.30)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: selectedTranslations.map((code) {
+                      final txt = segment.detail.translationAt(code, i);
+                      if (txt.isEmpty) return const SizedBox.shrink();
+                      final isAr = code == 'ar';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Directionality(
+                          textDirection:
+                              isAr ? TextDirection.rtl : TextDirection.ltr,
+                          child: Text(
+                            '($ayahNo) $txt',
+                            textAlign: isAr ? TextAlign.right : TextAlign.left,
+                            style: styles.forTranslation(code),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            }(),
+        ],
       ],
+    );
+  }
+}
+
+class _InlineAyahAudioChip extends StatelessWidget {
+  final bool isTarget;
+  final bool isPlaying;
+  final bool isBuffering;
+  final String tooltip;
+  final ColorScheme cs;
+  final VoidCallback onTap;
+
+  const _InlineAyahAudioChip({
+    required this.isTarget,
+    required this.isPlaying,
+    required this.isBuffering,
+    required this.tooltip,
+    required this.cs,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: isTarget ? cs.primary : cs.primary.withValues(alpha: 0.10),
+        shape: CircleBorder(
+          side: BorderSide(
+            color: isTarget
+                ? cs.primary
+                : cs.primary.withValues(alpha: 0.28),
+            width: 1,
+          ),
+        ),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: Center(
+              child: isBuffering
+                  ? SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.8,
+                        color: cs.onPrimary,
+                      ),
+                    )
+                  : Icon(
+                      isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      size: 15,
+                      color: isTarget ? cs.onPrimary : cs.primary,
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

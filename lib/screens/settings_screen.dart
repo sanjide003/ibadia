@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/config/api_config.dart';
 import '../core/config/app_branding.dart';
+import '../providers/audio_provider.dart';
 import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
 import '../widgets/web_pwa_widgets.dart';
@@ -187,6 +189,107 @@ class CompactSettingsDrawer extends ConsumerWidget {
                     ),
 
                     const Divider(height: 26),
+
+                    // 4. Reciter Selection (Al Quran Cloud / EveryAyah)
+                    Text(
+                      t.reciter,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      t.reciterSubtitle,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...ApiConfig.reciters.map((reciter) {
+                      final selected = settings.reciterId == reciter.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Material(
+                          color: selected
+                              ? cs.primaryContainer.withValues(alpha: 0.72)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              notifier.update(
+                                settings.copyWith(reciterId: reciter.id),
+                              );
+                              ref
+                                  .read(quranAudioProvider.notifier)
+                                  .onReciterChanged(reciter.id);
+                            },
+                            child: Container(
+                              constraints: const BoxConstraints(minHeight: 44),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: selected
+                                      ? cs.primary.withValues(alpha: 0.7)
+                                      : cs.outlineVariant.withValues(alpha: 0.7),
+                                  width: selected ? 1.4 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    selected
+                                        ? Icons.graphic_eq_rounded
+                                        : Icons.record_voice_over_outlined,
+                                    size: 18,
+                                    color: selected
+                                        ? cs.primary
+                                        : cs.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      reciter.displayName(settings.appLanguage),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: selected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: selected
+                                            ? cs.onPrimaryContainer
+                                            : cs.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Icon(
+                                    selected
+                                        ? Icons.check_circle_rounded
+                                        : Icons.circle_outlined,
+                                    size: 18,
+                                    color: selected
+                                        ? cs.primary
+                                        : cs.onSurfaceVariant.withValues(
+                                            alpha: 0.5,
+                                          ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+
+                    const Divider(height: 24),
 
                     // 4. Translation Toggle + Multi-Language Chips
                     SwitchListTile(

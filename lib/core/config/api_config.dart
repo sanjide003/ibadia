@@ -84,6 +84,98 @@ class ApiConfig {
 
   /// Formats an inline Quranic end-of-ayah ornament like ﴿١﴾.
   static String ayahEndMarker(int number) => ' ﴿${toArabicNumber(number)}﴾ ';
+
+  static const String defaultReciterId = 'ar.alafasy';
+
+  static const List<QuranReciter> reciters = [
+    QuranReciter(
+      id: 'ar.alafasy',
+      englishName: 'Mishary Rashid Alafasy',
+      malayalamName: 'മിഷാരി റാഷിദ് അൽ-അഫാസി',
+      arabicName: 'مشاري راشد العفاسي',
+      cdnBitrate: 64,
+      everyAyahFolder: 'Alafasy_64kbps',
+    ),
+    QuranReciter(
+      id: 'ar.abdulbasitmurattal',
+      englishName: 'Abdul Basit (Murattal)',
+      malayalamName: 'അബ്ദുൽ ബാസിത് (മുറത്തൽ)',
+      arabicName: 'عبد الباسط عبد الصمد (مرتل)',
+      cdnBitrate: 64,
+      everyAyahFolder: 'Abdul_Basit_Murattal_64kbps',
+    ),
+    QuranReciter(
+      id: 'ar.husary',
+      englishName: 'Mahmoud Khalil Al-Husary',
+      malayalamName: 'മഹ്‌മൂദ് ഖലീൽ അൽ-ഹുസ്വരി',
+      arabicName: 'محمود خليل الحصري',
+      cdnBitrate: 128,
+      everyAyahFolder: 'Husary_64kbps',
+    ),
+    QuranReciter(
+      id: 'ar.minshawi',
+      englishName: 'Mohamed Siddiq Al-Minshawi',
+      malayalamName: 'മുഹമ്മദ് സിദ്ദീഖ് അൽ-മിൻഷാവി',
+      arabicName: 'محمد صديق المنشاوي',
+      cdnBitrate: 128,
+      everyAyahFolder: 'Minshawy_Murattal_128kbps',
+    ),
+  ];
+
+  static QuranReciter reciterById(String id) {
+    for (final r in reciters) {
+      if (r.id == id) return r;
+    }
+    return reciters.first;
+  }
+
+  /// Primary Al Quran Cloud CDN MP3 URL (lowest verified bitrate per reciter).
+  static String alQuranCloudAudioUrl({
+    required QuranReciter reciter,
+    required int globalAyahNumber,
+  }) {
+    return 'https://cdn.islamic.network/quran/audio/${reciter.cdnBitrate}/${reciter.id}/$globalAyahNumber.mp3';
+  }
+
+  /// Fallback EveryAyah.com verse-by-verse MP3 URL (`SSSAAA.mp3`).
+  static String everyAyahAudioUrl({
+    required QuranReciter reciter,
+    required int surahNumber,
+    required int ayahNumber,
+  }) {
+    final sss = surahNumber.toString().padLeft(3, '0');
+    final aaa = ayahNumber.toString().padLeft(3, '0');
+    return 'https://everyayah.com/data/${reciter.everyAyahFolder}/$sss$aaa.mp3';
+  }
+}
+
+class QuranReciter {
+  final String id;
+  final String englishName;
+  final String malayalamName;
+  final String arabicName;
+  final int cdnBitrate;
+  final String everyAyahFolder;
+
+  const QuranReciter({
+    required this.id,
+    required this.englishName,
+    required this.malayalamName,
+    required this.arabicName,
+    required this.cdnBitrate,
+    required this.everyAyahFolder,
+  });
+
+  String displayName(String appLanguage) {
+    switch (appLanguage) {
+      case 'ml':
+        return malayalamName;
+      case 'ar':
+        return arabicName;
+      default:
+        return englishName;
+    }
+  }
 }
 
 class JuzInfo {

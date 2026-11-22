@@ -332,6 +332,30 @@ class AppStrings {
         'تعذر التحقق من التحديثات الآن. يرجى التحقق من اتصال الإنترنت.',
       );
 
+  // Audio Recitation & Reciter Selection
+  String get reciter => _pick('Reciter', 'ഖാരിഅ് (Reciter)', 'القارئ');
+  String get reciterSubtitle => _pick(
+        'Choose your Quran recitation voice',
+        'ഖുർആൻ പാരായണം ചെയ്യുന്ന ഖാരിഇനെ തിരഞ്ഞെടുക്കുക',
+        'اختر صوت قارئ القرآن الكريم',
+      );
+  String get playAyah => _pick('Play Ayah', 'ആയത്ത് കേൾക്കുക', 'تشغيل الآية');
+  String get pauseAyah =>
+      _pick('Pause recitation', 'പാരായണം നിർത്തുക', 'إيقاف مؤقت');
+  String get resumeAyah =>
+      _pick('Resume recitation', 'തുടർന്ന് കേൾക്കുക', 'استئناف التلاوة');
+  String get previousAyah =>
+      _pick('Previous Ayah', 'മുമ്പത്തെ ആയത്ത്', 'الآية السابقة');
+  String get nextAyah =>
+      _pick('Next Ayah', 'അടുത്ത ആയത്ത്', 'الآية التالية');
+  String get closePlayer =>
+      _pick('Close player', 'പ്ലെയർ അടയ്ക്കുക', 'إغلاق المشغل');
+  String get audioLoadError => _pick(
+        'Could not play audio. Tap retry.',
+        'ഓഡിയോ പ്ലേ ചെയ്യാനായില്ല. വീണ്ടും ശ്രമിക്കുക.',
+        'تعذر تشغيل الصوت. اضغط لإعادة المحاولة.',
+      );
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

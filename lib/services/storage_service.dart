@@ -10,6 +10,7 @@ class AppSettings {
   final bool showTranslation;
   final List<String> selectedTranslations; // any subset of ['en', 'ml', 'ar']
   final double autoScrollSpeed; // 0.25x to 4.0x
+  final String reciterId;
   /// Normalized relative position (0.0 .. 1.0) inside safe viewport
   final double? fabRelX;
   final double? fabRelY;
@@ -23,6 +24,7 @@ class AppSettings {
     this.showTranslation = false,
     this.selectedTranslations = const ['en'],
     this.autoScrollSpeed = 1.0,
+    this.reciterId = 'ar.alafasy',
     this.fabRelX,
     this.fabRelY,
   });
@@ -36,6 +38,7 @@ class AppSettings {
     bool? showTranslation,
     List<String>? selectedTranslations,
     double? autoScrollSpeed,
+    String? reciterId,
     double? fabRelX,
     double? fabRelY,
     bool clearFabPos = false,
@@ -49,6 +52,7 @@ class AppSettings {
       showTranslation: showTranslation ?? this.showTranslation,
       selectedTranslations: selectedTranslations ?? this.selectedTranslations,
       autoScrollSpeed: autoScrollSpeed ?? this.autoScrollSpeed,
+      reciterId: reciterId ?? this.reciterId,
       fabRelX: clearFabPos ? null : (fabRelX ?? this.fabRelX),
       fabRelY: clearFabPos ? null : (fabRelY ?? this.fabRelY),
     );
@@ -198,6 +202,7 @@ class StorageService {
   static const _showTransKey = 'pref_show_trans_v3';
   static const _selTransKey = 'pref_selected_trans_v3';
   static const _scrollSpeedKey = 'pref_scroll_speed_v3';
+  static const _reciterIdKey = 'pref_reciter_id_v4';
   static const _fabRelXKey = 'pref_fab_rel_x_v4';
   static const _fabRelYKey = 'pref_fab_rel_y_v4';
 
@@ -260,6 +265,7 @@ class StorageService {
       selectedTranslations:
           (savedTrans != null && savedTrans.isNotEmpty) ? savedTrans : ['en'],
       autoScrollSpeed: prefs.getDouble(_scrollSpeedKey) ?? 1.0,
+      reciterId: prefs.getString(_reciterIdKey) ?? 'ar.alafasy',
       fabRelX: prefs.getDouble(_fabRelXKey),
       fabRelY: prefs.getDouble(_fabRelYKey),
     );
@@ -275,6 +281,7 @@ class StorageService {
     await prefs.setBool(_showTransKey, settings.showTranslation);
     await prefs.setStringList(_selTransKey, settings.selectedTranslations);
     await prefs.setDouble(_scrollSpeedKey, settings.autoScrollSpeed);
+    await prefs.setString(_reciterIdKey, settings.reciterId);
     if (settings.fabRelX != null && settings.fabRelY != null) {
       await prefs.setDouble(_fabRelXKey, settings.fabRelX!);
       await prefs.setDouble(_fabRelYKey, settings.fabRelY!);
