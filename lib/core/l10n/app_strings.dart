@@ -363,7 +363,6 @@ class AppStrings {
   String get featuresTab => _pick('Features', 'ഫീച്ചേഴ്സ്', 'الميزات');
   String get prayerTimesTab =>
       _pick('Prayer Times', 'നമസ്കാരം', 'أوقات الصلاة');
-  String get qiblaTab => _pick('Qibla', 'ഖിബ്ല', 'القبلة');
   String get hijriCalendarTab =>
       _pick('Hijri', 'ഹിജ്രി', 'التقويم الهجري');
 
@@ -426,33 +425,78 @@ class AppStrings {
   String get maghribName => _pick('Maghrib', 'മഗ്‌രിബ്', 'المغرب');
   String get ishaName => _pick('Isha', 'ഇശാഅ്', 'العشاء');
 
-  // Qibla Compass
-  String get qiblaDirection =>
-      _pick('Qibla Direction', 'ഖിബ്ല ദിശ', 'اتجاه القبلة');
-  String get qiblaBearingLabel =>
-      _pick('Kaaba Bearing', 'കഅ്ബ കോൺ', 'زاوية القبلة');
-  String get kaabaDistanceLabel =>
-      _pick('Distance to Makkah', 'മക്കയിലേക്കുള്ള ദൂരം', 'المسافة إلى مكة');
-  String get facingQibla =>
-      _pick('Aligned with Qibla', 'കൃത്യമായ ഖിബ്ല ദിശയിലാണ്', 'أنت باتجاه القبلة');
-  String turnDegreesLabel(bool right, int deg) => right
-      ? _pick('Turn right $deg°', 'വലത്തോട്ട് $deg° തിരിയുക', 'اتجه يميناً $deg°')
-      : _pick('Turn left $deg°', 'ഇടത്തോട്ട് $deg° തിരിയുക', 'اتجه يساراً $deg°');
-  String get compassSensorActive => _pick(
-        'Live compass sensor active',
-        'ലൈവ് കോമ്പസ് സെൻസർ പ്രവർത്തിക്കുന്നു',
-        'مستشعر البوصلة نشط',
+  // Adhan, Iqamah & Alarm System
+  String get adhanLabel => _pick('Adhan', 'ബാങ്ക്', 'الأذان');
+  String get iqamahLabel => _pick('Iqamah', 'ഇഖാമത്ത്', 'الإقامة');
+  String get alarmLabel => _pick('Alarm', 'അലാറം', 'المنبه');
+  String get prayerAlarmsTitle =>
+      _pick('Prayer Alarms', 'നിസ്കാര അലാറം', 'منبهات الصلاة');
+  String get masterAlarmToggle => _pick(
+        'Enable Prayer Alarms',
+        'നിസ്കാര അലാറം ഓൺ ആക്കുക',
+        'تفعيل منبهات الصلاة',
       );
-  String get compassUnavailableNote => _pick(
-        'Live compass sensor not detected on this browser/device. Dial points true North (top = N) toward the marked Qibla bearing.',
-        'ഈ ബ്രൗസറിൽ/ഉപകരണത്തിൽ ലൈവ് കോമ്പസ് സെൻസർ ലഭ്യമല്ല. മുകൾഭാഗം വടക്കായി (N) ഖിബ്ല ദിശ കാണിക്കുന്നു.',
-        'مستشعر البوصلة غير متاح على هذا المتصفح/الجهاز. المؤشر يوضح اتجاه القبلة نسبة للشمال.',
+  String get masterAlarmDesc => _pick(
+        'Turn all active prayer reminders on or off together',
+        'അഞ്ച് നേരത്തെ അലാറങ്ങളും ഒരുമിച്ച് ഓൺ/ഓഫ് ചെയ്യാം',
+        'تشغيل أو إيقاف جميع منبهات الصلوات معاً',
       );
-  String get compassCalibrationTip => _pick(
-        'Move phone in a figure-8 motion if compass accuracy drifts.',
-        'കൃത്യതയ്ക്കായി ഫോൺ 8-ആകൃതിയിൽ പതുക്കെ ചലിപ്പിക്കുക.',
-        'حرّك الهاتف على شكل رقم 8 لمعايرة البوصلة.',
+  String get alarmSoundSettings =>
+      _pick('Alarm Sound & Volume', 'അലാറം സൗണ്ട് ക്രമീകരണം', 'صوت المنبه ومستواه');
+  String get alarmSoundTypeLabel =>
+      _pick('Alarm Sound', 'അലാറം ശബ്ദം', 'صوت التنبيه');
+  String get alarmVolumeLabel =>
+      _pick('Alarm Volume', 'ശബ്ദത്തിന്റെ അളവ്', 'مستوى الصوت');
+  String get alarmVibrateLabel =>
+      _pick('Vibrate with Alarm', 'വൈബ്രേഷൻ', 'الاهتزاز مع المنبه');
+  String get previewSoundLabel =>
+      _pick('Test Sound', 'സൗണ്ട് കേൾക്കുക', 'تجربة الصوت');
+  String get stopSoundLabel => _pick('Stop', 'നിർത്തുക', 'إيقاف');
+  String get iqamahGapLabel => _pick(
+        'Iqamah Delay (after Adhan)',
+        'ഇഖാമത്ത് സമയം (ബാങ്കിന് ശേഷം)',
+        'وقت الإقامة (بعد الأذان)',
       );
+  String get alarmRefLabel =>
+      _pick('Alarm Timing', 'അലാറം എപ്പോൾ?', 'توقيت المنبه');
+  String get beforeAdhanOption =>
+      _pick('Before Adhan', 'ബാങ്കിന് മുമ്പ്', 'قبل الأذان');
+  String get relativeToIqamahOption =>
+      _pick('Before / After Iqamah', 'ഇഖാമത്തിന് മുമ്പ് / ശേഷം', 'قبل / بعد الإقامة');
+  String get minutesBeforeLabel =>
+      _pick('Minutes before Adhan', 'ബാങ്കിന് എത്ര മിനിറ്റ് മുമ്പ്', 'دقائق قبل الأذان');
+  String get offsetFromIqamahLabel => _pick(
+        'Offset from Iqamah (- before / + after)',
+        'ഇഖാമത്തിൽ നിന്നുള്ള വ്യത്യാസം (- മുമ്പ് / + ശേഷം)',
+        'الفارق عن الإقامة (- قبل / + بعد)',
+      );
+  String get atIqamahTime => _pick('At Iqamah', 'ഇഖാമത്ത് സമയത്ത്', 'عند الإقامة');
+  String safetyBufferNote(String nextName, String limitTime) => _pick(
+        'Safety limit: stays at least 10 min before $nextName ($limitTime)',
+        'സുരക്ഷാ പരിധി: അടുത്ത $nextName ബാങ്കിന് 10 മിനിറ്റ് മുമ്പ് വരെ ($limitTime)',
+        'الحد الآمن: قبل أذان $nextName بـ 10 دقائق على الأقل ($limitTime)',
+      );
+  String get alarmOffLabel => _pick('Off', 'ഓഫ്', 'إيقاف');
+  String get dismissedTodayLabel =>
+      _pick('Off today', 'ഇന്ന് ഓഫ്', 'متوقف اليوم');
+  String get dismissTodayAlarm => _pick(
+        'Dismiss Today\'s Alarm',
+        'ഇന്നത്തെ അലാറം ഓഫ് ചെയ്യുക',
+        'إيقاف منبه اليوم',
+      );
+  String get dismissOnlyNote => _pick(
+        'Turns off this prayer for today only. Tomorrow rings as scheduled.',
+        'ഇന്നത്തെ ഈ നിസ്കാരത്തിന്റെ അലാറം മാത്രം ഓഫാകും. നാളെ വീണ്ടും അടിക്കും.',
+        'يوقف تنبيه هذه الصلاة لليوم فقط، وسيعمل غداً كالمعتاد.',
+      );
+  String get prayerReminderRinging => _pick(
+        'Prayer Reminder',
+        'നിസ്കാര സമയ അറിയിപ്പ്',
+        'تذكير الصلاة',
+      );
+  String get editScheduleLabel =>
+      _pick('Edit Iqamah & Alarm', 'ഇഖാമത്തും അലാറവും മാറ്റുക', 'تعديل الإقامة والمنبه');
+  String get minutesUnitShort => _pick('m', 'മി', 'د');
 
   // Hijri Calendar
   String get hijriCalendarTitle =>

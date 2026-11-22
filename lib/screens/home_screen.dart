@@ -8,6 +8,7 @@ import '../core/config/api_config.dart';
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
 import '../models/surah_model.dart';
+import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
 import '../services/storage_service.dart';
@@ -74,14 +75,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   TabController _ensureFeaturesTabController() {
     final existing = _featuresTabCtrl;
-    if (existing != null && existing.length == 3) {
+    if (existing != null && existing.length == 2) {
       return existing;
     }
     if (existing != null) {
       existing.removeListener(_onFeaturesSubTabChanged);
       existing.dispose();
     }
-    final ctrl = TabController(length: 3, vsync: this);
+    final ctrl = TabController(length: 2, vsync: this);
     ctrl.addListener(_onFeaturesSubTabChanged);
     _featuresTabCtrl = ctrl;
     return ctrl;
@@ -100,6 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      ref.read(prayerAlarmProvider);
       ref.read(updateProvider.notifier).checkForUpdates(silent: true);
       _restoreAppResumeState();
     });
@@ -131,6 +133,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(prayerAlarmProvider.notifier).syncWithNative();
+    }
     if (!_isReaderOpen &&
         (state == AppLifecycleState.inactive ||
             state == AppLifecycleState.paused ||
@@ -227,7 +232,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final restoredTab = resume.homeTabIndex.clamp(0, 2);
     final restoredSubTab = resume.quranSubTabIndex.clamp(0, 3);
-    final restoredFeaturesSubTab = resume.featuresSubTabIndex.clamp(0, 2);
+    final restoredFeaturesSubTab = resume.featuresSubTabIndex.clamp(0, 1);
 
     setState(() {
       _tabIndex = restoredTab;
@@ -467,13 +472,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         Tab(
                           child: Text(
                             t.prayerTimesTab,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Tab(
-                          child: Text(
-                            t.qiblaTab,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/islamic_features_model.dart';
 
 class AppSettings {
   final String appLanguage; // 'en' (default) | 'ml' | 'ar'
@@ -15,7 +16,7 @@ class AppSettings {
   final double? fabRelX;
   final double? fabRelY;
 
-  // Prayer Times, Qibla & Hijri Calendar settings (nullable backing fields for DDC hot-reload safety)
+  // Prayer Times & Hijri Calendar settings (nullable backing fields for DDC hot-reload safety)
   final String? _prayerLocationMode; // 'city' | 'gps'
   final String? _prayerCity;
   final String? _prayerCountry;
@@ -31,6 +32,13 @@ class AppSettings {
   final int? _prayerTuneIsha;
   final int? _hijriAdjustment; // -1, 0, +1
 
+  // Prayer Alarm & Sound settings
+  final bool? _prayerAlarmMasterEnabled;
+  final String? _alarmSoundType; // 'adhan_alafasy' | 'adhan_nafees' | 'alarm_tone'
+  final double? _alarmVolume; // 0.1..1.0
+  final bool? _alarmVibrate;
+  final Map<String, PrayerAlarmConfig>? _prayerConfigs;
+
   String get prayerLocationMode => _prayerLocationMode ?? 'city';
   String get prayerCity => _prayerCity ?? 'Kochi';
   String get prayerCountry => _prayerCountry ?? 'India';
@@ -44,6 +52,16 @@ class AppSettings {
   int get prayerTuneMaghrib => _prayerTuneMaghrib ?? 0;
   int get prayerTuneIsha => _prayerTuneIsha ?? 0;
   int get hijriAdjustment => (_hijriAdjustment ?? 0).clamp(-1, 1);
+
+  bool get prayerAlarmMasterEnabled => _prayerAlarmMasterEnabled ?? false;
+  String get alarmSoundType => _alarmSoundType ?? 'adhan_alafasy';
+  double get alarmVolume => (_alarmVolume ?? 0.85).clamp(0.1, 1.0);
+  bool get alarmVibrate => _alarmVibrate ?? true;
+  Map<String, PrayerAlarmConfig> get prayerConfigs =>
+      _prayerConfigs ?? AlAdhanCatalog.defaultPrayerConfigs();
+
+  PrayerAlarmConfig alarmConfigFor(String prayerKey) =>
+      prayerConfigs[prayerKey] ?? PrayerAlarmConfig(prayerKey: prayerKey);
 
   const AppSettings({
     this.appLanguage = 'en',
@@ -71,6 +89,11 @@ class AppSettings {
     int? prayerTuneMaghrib = 0,
     int? prayerTuneIsha = 0,
     int? hijriAdjustment = 0,
+    bool? prayerAlarmMasterEnabled = false,
+    String? alarmSoundType = 'adhan_alafasy',
+    double? alarmVolume = 0.85,
+    bool? alarmVibrate = true,
+    Map<String, PrayerAlarmConfig>? prayerConfigs,
   })  : _prayerLocationMode = prayerLocationMode,
         _prayerCity = prayerCity,
         _prayerCountry = prayerCountry,
@@ -83,7 +106,12 @@ class AppSettings {
         _prayerTuneAsr = prayerTuneAsr,
         _prayerTuneMaghrib = prayerTuneMaghrib,
         _prayerTuneIsha = prayerTuneIsha,
-        _hijriAdjustment = hijriAdjustment;
+        _hijriAdjustment = hijriAdjustment,
+        _prayerAlarmMasterEnabled = prayerAlarmMasterEnabled,
+        _alarmSoundType = alarmSoundType,
+        _alarmVolume = alarmVolume,
+        _alarmVibrate = alarmVibrate,
+        _prayerConfigs = prayerConfigs;
 
   int tuneFor(String prayerKey) {
     switch (prayerKey) {
@@ -145,6 +173,12 @@ class AppSettings {
         prayerTuneIsha: 0,
       );
 
+  AppSettings copyWithPrayerAlarmConfig(PrayerAlarmConfig nextConfig) {
+    final updated = Map<String, PrayerAlarmConfig>.from(prayerConfigs);
+    updated[nextConfig.prayerKey] = nextConfig;
+    return copyWith(prayerConfigs: updated);
+  }
+
   AppSettings copyWith({
     String? appLanguage,
     String? readingMode,
@@ -173,6 +207,11 @@ class AppSettings {
     int? prayerTuneMaghrib,
     int? prayerTuneIsha,
     int? hijriAdjustment,
+    bool? prayerAlarmMasterEnabled,
+    String? alarmSoundType,
+    double? alarmVolume,
+    bool? alarmVibrate,
+    Map<String, PrayerAlarmConfig>? prayerConfigs,
   }) {
     return AppSettings(
       appLanguage: appLanguage ?? this.appLanguage,
@@ -202,6 +241,12 @@ class AppSettings {
       prayerTuneMaghrib: prayerTuneMaghrib ?? this.prayerTuneMaghrib,
       prayerTuneIsha: prayerTuneIsha ?? this.prayerTuneIsha,
       hijriAdjustment: (hijriAdjustment ?? this.hijriAdjustment).clamp(-1, 1),
+      prayerAlarmMasterEnabled:
+          prayerAlarmMasterEnabled ?? this.prayerAlarmMasterEnabled,
+      alarmSoundType: alarmSoundType ?? this.alarmSoundType,
+      alarmVolume: alarmVolume ?? this.alarmVolume,
+      alarmVibrate: alarmVibrate ?? this.alarmVibrate,
+      prayerConfigs: prayerConfigs ?? this.prayerConfigs,
     );
   }
 }
@@ -251,7 +296,7 @@ class AppResumeState {
   final String lastScreen; // 'home' | 'reader'
   final int homeTabIndex; // 0: Quran, 1: Features, 2: Settings
   final int quranSubTabIndex; // 0: Surah, 1: Juz, 2: Bookmarks, 3: Export
-  final int? _featuresSubTabIndex; // 0: Prayer Times, 1: Qibla, 2: Hijri
+  final int? _featuresSubTabIndex; // 0: Prayer Times, 1: Hijri
   int get featuresSubTabIndex => _featuresSubTabIndex ?? 0;
   final double surahListScrollOffset;
   final double juzListScrollOffset;
@@ -376,9 +421,17 @@ class StorageService {
   static const _tuneIshaKey = 'pref_tune_isha_v1';
   static const _hijriAdjKey = 'pref_hijri_adj_v1';
 
+  // Prayer Alarm preferences
+  static const _alarmMasterKey = 'pref_alarm_master_v1';
+  static const _alarmSoundKey = 'pref_alarm_sound_v1';
+  static const _alarmVolumeKey = 'pref_alarm_volume_v1';
+  static const _alarmVibrateKey = 'pref_alarm_vibrate_v1';
+  static const _prayerConfigsKey = 'pref_prayer_configs_v1';
+  static const _dismissedAlarmsKey = 'prayer_alarm_dismissed_v1';
+
   // Offline API caches
   static const _dailyPrayerCacheKey = 'prayer_daily_cache_v1';
-  static const _hijriCalCachePrefix = 'hijri_cal_cache_v1_';
+  static const _hijriCalCachePrefix = 'hijri_month_cal_v2_';
 
   Future<SharedPreferences>? _prefsFuture;
   Future<SharedPreferences> get _prefs =>
@@ -429,6 +482,21 @@ class StorageService {
   Future<AppSettings> loadSettings() async {
     final prefs = await _prefs;
     final savedTrans = prefs.getStringList(_selTransKey);
+
+    final configs = AlAdhanCatalog.defaultPrayerConfigs();
+    final rawConfigs = prefs.getString(_prayerConfigsKey);
+    if (rawConfigs != null) {
+      try {
+        final decoded = jsonDecode(rawConfigs) as Map<String, dynamic>;
+        for (final key in AlAdhanCatalog.fivePrayerKeys) {
+          final entry = decoded[key];
+          if (entry is Map<String, dynamic>) {
+            configs[key] = PrayerAlarmConfig.fromJson(key, entry);
+          }
+        }
+      } catch (_) {}
+    }
+
     return AppSettings(
       appLanguage: prefs.getString(_appLangKey) ?? 'en',
       readingMode: prefs.getString(_readModeKey) ?? 'mushaf',
@@ -456,6 +524,11 @@ class StorageService {
       prayerTuneMaghrib: prefs.getInt(_tuneMaghribKey) ?? 0,
       prayerTuneIsha: prefs.getInt(_tuneIshaKey) ?? 0,
       hijriAdjustment: (prefs.getInt(_hijriAdjKey) ?? 0).clamp(-1, 1),
+      prayerAlarmMasterEnabled: prefs.getBool(_alarmMasterKey) ?? false,
+      alarmSoundType: prefs.getString(_alarmSoundKey) ?? 'adhan_alafasy',
+      alarmVolume: (prefs.getDouble(_alarmVolumeKey) ?? 0.85).clamp(0.1, 1.0),
+      alarmVibrate: prefs.getBool(_alarmVibrateKey) ?? true,
+      prayerConfigs: configs,
     );
   }
 
@@ -496,6 +569,30 @@ class StorageService {
     await prefs.setInt(_tuneMaghribKey, settings.prayerTuneMaghrib);
     await prefs.setInt(_tuneIshaKey, settings.prayerTuneIsha);
     await prefs.setInt(_hijriAdjKey, settings.hijriAdjustment);
+
+    await prefs.setBool(_alarmMasterKey, settings.prayerAlarmMasterEnabled);
+    await prefs.setString(_alarmSoundKey, settings.alarmSoundType);
+    await prefs.setDouble(_alarmVolumeKey, settings.alarmVolume);
+    await prefs.setBool(_alarmVibrateKey, settings.alarmVibrate);
+    final encodedConfigs = {
+      for (final e in settings.prayerConfigs.entries) e.key: e.value.toJson(),
+    };
+    await prefs.setString(_prayerConfigsKey, jsonEncode(encodedConfigs));
+  }
+
+  Future<Set<String>> loadDismissedAlarmsForDate(String dateKey) async {
+    final prefs = await _prefs;
+    final list = prefs.getStringList(_dismissedAlarmsKey) ?? const [];
+    return list.where((k) => k.startsWith('$dateKey|')).toSet();
+  }
+
+  Future<void> saveDismissedAlarmsForDate(
+    String dateKey,
+    Set<String> keys,
+  ) async {
+    final prefs = await _prefs;
+    final pruned = keys.where((k) => k.startsWith('$dateKey|')).toList();
+    await prefs.setStringList(_dismissedAlarmsKey, pruned);
   }
 
   Future<Map<String, dynamic>?> loadDailyPrayerCache() async {
@@ -515,13 +612,14 @@ class StorageService {
   }
 
   Future<List<dynamic>?> loadHijriCalendarCache(
-    int year,
-    int month,
+    int hijriYear,
+    int hijriMonth,
     int adjustment,
   ) async {
     final prefs = await _prefs;
-    final raw =
-        prefs.getString('$_hijriCalCachePrefix${year}_${month}_adj$adjustment');
+    final raw = prefs.getString(
+      '$_hijriCalCachePrefix${hijriYear}_${hijriMonth}_adj$adjustment',
+    );
     if (raw == null) return null;
     try {
       return jsonDecode(raw) as List<dynamic>;
@@ -531,14 +629,14 @@ class StorageService {
   }
 
   Future<void> saveHijriCalendarCache(
-    int year,
-    int month,
+    int hijriYear,
+    int hijriMonth,
     int adjustment,
     List<Map<String, dynamic>> entries,
   ) async {
     final prefs = await _prefs;
     await prefs.setString(
-      '$_hijriCalCachePrefix${year}_${month}_adj$adjustment',
+      '$_hijriCalCachePrefix${hijriYear}_${hijriMonth}_adj$adjustment',
       jsonEncode(entries),
     );
   }

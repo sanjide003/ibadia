@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 class PrayerCalculationMethod {
   final int id;
   final String englishName;
@@ -41,6 +39,130 @@ class CityPreset {
   String get label => '$city, $country';
 }
 
+class AlarmSoundOption {
+  final String id;
+  final String englishName;
+  final String malayalamName;
+  final String arabicName;
+  final String? remoteUrl;
+
+  const AlarmSoundOption({
+    required this.id,
+    required this.englishName,
+    required this.malayalamName,
+    required this.arabicName,
+    this.remoteUrl,
+  });
+
+  String displayName(String lang) {
+    switch (lang) {
+      case 'ml':
+        return malayalamName;
+      case 'ar':
+        return arabicName;
+      default:
+        return englishName;
+    }
+  }
+}
+
+enum PrayerAlarmRef {
+  beforeAdhan,
+  relativeToIqamah,
+}
+
+class PrayerAlarmConfig {
+  final String prayerKey; // 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha'
+  final bool enabled;
+  final int iqamahGapMinutes; // 0..120 min after Adhan (default 15)
+  final PrayerAlarmRef alarmRef;
+  /// When [alarmRef] == beforeAdhan: minutes BEFORE Adhan (default 10, range 0..120).
+  /// When [alarmRef] == relativeToIqamah: signed offset from Iqamah (-60..+60).
+  final int alarmOffsetMinutes;
+
+  const PrayerAlarmConfig({
+    required this.prayerKey,
+    this.enabled = true,
+    this.iqamahGapMinutes = 15,
+    this.alarmRef = PrayerAlarmRef.beforeAdhan,
+    this.alarmOffsetMinutes = 10,
+  });
+
+  PrayerAlarmConfig copyWith({
+    bool? enabled,
+    int? iqamahGapMinutes,
+    PrayerAlarmRef? alarmRef,
+    int? alarmOffsetMinutes,
+  }) {
+    return PrayerAlarmConfig(
+      prayerKey: prayerKey,
+      enabled: enabled ?? this.enabled,
+      iqamahGapMinutes: (iqamahGapMinutes ?? this.iqamahGapMinutes).clamp(0, 120),
+      alarmRef: alarmRef ?? this.alarmRef,
+      alarmOffsetMinutes: alarmOffsetMinutes ?? this.alarmOffsetMinutes,
+    );
+  }
+
+  factory PrayerAlarmConfig.fromJson(String key, Map<String, dynamic> json) {
+    final refStr = (json['alarmRef'] ?? 'beforeAdhan').toString();
+    final ref = refStr == 'relativeToIqamah'
+        ? PrayerAlarmRef.relativeToIqamah
+        : PrayerAlarmRef.beforeAdhan;
+    return PrayerAlarmConfig(
+      prayerKey: key,
+      enabled: json['enabled'] as bool? ?? true,
+      iqamahGapMinutes:
+          ((json['iqamahGapMinutes'] as num?)?.toInt() ?? 15).clamp(0, 120),
+      alarmRef: ref,
+      alarmOffsetMinutes: (json['alarmOffsetMinutes'] as num?)?.toInt() ?? 10,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        'iqamahGapMinutes': iqamahGapMinutes,
+        'alarmRef': alarmRef == PrayerAlarmRef.relativeToIqamah
+            ? 'relativeToIqamah'
+            : 'beforeAdhan',
+        'alarmOffsetMinutes': alarmOffsetMinutes,
+      };
+}
+
+class ComputedPrayerSlot {
+  final String prayerKey;
+  final DateTime adhanTime;
+  final DateTime iqamahTime;
+  final DateTime? alarmTime;
+  final DateTime nextBoundaryAdhan;
+  final DateTime safetyLimitTime; // nextBoundaryAdhan - 10 minutes
+  final String nextBoundaryKey;
+  final bool masterEnabled;
+  final bool prayerAlarmEnabled;
+  final bool dismissedToday;
+  final int tuneMinutes;
+  final int effectiveIqamahGap;
+  final int maxAllowedIqamahGap;
+
+  const ComputedPrayerSlot({
+    required this.prayerKey,
+    required this.adhanTime,
+    required this.iqamahTime,
+    required this.alarmTime,
+    required this.nextBoundaryAdhan,
+    required this.safetyLimitTime,
+    required this.nextBoundaryKey,
+    required this.masterEnabled,
+    required this.prayerAlarmEnabled,
+    required this.dismissedToday,
+    required this.tuneMinutes,
+    required this.effectiveIqamahGap,
+    required this.maxAllowedIqamahGap,
+  });
+
+  bool get isAlarmActive =>
+      masterEnabled && prayerAlarmEnabled && alarmTime != null;
+}
+
 class AlAdhanCatalog {
   static const int defaultMethodId = 1; // Karachi (UISK)
   static const int defaultSchool = 0; // Shafi
@@ -49,8 +171,43 @@ class AlAdhanCatalog {
   static const double defaultLat = 9.9312;
   static const double defaultLon = 76.2673;
 
-  static const double kaabaLat = 21.422487;
-  static const double kaabaLon = 39.826206;
+  static const List<String> fivePrayerKeys = [
+    'fajr',
+    'dhuhr',
+    'asr',
+    'maghrib',
+    'isha',
+  ];
+
+  static const List<AlarmSoundOption> alarmSounds = [
+    AlarmSoundOption(
+      id: 'adhan_alafasy',
+      englishName: 'Adhan — Mishary Alafasy',
+      malayalamName: 'ബാങ്ക് — മിശാരി അൽ-അഫാസി',
+      arabicName: 'الأذان — مشاري العفاسي',
+      remoteUrl: 'https://cdn.aladhan.com/audio/adhans/a4.mp3',
+    ),
+    AlarmSoundOption(
+      id: 'adhan_nafees',
+      englishName: 'Adhan — Ahmad al-Nafees',
+      malayalamName: 'ബാങ്ക് — അഹ്‌മദ് അൽ-നഫീസ്',
+      arabicName: 'الأذان — أحمد النفيس',
+      remoteUrl: 'https://cdn.aladhan.com/audio/adhans/a1.mp3',
+    ),
+    AlarmSoundOption(
+      id: 'alarm_tone',
+      englishName: 'Alarm Tone (Device / Chime)',
+      malayalamName: 'അലാറം ടോൺ (സാധാരണ ശബ്ദം)',
+      arabicName: 'نغمة منبه',
+    ),
+  ];
+
+  static AlarmSoundOption soundById(String id) {
+    for (final s in alarmSounds) {
+      if (s.id == id) return s;
+    }
+    return alarmSounds.first;
+  }
 
   static const List<PrayerCalculationMethod> methods = [
     PrayerCalculationMethod(
@@ -121,42 +278,52 @@ class AlAdhanCatalog {
     CityPreset(city: 'Riyadh', country: 'Saudi Arabia', latitude: 24.7136, longitude: 46.6753),
   ];
 
-  /// Computes exact true-north Qibla bearing in degrees [0..360) via spherical trig.
-  static double computeQiblaBearing(double latitude, double longitude) {
-    final lat1 = latitude * math.pi / 180.0;
-    final lon1 = longitude * math.pi / 180.0;
-    const lat2 = kaabaLat * math.pi / 180.0;
-    const lon2 = kaabaLon * math.pi / 180.0;
-    final dLon = lon2 - lon1;
+  static Map<String, PrayerAlarmConfig> defaultPrayerConfigs() => {
+        for (final key in fivePrayerKeys)
+          key: PrayerAlarmConfig(
+            prayerKey: key,
+            enabled: true,
+            iqamahGapMinutes: 15,
+            alarmRef: PrayerAlarmRef.beforeAdhan,
+            alarmOffsetMinutes: 10,
+          ),
+      };
+}
 
-    final y = math.sin(dLon) * math.cos(lat2);
-    final x = math.cos(lat1) * math.sin(lat2) -
-        math.sin(lat1) * math.cos(lat2) * math.cos(dLon);
-    final bearing = math.atan2(y, x) * 180.0 / math.pi;
-    return (bearing + 360.0) % 360.0;
-  }
+class HijriMonthCatalog {
+  static const List<String> englishMonths = [
+    'Muharram',
+    'Safar',
+    'Rabi al-Awwal',
+    'Rabi al-Thani',
+    'Jumada al-Ula',
+    'Jumada al-Akhirah',
+    'Rajab',
+    'Sha\'ban',
+    'Ramadan',
+    'Shawwal',
+    'Dhu al-Qi\'dah',
+    'Dhu al-Hijjah',
+  ];
 
-  /// Computes great-circle Haversine distance to the Kaaba in kilometers.
-  static double distanceToKaabaKm(double latitude, double longitude) {
-    const earthRadiusKm = 6371.0;
-    final dLat = (kaabaLat - latitude) * math.pi / 180.0;
-    final dLon = (kaabaLon - longitude) * math.pi / 180.0;
-    final lat1 = latitude * math.pi / 180.0;
-    const lat2 = kaabaLat * math.pi / 180.0;
+  static const List<String> arabicMonths = [
+    'مُحَرَّم',
+    'صَفَر',
+    'رَبِيع الأَوَّل',
+    'رَبِيع الثَّانِي',
+    'جُمَادَى الأُولَى',
+    'جُمَادَى الآخِرَة',
+    'رَجَب',
+    'شَعْبَان',
+    'رَمَضَان',
+    'شَوَّال',
+    'ذُو القَعْدَة',
+    'ذُو الحِجَّة',
+  ];
 
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.sin(dLon / 2) *
-            math.sin(dLon / 2) *
-            math.cos(lat1) *
-            math.cos(lat2);
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return earthRadiusKm * c;
-  }
-
-  static String compassCardinal(double deg) {
-    const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-    final idx = ((deg / 22.5).round()) % 16;
-    return dirs[idx];
+  static String monthName(int month, String lang) {
+    final idx = (month - 1).clamp(0, 11);
+    return lang == 'ar' ? arabicMonths[idx] : englishMonths[idx];
   }
 }
 
@@ -339,6 +506,94 @@ class DailyPrayerData {
     ).add(Duration(minutes: offsetMinutes));
   }
 
+  /// Computes all 5 daily prayer slots enforcing a strict >= 10-minute safety buffer
+  /// before the next prayer's Adhan (or Sunrise for Fajr).
+  List<ComputedPrayerSlot> computeDailySlots({
+    required DateTime referenceDay,
+    required int Function(String prayerKey) tuneFor,
+    required Map<String, PrayerAlarmConfig> configs,
+    required bool masterAlarmEnabled,
+    required Set<String> dismissedTodayKeys,
+  }) {
+    final fajrAdhan = tunedTimeFor('fajr', tuneFor('fajr'), referenceDay);
+    final sunriseTime = tunedTimeFor('sunrise', 0, referenceDay);
+    final dhuhrAdhan = tunedTimeFor('dhuhr', tuneFor('dhuhr'), referenceDay);
+    final asrAdhan = tunedTimeFor('asr', tuneFor('asr'), referenceDay);
+    final maghribAdhan =
+        tunedTimeFor('maghrib', tuneFor('maghrib'), referenceDay);
+    final ishaAdhan = tunedTimeFor('isha', tuneFor('isha'), referenceDay);
+    final tomorrowFajr = tunedTimeFor(
+      'fajr',
+      tuneFor('fajr'),
+      referenceDay.add(const Duration(days: 1)),
+    );
+
+    final adhans = {
+      'fajr': fajrAdhan,
+      'dhuhr': dhuhrAdhan,
+      'asr': asrAdhan,
+      'maghrib': maghribAdhan,
+      'isha': ishaAdhan,
+    };
+
+    final boundaries = {
+      'fajr': ('sunrise', sunriseTime),
+      'dhuhr': ('asr', asrAdhan),
+      'asr': ('maghrib', maghribAdhan),
+      'maghrib': ('isha', ishaAdhan),
+      'isha': ('fajr', tomorrowFajr),
+    };
+
+    final dateStr =
+        '${referenceDay.year.toString().padLeft(4, '0')}-${referenceDay.month.toString().padLeft(2, '0')}-${referenceDay.day.toString().padLeft(2, '0')}';
+
+    return AlAdhanCatalog.fivePrayerKeys.map((key) {
+      final adhan = adhans[key]!;
+      final boundary = boundaries[key]!;
+      final nextAdhan = boundary.$2;
+      final safetyLimit = nextAdhan.subtract(const Duration(minutes: 10));
+      final maxGap =
+          mathMax0(safetyLimit.difference(adhan).inMinutes);
+
+      final cfg = configs[key] ?? PrayerAlarmConfig(prayerKey: key);
+      final clampedGap = cfg.iqamahGapMinutes.clamp(0, maxGap);
+      final iqamah = adhan.add(Duration(minutes: clampedGap));
+
+      DateTime? rawAlarm;
+      if (cfg.enabled) {
+        if (cfg.alarmRef == PrayerAlarmRef.beforeAdhan) {
+          final minsBefore = cfg.alarmOffsetMinutes.clamp(0, 120);
+          rawAlarm = adhan.subtract(Duration(minutes: minsBefore));
+        } else {
+          final signedOffset = cfg.alarmOffsetMinutes.clamp(-60, 60);
+          rawAlarm = iqamah.add(Duration(minutes: signedOffset));
+        }
+        // Hard safety clamp: alarm never approaches within 10 minutes of next prayer's Adhan
+        if (rawAlarm.isAfter(safetyLimit)) {
+          rawAlarm = safetyLimit;
+        }
+      }
+
+      return ComputedPrayerSlot(
+        prayerKey: key,
+        adhanTime: adhan,
+        iqamahTime: iqamah,
+        alarmTime: rawAlarm,
+        nextBoundaryAdhan: nextAdhan,
+        safetyLimitTime: safetyLimit,
+        nextBoundaryKey: boundary.$1,
+        masterEnabled: masterAlarmEnabled,
+        prayerAlarmEnabled: cfg.enabled,
+        dismissedToday: dismissedTodayKeys.contains('$dateStr|$key'),
+        tuneMinutes: tuneFor(key),
+        effectiveIqamahGap: clampedGap,
+        maxAllowedIqamahGap: maxGap,
+      );
+    }).toList();
+  }
+
+  static int mathMax0(int v) => v < 0 ? 0 : v;
+
   static String format12Hour(DateTime dt) {
     final hour24 = dt.hour;
     final amPm = hour24 >= 12 ? 'PM' : 'AM';
@@ -352,6 +607,7 @@ class CalendarDayEntry {
   final int gregorianDay;
   final int gregorianMonth;
   final int gregorianYear;
+  final String gregorianMonthEn;
   final String weekdayEn;
   final int hijriDay;
   final int hijriMonthNumber;
@@ -364,6 +620,7 @@ class CalendarDayEntry {
     required this.gregorianDay,
     required this.gregorianMonth,
     required this.gregorianYear,
+    this.gregorianMonthEn = '',
     required this.weekdayEn,
     required this.hijriDay,
     required this.hijriMonthNumber,
@@ -375,6 +632,26 @@ class CalendarDayEntry {
 
   DateTime get gregorianDate =>
       DateTime(gregorianYear, gregorianMonth, gregorianDay);
+
+  static const _shortGregMonths = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  String get shortGregorianLabel {
+    final m = _shortGregMonths[(gregorianMonth - 1).clamp(0, 11)];
+    return '$gregorianDay $m';
+  }
 
   factory CalendarDayEntry.fromAlAdhanJson(Map<String, dynamic> item) {
     final greg = (item['gregorian'] as Map<String, dynamic>? ?? const {});
@@ -388,6 +665,7 @@ class CalendarDayEntry {
       gregorianDay: int.tryParse((greg['day'] ?? '1').toString()) ?? 1,
       gregorianMonth: (gMonth['number'] as num?)?.toInt() ?? 1,
       gregorianYear: int.tryParse((greg['year'] ?? '2026').toString()) ?? 2026,
+      gregorianMonthEn: (gMonth['en'] ?? '').toString(),
       weekdayEn: (gWeekday['en'] ?? '').toString(),
       hijriDay: int.tryParse((hijri['day'] ?? '1').toString()) ?? 1,
       hijriMonthNumber: (hMonth['number'] as num?)?.toInt() ?? 1,
@@ -403,6 +681,7 @@ class CalendarDayEntry {
         gregorianDay: (json['gd'] as num?)?.toInt() ?? 1,
         gregorianMonth: (json['gm'] as num?)?.toInt() ?? 1,
         gregorianYear: (json['gy'] as num?)?.toInt() ?? 2026,
+        gregorianMonthEn: (json['gme'] ?? '').toString(),
         weekdayEn: (json['wd'] ?? '').toString(),
         hijriDay: (json['hd'] as num?)?.toInt() ?? 1,
         hijriMonthNumber: (json['hm'] as num?)?.toInt() ?? 1,
@@ -418,6 +697,7 @@ class CalendarDayEntry {
         'gd': gregorianDay,
         'gm': gregorianMonth,
         'gy': gregorianYear,
+        if (gregorianMonthEn.isNotEmpty) 'gme': gregorianMonthEn,
         'wd': weekdayEn,
         'hd': hijriDay,
         'hm': hijriMonthNumber,

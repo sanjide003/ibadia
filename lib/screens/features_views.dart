@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -196,7 +194,7 @@ Future<void> showPrayerLocationPickerSheet(
   countryCtrl.dispose();
 }
 
-/// Shared Masjid Time Tune widget (+/- minutes per Salah) used in Prayer Times view & Settings.
+/// Shared Masjid Time Tune widget (+/- minutes per Salah) used in Prayer Times & Settings.
 class PrayerTuneControlList extends ConsumerWidget {
   final bool compact;
 
@@ -300,6 +298,238 @@ class PrayerTuneControlList extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// Shared Prayer Alarm Sound, Volume, Vibration & Master Toggle controls.
+class PrayerAlarmSoundControls extends ConsumerWidget {
+  final bool compact;
+
+  const PrayerAlarmSoundControls({super.key, this.compact = false});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final alarmState = ref.watch(prayerAlarmProvider);
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final alarmNotifier = ref.read(prayerAlarmProvider.notifier);
+    final t = ref.watch(stringsProvider);
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: compact,
+          title: Text(
+            t.masterAlarmToggle,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: compact ? 13.5 : 14.5,
+            ),
+          ),
+          subtitle: Text(
+            t.masterAlarmDesc,
+            style: TextStyle(fontSize: compact ? 11.5 : 12),
+          ),
+          value: settings.prayerAlarmMasterEnabled,
+          onChanged: (val) => alarmNotifier.setMasterAlarmEnabled(val),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          t.alarmSoundTypeLabel,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: compact ? 13 : 13.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        InputDecorator(
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
+            prefixIcon: Icon(
+              Icons.music_note_rounded,
+              size: 19,
+              color: cs.primary,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: cs.outlineVariant.withValues(alpha: 0.8),
+              ),
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: AlAdhanCatalog.soundById(settings.alarmSoundType).id,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              borderRadius: BorderRadius.circular(12),
+              items: AlAdhanCatalog.alarmSounds.map((opt) {
+                return DropdownMenuItem<String>(
+                  value: opt.id,
+                  child: Text(
+                    opt.displayName(settings.appLanguage),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) async {
+                if (val == null) return;
+                if (alarmState.isPreviewingSound) {
+                  await alarmNotifier.stopPreviewSound();
+                }
+                await settingsNotifier.update(
+                  settings.copyWith(alarmSoundType: val),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Icon(Icons.volume_up_rounded, size: 19, color: cs.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                t.alarmVolumeLabel,
+                style: TextStyle(
+                  fontSize: compact ? 13 : 13.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Text(
+              '${(settings.alarmVolume * 100).round()}%',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: cs.primary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: settings.alarmVolume.clamp(0.1, 1.0),
+          min: 0.1,
+          max: 1.0,
+          divisions: 9,
+          onChanged: (val) => settingsNotifier.update(
+            settings.copyWith(alarmVolume: val),
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(
+            t.alarmVibrateLabel,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: compact ? 13 : 13.5,
+            ),
+          ),
+          value: settings.alarmVibrate,
+          onChanged: (val) => settingsNotifier.update(
+            settings.copyWith(alarmVibrate: val),
+          ),
+        ),
+        const SizedBox(height: 6),
+        FilledButton.tonalIcon(
+          onPressed: () => alarmNotifier.togglePreviewSound(),
+          icon: Icon(
+            alarmState.isPreviewingSound
+                ? Icons.stop_rounded
+                : Icons.play_arrow_rounded,
+            size: 20,
+          ),
+          label: Text(
+            alarmState.isPreviewingSound
+                ? t.stopSoundLabel
+                : t.previewSoundLabel,
+          ),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Modal sheet for editing prayer alarm sounds directly from Prayer Times screen.
+Future<void> showPrayerAlarmSoundSheet(
+  BuildContext context,
+  WidgetRef ref,
+  AppStrings t,
+) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (ctx) {
+      return Directionality(
+        textDirection: t.textDirection,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            18,
+            4,
+            18,
+            24 + MediaQuery.viewInsetsOf(ctx).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.notifications_active_rounded,
+                    color: Theme.of(ctx).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t.alarmSoundSettings,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(t.done),
+                  ),
+                ],
+              ),
+              const Divider(height: 18),
+              const PrayerAlarmSoundControls(),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+  // Stop preview playback cleanly when closing sheet
+  await ref.read(prayerAlarmProvider.notifier).stopPreviewSound();
 }
 
 class _StepperChipButton extends StatelessWidget {
@@ -437,7 +667,6 @@ class FeaturesContainerView extends StatelessWidget {
       controller: controller,
       children: const [
         PrayerTimesView(),
-        QiblaCompassView(),
         HijriCalendarView(),
       ],
     );
@@ -445,7 +674,7 @@ class FeaturesContainerView extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 1. PRAYER TIMES VIEW
+// 1. PRAYER TIMES VIEW (Adhan, Iqamah & Alarm Schedule Cards)
 // ---------------------------------------------------------------------------
 class PrayerTimesView extends ConsumerStatefulWidget {
   const PrayerTimesView({super.key});
@@ -474,28 +703,58 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
     super.dispose();
   }
 
+  String _prayerName(String key, AppStrings t) {
+    switch (key) {
+      case 'fajr':
+        return t.fajrName;
+      case 'sunrise':
+        return t.sunriseName;
+      case 'dhuhr':
+        return t.dhuhrName;
+      case 'asr':
+        return t.asrName;
+      case 'maghrib':
+        return t.maghribName;
+      case 'isha':
+        return t.ishaName;
+      default:
+        return key;
+    }
+  }
+
+  IconData _prayerIcon(String key) {
+    switch (key) {
+      case 'fajr':
+        return Icons.wb_twilight_rounded;
+      case 'sunrise':
+        return Icons.wb_sunny_outlined;
+      case 'dhuhr':
+        return Icons.light_mode_rounded;
+      case 'asr':
+        return Icons.sunny_snowing;
+      case 'maghrib':
+        return Icons.nights_stay_outlined;
+      case 'isha':
+        return Icons.bedtime_rounded;
+      default:
+        return Icons.schedule_rounded;
+    }
+  }
+
   ({String key, String name, DateTime time})? _resolveNextPrayer(
     DailyPrayerData data,
     AppSettings settings,
     AppStrings t,
   ) {
-    final entries = <(String, String, int)>[
-      ('fajr', t.fajrName, settings.prayerTuneFajr),
-      ('dhuhr', t.dhuhrName, settings.prayerTuneDhuhr),
-      ('asr', t.asrName, settings.prayerTuneAsr),
-      ('maghrib', t.maghribName, settings.prayerTuneMaghrib),
-      ('isha', t.ishaName, settings.prayerTuneIsha),
-    ];
-
-    for (final item in entries) {
-      final dt = data.tunedTimeFor(item.$1, item.$3, _now);
+    for (final key in AlAdhanCatalog.fivePrayerKeys) {
+      final dt = data.tunedTimeFor(key, settings.tuneFor(key), _now);
       if (dt.isAfter(_now)) {
-        return (key: item.$1, name: item.$2, time: dt);
+        return (key: key, name: _prayerName(key, t), time: dt);
       }
     }
-    // After Isha -> next Fajr tomorrow
     final tomorrow = _now.add(const Duration(days: 1));
-    final nextFajr = data.tunedTimeFor('fajr', settings.prayerTuneFajr, tomorrow);
+    final nextFajr =
+        data.tunedTimeFor('fajr', settings.prayerTuneFajr, tomorrow);
     return (key: 'fajr', name: t.fajrName, time: nextFajr);
   }
 
@@ -507,9 +766,432 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
     return '$h:$m:$s';
   }
 
+  Future<void> _openSlotEditor(ComputedPrayerSlot slot) async {
+    final t = ref.read(stringsProvider);
+    final settings = ref.read(settingsProvider);
+    final currentCfg = settings.alarmConfigFor(slot.prayerKey);
+
+    bool enabled = currentCfg.enabled;
+    int iqamahGap = currentCfg.iqamahGapMinutes.clamp(
+      0,
+      slot.maxAllowedIqamahGap,
+    );
+    PrayerAlarmRef alarmRef = currentCfg.alarmRef;
+    int alarmOffset = currentCfg.alarmOffsetMinutes;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            final cs = Theme.of(sheetCtx).colorScheme;
+            final iqamahDt = slot.adhanTime.add(Duration(minutes: iqamahGap));
+            const int minIqamahOffset = -60;
+            final int maxIqamahOffset =
+                slot.safetyLimitTime.difference(iqamahDt).inMinutes.clamp(0, 60);
+
+            if (alarmRef == PrayerAlarmRef.beforeAdhan) {
+              alarmOffset = alarmOffset.clamp(0, 120);
+            } else {
+              alarmOffset = alarmOffset.clamp(minIqamahOffset, maxIqamahOffset);
+            }
+
+            DateTime? previewAlarmDt;
+            if (enabled) {
+              if (alarmRef == PrayerAlarmRef.beforeAdhan) {
+                previewAlarmDt =
+                    slot.adhanTime.subtract(Duration(minutes: alarmOffset));
+              } else {
+                previewAlarmDt = iqamahDt.add(Duration(minutes: alarmOffset));
+              }
+              if (previewAlarmDt.isAfter(slot.safetyLimitTime)) {
+                previewAlarmDt = slot.safetyLimitTime;
+              }
+            }
+
+            final String offsetHuman;
+            if (alarmRef == PrayerAlarmRef.beforeAdhan) {
+              offsetHuman = '$alarmOffset ${t.minutesUnitShort}';
+            } else if (alarmOffset == 0) {
+              offsetHuman = t.atIqamahTime;
+            } else if (alarmOffset > 0) {
+              offsetHuman = '+$alarmOffset ${t.minutesUnitShort}';
+            } else {
+              offsetHuman = '$alarmOffset ${t.minutesUnitShort}';
+            }
+
+            final nextBoundaryName = _prayerName(slot.nextBoundaryKey, t);
+            final limitFormatted =
+                DailyPrayerData.format12Hour(slot.safetyLimitTime);
+
+            return Directionality(
+              textDirection: t.textDirection,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  18,
+                  4,
+                  18,
+                  24 + MediaQuery.viewInsetsOf(sheetCtx).bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _prayerIcon(slot.prayerKey),
+                          color: cs.primary,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${_prayerName(slot.prayerKey, t)} — ${t.editScheduleLabel}',
+                                style: const TextStyle(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                '${t.adhanLabel}: ${DailyPrayerData.format12Hour(slot.adhanTime)}',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: cs.onSurfaceVariant,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 22),
+
+                    // Live computed summary row inside editor
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer.withValues(alpha: 0.42),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          _ScheduleMetricColumn(
+                            label: t.adhanLabel,
+                            value: DailyPrayerData.format12Hour(slot.adhanTime),
+                            accentColor: cs.onSurface,
+                          ),
+                          _ScheduleMetricColumn(
+                            label: t.iqamahLabel,
+                            value: DailyPrayerData.format12Hour(iqamahDt),
+                            accentColor: cs.primary,
+                          ),
+                          _ScheduleMetricColumn(
+                            label: t.alarmLabel,
+                            value: previewAlarmDt != null
+                                ? DailyPrayerData.format12Hour(previewAlarmDt)
+                                : t.alarmOffLabel,
+                            accentColor: previewAlarmDt != null
+                                ? cs.primary
+                                : cs.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Iqamah Gap Stepper
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.iqamahGapLabel,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                '+$iqamahGap ${t.minutesUnitShort} (max ${slot.maxAllowedIqamahGap}${t.minutesUnitShort})',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _StepperChipButton(
+                          icon: Icons.remove_rounded,
+                          tooltip: '-1',
+                          onTap: iqamahGap > 0
+                              ? () => setSheetState(() => iqamahGap -= 1)
+                              : null,
+                        ),
+                        SizedBox(
+                          width: 56,
+                          child: Text(
+                            '+$iqamahGap${t.minutesUnitShort}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: cs.primary,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                        ),
+                        _StepperChipButton(
+                          icon: Icons.add_rounded,
+                          tooltip: '+1',
+                          onTap: iqamahGap < slot.maxAllowedIqamahGap
+                              ? () => setSheetState(() => iqamahGap += 1)
+                              : null,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [5, 10, 15, 20, 30]
+                          .where((v) => v <= slot.maxAllowedIqamahGap)
+                          .map((presetMin) {
+                        final selected = iqamahGap == presetMin;
+                        return ChoiceChip(
+                          label: Text('+$presetMin${t.minutesUnitShort}'),
+                          selected: selected,
+                          onSelected: (_) =>
+                              setSheetState(() => iqamahGap = presetMin),
+                        );
+                      }).toList(),
+                    ),
+
+                    const Divider(height: 24),
+
+                    // Per-Prayer Alarm Switch
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        '${_prayerName(slot.prayerKey, t)} ${t.alarmLabel}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14.5,
+                        ),
+                      ),
+                      value: enabled,
+                      onChanged: (v) => setSheetState(() => enabled = v),
+                    ),
+
+                    if (enabled) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        t.alarmRefLabel,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<PrayerAlarmRef>(
+                          showSelectedIcon: false,
+                          segments: [
+                            ButtonSegment(
+                              value: PrayerAlarmRef.beforeAdhan,
+                              label: Text(
+                                t.beforeAdhanOption,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            ButtonSegment(
+                              value: PrayerAlarmRef.relativeToIqamah,
+                              label: Text(
+                                t.relativeToIqamahOption,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                          selected: {alarmRef},
+                          onSelectionChanged: (sel) {
+                            setSheetState(() {
+                              alarmRef = sel.first;
+                              if (alarmRef == PrayerAlarmRef.beforeAdhan) {
+                                alarmOffset = 10;
+                              } else {
+                                alarmOffset = -5.clamp(
+                                  minIqamahOffset,
+                                  maxIqamahOffset,
+                                );
+                              }
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              alarmRef == PrayerAlarmRef.beforeAdhan
+                                  ? t.minutesBeforeLabel
+                                  : t.offsetFromIqamahLabel,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          _StepperChipButton(
+                            icon: Icons.remove_rounded,
+                            tooltip: '-1',
+                            onTap: (alarmRef == PrayerAlarmRef.beforeAdhan
+                                    ? alarmOffset > 0
+                                    : alarmOffset > minIqamahOffset)
+                                ? () => setSheetState(() => alarmOffset -= 1)
+                                : null,
+                          ),
+                          SizedBox(
+                            width: 74,
+                            child: Text(
+                              offsetHuman,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: cs.primary,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              ),
+                            ),
+                          ),
+                          _StepperChipButton(
+                            icon: Icons.add_rounded,
+                            tooltip: '+1',
+                            onTap: (alarmRef == PrayerAlarmRef.beforeAdhan
+                                    ? alarmOffset < 120
+                                    : alarmOffset < maxIqamahOffset)
+                                ? () => setSheetState(() => alarmOffset += 1)
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    const SizedBox(height: 12),
+
+                    // Safety limit notice box
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.shield_outlined,
+                            size: 16,
+                            color: cs.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              t.safetyBufferNote(
+                                nextBoundaryName,
+                                limitFormatted,
+                              ),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: cs.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(t.cancelLabel),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () async {
+                              final nextCfg = PrayerAlarmConfig(
+                                prayerKey: slot.prayerKey,
+                                enabled: enabled,
+                                iqamahGapMinutes: iqamahGap,
+                                alarmRef: alarmRef,
+                                alarmOffsetMinutes: alarmOffset,
+                              );
+                              final latest = ref.read(settingsProvider);
+                              await ref.read(settingsProvider.notifier).update(
+                                    latest.copyWithPrayerAlarmConfig(nextCfg),
+                                  );
+                              if (enabled && !latest.prayerAlarmMasterEnabled) {
+                                await ref
+                                    .read(prayerAlarmProvider.notifier)
+                                    .setMasterAlarmEnabled(true);
+                              }
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                              }
+                            },
+                            icon: const Icon(Icons.check_rounded, size: 18),
+                            label: Text(t.applyLabel),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final prayerState = ref.watch(prayerTimesProvider);
+    final alarmState = ref.watch(prayerAlarmProvider);
     final settings = ref.watch(settingsProvider);
     final t = ref.watch(stringsProvider);
     final cs = Theme.of(context).colorScheme;
@@ -522,6 +1204,19 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
     final methodObj = AlAdhanCatalog.methodById(settings.prayerMethod);
     final schoolLabel =
         settings.prayerSchool == 1 ? t.schoolHanafi : t.schoolShafi;
+    final soundOption = AlAdhanCatalog.soundById(settings.alarmSoundType);
+
+    final List<ComputedPrayerSlot> slots = data != null
+        ? (alarmState.slots.length == 5
+            ? alarmState.slots
+            : data.computeDailySlots(
+                referenceDay: _now,
+                tuneFor: settings.tuneFor,
+                configs: settings.prayerConfigs,
+                masterAlarmEnabled: settings.prayerAlarmMasterEnabled,
+                dismissedTodayKeys: alarmState.dismissedTodayKeys,
+              ))
+        : const [];
 
     return ListView(
       padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
@@ -776,9 +1471,75 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
           ),
         ],
 
+        const SizedBox(height: 12),
+
+        // Master Prayer Alarm & Sound Quick Control Bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: settings.prayerAlarmMasterEnabled
+                ? cs.primaryContainer.withValues(alpha: 0.38)
+                : palette.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: settings.prayerAlarmMasterEnabled
+                  ? cs.primary.withValues(alpha: 0.5)
+                  : palette.cardBorder,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                settings.prayerAlarmMasterEnabled
+                    ? Icons.notifications_active_rounded
+                    : Icons.notifications_off_outlined,
+                color: settings.prayerAlarmMasterEnabled
+                    ? cs.primary
+                    : cs.onSurfaceVariant,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.prayerAlarmsTitle,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      soundOption.displayName(settings.appLanguage),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: t.alarmSoundSettings,
+                onPressed: () => showPrayerAlarmSoundSheet(context, ref, t),
+                icon: Icon(Icons.graphic_eq_rounded, color: cs.primary),
+              ),
+              Switch(
+                value: settings.prayerAlarmMasterEnabled,
+                onChanged: (v) => ref
+                    .read(prayerAlarmProvider.notifier)
+                    .setMasterAlarmEnabled(v),
+              ),
+            ],
+          ),
+        ),
+
         const SizedBox(height: 14),
 
-        // Prayer Schedule List or Error/Loading
+        // Prayer Schedule Cards (Adhan, Iqamah, Alarm) or Loading/Error
         if (data == null && prayerState.isLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 42),
@@ -809,102 +1570,224 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
             ),
           )
         else if (data != null) ...[
-          ...[
-            ('fajr', t.fajrName, Icons.wb_twilight_rounded),
-            ('sunrise', t.sunriseName, Icons.wb_sunny_outlined),
-            ('dhuhr', t.dhuhrName, Icons.light_mode_rounded),
-            ('asr', t.asrName, Icons.sunny_snowing),
-            ('maghrib', t.maghribName, Icons.nights_stay_outlined),
-            ('isha', t.ishaName, Icons.bedtime_rounded),
-          ].map((row) {
-            final key = row.$1;
-            final label = row.$2;
-            final icon = row.$3;
-            final tune = settings.tuneFor(key);
-            final dt = data.tunedTimeFor(key, tune, _now);
+          // Build chronological cards: Fajr, Sunrise strip, Dhuhr, Asr, Maghrib, Isha
+          ...slots.expand((slot) {
             final isNext = nextInfo != null &&
-                nextInfo.key == key &&
+                nextInfo.key == slot.prayerKey &&
                 nextInfo.time.day == _now.day;
-            final isSunrise = key == 'sunrise';
+            final label = _prayerName(slot.prayerKey, t);
+            final icon = _prayerIcon(slot.prayerKey);
+            final cfg = settings.alarmConfigFor(slot.prayerKey);
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            final String alarmText;
+            final Color alarmColor;
+            if (!settings.prayerAlarmMasterEnabled ||
+                !slot.prayerAlarmEnabled ||
+                slot.alarmTime == null) {
+              alarmText = t.alarmOffLabel;
+              alarmColor = cs.onSurfaceVariant;
+            } else if (slot.dismissedToday) {
+              alarmText = t.dismissedTodayLabel;
+              alarmColor = AppBranding.accentGold;
+            } else {
+              alarmText = DailyPrayerData.format12Hour(slot.alarmTime!);
+              alarmColor = cs.primary;
+            }
+
+            final cardWidget = Container(
+              margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
                 color: isNext
-                    ? cs.primaryContainer.withValues(alpha: 0.48)
+                    ? cs.primaryContainer.withValues(alpha: 0.45)
                     : palette.cardBg,
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isNext ? cs.primary : palette.cardBorder,
                   width: isNext ? 1.5 : 1,
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 21,
-                    color: isNext
-                        ? cs.primary
-                        : (isSunrise
-                            ? AppBranding.accentGold
-                            : cs.onSurfaceVariant),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Row(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => _openSlotEditor(slot),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 11, 10, 12),
+                    child: Column(
                       children: [
-                        Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 15.5,
-                            fontWeight:
-                                isNext ? FontWeight.w800 : FontWeight.w600,
-                            color: isNext ? cs.primary : cs.onSurface,
+                        Row(
+                          children: [
+                            Icon(
+                              icon,
+                              size: 20,
+                              color: isNext ? cs.primary : cs.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Text(
+                                    label,
+                                    style: TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: isNext
+                                          ? FontWeight.w800
+                                          : FontWeight.w700,
+                                      color:
+                                          isNext ? cs.primary : cs.onSurface,
+                                    ),
+                                  ),
+                                  if (slot.tuneMinutes != 0) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      slot.tuneMinutes > 0
+                                          ? '+${slot.tuneMinutes}m'
+                                          : '${slot.tuneMinutes}m',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: cs.primary,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures()
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: t.editScheduleLabel,
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _openSlotEditor(slot),
+                              icon: Icon(
+                                Icons.tune_rounded,
+                                size: 19,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: '$label ${t.alarmLabel}',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () async {
+                                final updated = settings.copyWithPrayerAlarmConfig(
+                                  cfg.copyWith(enabled: !cfg.enabled),
+                                );
+                                await ref
+                                    .read(settingsProvider.notifier)
+                                    .update(updated);
+                                if (!cfg.enabled &&
+                                    !updated.prayerAlarmMasterEnabled) {
+                                  await ref
+                                      .read(prayerAlarmProvider.notifier)
+                                      .setMasterAlarmEnabled(true);
+                                }
+                              },
+                              icon: Icon(
+                                (settings.prayerAlarmMasterEnabled &&
+                                        cfg.enabled)
+                                    ? Icons.alarm_on_rounded
+                                    : Icons.alarm_off_rounded,
+                                size: 20,
+                                color: (settings.prayerAlarmMasterEnabled &&
+                                        cfg.enabled)
+                                    ? (slot.dismissedToday
+                                        ? AppBranding.accentGold
+                                        : cs.primary)
+                                    : cs.onSurfaceVariant.withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainerHighest
+                                .withValues(alpha: 0.36),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Row(
+                            children: [
+                              _ScheduleMetricColumn(
+                                label: t.adhanLabel,
+                                value: DailyPrayerData.format12Hour(
+                                  slot.adhanTime,
+                                ),
+                                accentColor: cs.onSurface,
+                              ),
+                              _ScheduleMetricColumn(
+                                label:
+                                    '${t.iqamahLabel} (+${slot.effectiveIqamahGap}${t.minutesUnitShort})',
+                                value: DailyPrayerData.format12Hour(
+                                  slot.iqamahTime,
+                                ),
+                                accentColor: cs.primary,
+                              ),
+                              _ScheduleMetricColumn(
+                                label: t.alarmLabel,
+                                value: alarmText,
+                                accentColor: alarmColor,
+                              ),
+                            ],
                           ),
                         ),
-                        if (tune != 0) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            tune > 0 ? '+${tune}m' : '${tune}m',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: cs.primary.withValues(alpha: 0.85),
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ],
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
-                  if (isNext)
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(end: 8),
-                      child: Icon(
-                        Icons.notifications_active_rounded,
-                        size: 16,
-                        color: cs.primary,
-                      ),
-                    ),
-                  Text(
-                    DailyPrayerData.format12Hour(dt),
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                      color: isNext ? cs.primary : cs.onSurface,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
+
+            if (slot.prayerKey == 'fajr') {
+              final sunriseDt = data.tunedTimeFor('sunrise', 0, _now);
+              final sunriseStrip = Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: palette.cardBg,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: palette.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.wb_sunny_outlined,
+                      size: 18,
+                      color: AppBranding.accentGold,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        t.sunriseName,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      DailyPrayerData.format12Hour(sunriseDt),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppBranding.accentGold,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+              return [cardWidget, sunriseStrip];
+            }
+            return [cardWidget];
           }),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
 
           // Method & School Info Strip
           Padding(
@@ -936,7 +1819,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Direct Masjid Time Tune Section on Prayer Times Screen
           Container(
@@ -954,491 +1837,61 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 2. LIVE QIBLA COMPASS VIEW
-// ---------------------------------------------------------------------------
-class QiblaCompassView extends ConsumerStatefulWidget {
-  const QiblaCompassView({super.key});
+class _ScheduleMetricColumn extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color accentColor;
 
-  @override
-  ConsumerState<QiblaCompassView> createState() => _QiblaCompassViewState();
-}
-
-class _QiblaCompassViewState extends ConsumerState<QiblaCompassView> {
-  StreamSubscription<CompassEvent>? _compassSub;
-  double? _rawHeading;
-  bool _hasLiveSensor = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (!kIsWeb) {
-      try {
-        _compassSub = FlutterCompass.events?.listen(
-          (event) {
-            if (!mounted) return;
-            final h = event.heading;
-            if (h != null && h.isFinite) {
-              setState(() {
-                _rawHeading = (h + 360.0) % 360.0;
-                _hasLiveSensor = true;
-              });
-            }
-          },
-          onError: (_) {
-            if (mounted) {
-              setState(() => _hasLiveSensor = false);
-            }
-          },
-        );
-      } catch (_) {
-        _hasLiveSensor = false;
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _compassSub?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final settings = ref.watch(settingsProvider);
-    final prayerState = ref.watch(prayerTimesProvider);
-    final t = ref.watch(stringsProvider);
-    final cs = Theme.of(context).colorScheme;
-    final palette = _featurePalette(context, settings);
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
-
-    final qiblaBearing =
-        AlAdhanCatalog.computeQiblaBearing(settings.prayerLat, settings.prayerLon);
-    final distanceKm =
-        AlAdhanCatalog.distanceToKaabaKm(settings.prayerLat, settings.prayerLon);
-    final cardinal = AlAdhanCatalog.compassCardinal(qiblaBearing);
-
-    final double heading = _rawHeading ?? 0.0;
-    // Signed shortest difference in [-180, 180] between Qibla bearing & current phone heading
-    double delta = ((qiblaBearing - heading + 540.0) % 360.0) - 180.0;
-    final bool isAligned = _hasLiveSensor && delta.abs() <= 5.0;
-
-    return ListView(
-      padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
-      children: [
-        // Location + Quick Actions Bar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: palette.cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.cardBorder),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.location_on_rounded, color: cs.primary, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      settings.displayLocationLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14.5,
-                      ),
-                    ),
-                    Text(
-                      '${settings.prayerLat.toStringAsFixed(2)}° N, ${settings.prayerLon.toStringAsFixed(2)}° E',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: cs.onSurfaceVariant,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: t.useGps,
-                onPressed: prayerState.isFetchingGps
-                    ? null
-                    : () => ref
-                        .read(prayerTimesProvider.notifier)
-                        .useGpsLocation(
-                          permissionDeniedMsg: t.gpsPermissionError,
-                          serviceDisabledMsg: t.gpsServiceDisabled,
-                        ),
-                icon: prayerState.isFetchingGps
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(Icons.my_location_rounded, color: cs.primary),
-              ),
-              IconButton(
-                tooltip: t.changeCity,
-                onPressed: () => showPrayerLocationPickerSheet(context, ref, t),
-                icon: Icon(Icons.edit_location_alt_rounded,
-                    color: cs.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Alignment / Sensor Banner
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          decoration: BoxDecoration(
-            color: isAligned
-                ? AppBranding.primaryEmerald.withValues(alpha: 0.14)
-                : palette.cardBg,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isAligned ? AppBranding.primaryEmerald : palette.cardBorder,
-              width: isAligned ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                isAligned
-                    ? Icons.check_circle_rounded
-                    : (_hasLiveSensor
-                        ? Icons.explore_rounded
-                        : Icons.explore_off_rounded),
-                color: isAligned
-                    ? AppBranding.primaryEmerald
-                    : (_hasLiveSensor ? cs.primary : AppBranding.accentGold),
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _hasLiveSensor
-                      ? (isAligned
-                          ? t.facingQibla
-                          : t.turnDegreesLabel(
-                              delta > 0,
-                              delta.abs().round(),
-                            ))
-                      : t.compassUnavailableNote,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isAligned ? FontWeight.w700 : FontWeight.w600,
-                    color: isAligned ? AppBranding.primaryEmerald : cs.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 22),
-
-        // Precision Emerald & Gold Compass Dial
-        Center(
-          child: SizedBox(
-            width: 286,
-            height: 286,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Rotating compass dial (moves opposite to phone heading)
-                Transform.rotate(
-                  angle: -heading * math.pi / 180.0,
-                  child: CustomPaint(
-                    size: const Size(286, 286),
-                    painter: _QiblaDialPainter(
-                      qiblaBearingDeg: qiblaBearing,
-                      primaryColor: cs.primary,
-                      goldColor: AppBranding.accentGold,
-                      surfaceColor: palette.cardBg,
-                      borderColor: palette.cardBorder,
-                      textColor: cs.onSurface,
-                      isAligned: isAligned,
-                    ),
-                  ),
-                ),
-                // Center Kaaba emblem
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: isAligned
-                        ? AppBranding.primaryEmerald
-                        : palette.headerBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: AppBranding.accentGold,
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.16),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.mosque_rounded,
-                    color: Colors.white,
-                    size: 26,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 22),
-
-        // Bearing & Distance Readout Cards
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: palette.cardBg,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: palette.cardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.qiblaBearingLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${qiblaBearing.toStringAsFixed(1)}° $cardinal',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: cs.primary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: palette.cardBg,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: palette.cardBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.kaabaDistanceLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${distanceKm.round()} km',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        if (_hasLiveSensor) ...[
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.sensors_rounded, size: 15, color: cs.onSurfaceVariant),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  t.compassCalibrationTip,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _QiblaDialPainter extends CustomPainter {
-  final double qiblaBearingDeg;
-  final Color primaryColor;
-  final Color goldColor;
-  final Color surfaceColor;
-  final Color borderColor;
-  final Color textColor;
-  final bool isAligned;
-
-  const _QiblaDialPainter({
-    required this.qiblaBearingDeg,
-    required this.primaryColor,
-    required this.goldColor,
-    required this.surfaceColor,
-    required this.borderColor,
-    required this.textColor,
-    required this.isAligned,
+  const _ScheduleMetricColumn({
+    required this.label,
+    required this.value,
+    required this.accentColor,
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 6;
-
-    // Outer circle background
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = surfaceColor
-        ..style = PaintingStyle.fill,
-    );
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = isAligned ? primaryColor : borderColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = isAligned ? 2.6 : 1.6,
-    );
-
-    // Tick marks every 5 degrees
-    for (int deg = 0; deg < 360; deg += 5) {
-      final rad = (deg - 90) * math.pi / 180.0;
-      final isMajor = deg % 30 == 0;
-      final isCardinal = deg % 90 == 0;
-      final outer = Offset(
-        center.dx + (radius - 4) * math.cos(rad),
-        center.dy + (radius - 4) * math.sin(rad),
-      );
-      final innerLen = isCardinal ? 14.0 : (isMajor ? 9.0 : 5.0);
-      final inner = Offset(
-        center.dx + (radius - 4 - innerLen) * math.cos(rad),
-        center.dy + (radius - 4 - innerLen) * math.sin(rad),
-      );
-      canvas.drawLine(
-        inner,
-        outer,
-        Paint()
-          ..color = deg == 0
-              ? Colors.redAccent
-              : (isCardinal
-                  ? primaryColor
-                  : textColor.withValues(alpha: isMajor ? 0.55 : 0.22))
-          ..strokeWidth = isCardinal ? 2.2 : 1.2,
-      );
-    }
-
-    // Cardinal labels (N, E, S, W)
-    const cardinals = [
-      (0, 'N', true),
-      (90, 'E', false),
-      (180, 'S', false),
-      (270, 'W', false),
-    ];
-    for (final c in cardinals) {
-      final rad = (c.$1 - 90) * math.pi / 180.0;
-      final pos = Offset(
-        center.dx + (radius - 30) * math.cos(rad),
-        center.dy + (radius - 30) * math.sin(rad),
-      );
-      final tp = TextPainter(
-        text: TextSpan(
-          text: c.$2,
-          style: TextStyle(
-            color: c.$3 ? Colors.redAccent : textColor.withValues(alpha: 0.78),
-            fontSize: c.$3 ? 16 : 14,
-            fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: cs.onSurfaceVariant,
+            ),
           ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
-    }
-
-    // Qibla Pointer Needle
-    final qRad = (qiblaBearingDeg - 90) * math.pi / 180.0;
-    final tip = Offset(
-      center.dx + (radius - 42) * math.cos(qRad),
-      center.dy + (radius - 42) * math.sin(qRad),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: accentColor,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
     );
-    final leftWing = Offset(
-      center.dx + 14 * math.cos(qRad - math.pi / 2),
-      center.dy + 14 * math.sin(qRad - math.pi / 2),
-    );
-    final rightWing = Offset(
-      center.dx + 14 * math.cos(qRad + math.pi / 2),
-      center.dy + 14 * math.sin(qRad + math.pi / 2),
-    );
-
-    final needlePath = Path()
-      ..moveTo(tip.dx, tip.dy)
-      ..lineTo(leftWing.dx, leftWing.dy)
-      ..lineTo(rightWing.dx, rightWing.dy)
-      ..close();
-
-    canvas.drawPath(
-      needlePath,
-      Paint()
-        ..color = goldColor
-        ..style = PaintingStyle.fill,
-    );
-
-    // Small gold beacon dot at the rim on the Qibla azimuth
-    final rimDot = Offset(
-      center.dx + (radius - 12) * math.cos(qRad),
-      center.dy + (radius - 12) * math.sin(qRad),
-    );
-    canvas.drawCircle(rimDot, 5.5, Paint()..color = goldColor);
-  }
-
-  @override
-  bool shouldRepaint(covariant _QiblaDialPainter old) {
-    return old.qiblaBearingDeg != qiblaBearingDeg ||
-        old.primaryColor != primaryColor ||
-        old.isAligned != isAligned ||
-        old.surfaceColor != surfaceColor;
   }
 }
 
 // ---------------------------------------------------------------------------
-// 3. HIJRI CALENDAR VIEW
+// 2. HIJRI-MONTH-FIRST CALENDAR VIEW (Large Hijri Day + Small English Date)
 // ---------------------------------------------------------------------------
 class HijriCalendarView extends ConsumerWidget {
   const HijriCalendarView({super.key});
 
-  static const _monthNames = [
+  static const _weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  static const _fullGregMonths = [
     'January',
     'February',
     'March',
@@ -1453,7 +1906,20 @@ class HijriCalendarView extends ConsumerWidget {
     'December',
   ];
 
-  static const _weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  static const _shortGregMonths = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1466,23 +1932,35 @@ class HijriCalendarView extends ConsumerWidget {
     final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
 
     final now = DateTime.now();
-    final monthName = _monthNames[(cal.month - 1).clamp(0, 11)];
+    final hijriMonthPrimary = cal.days.isNotEmpty
+        ? (t.lang == 'ar'
+            ? cal.days.first.hijriMonthAr
+            : cal.days.first.hijriMonthEn)
+        : HijriMonthCatalog.monthName(cal.hijriMonth, settings.appLanguage);
+    final hijriMonthArabic = cal.days.isNotEmpty
+        ? cal.days.first.hijriMonthAr
+        : HijriMonthCatalog.monthName(cal.hijriMonth, 'ar');
 
-    // Determine Hijri months spanned across this Gregorian month
-    String hijriHeaderRange = '';
+    String gregorianSpan = '';
     if (cal.days.isNotEmpty) {
       final first = cal.days.first;
       final last = cal.days.last;
-      final firstM = t.lang == 'ar' ? first.hijriMonthAr : first.hijriMonthEn;
-      final lastM = t.lang == 'ar' ? last.hijriMonthAr : last.hijriMonthEn;
-      hijriHeaderRange = firstM == lastM
-          ? '$firstM ${first.hijriYear} AH'
-          : '$firstM – $lastM ${last.hijriYear} AH';
+      final fm = _shortGregMonths[(first.gregorianMonth - 1).clamp(0, 11)];
+      final lm = _shortGregMonths[(last.gregorianMonth - 1).clamp(0, 11)];
+      if (first.gregorianYear == last.gregorianYear) {
+        gregorianSpan = fm == lm
+            ? '$fm ${first.gregorianYear}'
+            : '$fm – $lm ${last.gregorianYear}';
+      } else {
+        gregorianSpan =
+            '$fm ${first.gregorianYear} – $lm ${last.gregorianYear}';
+      }
     }
 
-    // First day weekday offset (Sunday = 0, Monday = 1 ... Saturday = 6)
-    final firstWeekday =
-        DateTime(cal.year, cal.month, 1).weekday % 7; // Sunday->0 .. Saturday->6
+    // Offset blank cells before Hijri Day 1 based on its Gregorian weekday (Sun=0..Sat=6)
+    final int firstWeekday = cal.days.isNotEmpty
+        ? (cal.days.first.gregorianDate.weekday % 7)
+        : 0;
 
     CalendarDayEntry? selectedEntry;
     for (final d in cal.days) {
@@ -1498,9 +1976,9 @@ class HijriCalendarView extends ConsumerWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
       children: [
-        // Month Switcher Card
+        // Hijri Month Navigation Header
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
             color: palette.cardBg,
             borderRadius: BorderRadius.circular(18),
@@ -1516,21 +1994,27 @@ class HijriCalendarView extends ConsumerWidget {
                 child: Column(
                   children: [
                     Text(
-                      '$monthName ${cal.year}',
+                      '$hijriMonthPrimary ${cal.hijriYear} AH',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 16.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    if (hijriHeaderRange.isNotEmpty)
-                      Text(
-                        hijriHeaderRange,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: cs.primary,
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      gregorianSpan.isEmpty
+                          ? hijriMonthArabic
+                          : '$hijriMonthArabic  •  $gregorianSpan',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: cs.primary,
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -1548,7 +2032,7 @@ class HijriCalendarView extends ConsumerWidget {
 
         const SizedBox(height: 12),
 
-        // Calendar Grid Card
+        // Hijri Calendar Grid Card (Large Hijri Day + Small English Date below)
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -1558,7 +2042,6 @@ class HijriCalendarView extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              // Weekday Header Row
               Row(
                 children: _weekdays.map((wd) {
                   final isFri = wd == 'Fri';
@@ -1595,9 +2078,9 @@ class HijriCalendarView extends ConsumerWidget {
                       Text(t.loadError, textAlign: TextAlign.center),
                       const SizedBox(height: 10),
                       FilledButton(
-                        onPressed: () => notifier.loadMonth(
-                          cal.year,
-                          cal.month,
+                        onPressed: () => notifier.loadHijriMonth(
+                          cal.hijriYear,
+                          cal.hijriMonth,
                           forceRefresh: true,
                         ),
                         child: Text(t.retry),
@@ -1613,14 +2096,15 @@ class HijriCalendarView extends ConsumerWidget {
                     crossAxisCount: 7,
                     mainAxisSpacing: 6,
                     crossAxisSpacing: 4,
-                    childAspectRatio: 0.92,
+                    childAspectRatio: 0.86,
                   ),
                   itemCount: firstWeekday + cal.days.length,
                   itemBuilder: (_, idx) {
                     if (idx < firstWeekday) {
                       return const SizedBox.shrink();
                     }
-                    final dayEntry = cal.days[idx - firstWeekday];
+                    final dayIndex = idx - firstWeekday;
+                    final dayEntry = cal.days[dayIndex];
                     final gDate = dayEntry.gregorianDate;
                     final isToday = gDate.year == now.year &&
                         gDate.month == now.month &&
@@ -1630,6 +2114,12 @@ class HijriCalendarView extends ConsumerWidget {
                         gDate.day == cal.selectedDate.day;
                     final isFriday = gDate.weekday == DateTime.friday;
                     final hasHoliday = dayEntry.holidays.isNotEmpty;
+
+                    final showGregMonth =
+                        dayIndex == 0 || dayEntry.gregorianDay == 1;
+                    final smallEnglishText = showGregMonth
+                        ? dayEntry.shortGregorianLabel
+                        : '${dayEntry.gregorianDay}';
 
                     return Material(
                       color: isToday
@@ -1652,42 +2142,64 @@ class HijriCalendarView extends ConsumerWidget {
                           ),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 2,
-                            vertical: 4,
+                            vertical: 3,
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                '${dayEntry.gregorianDay}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: isToday ? Colors.white : cs.onSurface,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${dayEntry.hijriDay}',
+                                    style: TextStyle(
+                                      fontSize: 16.5,
+                                      height: 1.05,
+                                      fontWeight: FontWeight.w800,
+                                      color: isToday
+                                          ? Colors.white
+                                          : cs.onSurface,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ],
+                                    ),
+                                  ),
+                                  if (hasHoliday) ...[
+                                    const SizedBox(width: 2),
+                                    Container(
+                                      width: 5,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color: isToday
+                                            ? Colors.white
+                                            : AppBranding.accentGold,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
                                   ],
-                                ),
+                                ],
                               ),
-                              const SizedBox(height: 1),
-                              Text(
-                                dayEntry.hijriDay == 1
-                                    ? '1 ${dayEntry.hijriMonthEn.split(' ').first}'
-                                    : '${dayEntry.hijriDay}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: dayEntry.hijriDay == 1
-                                      ? FontWeight.w800
-                                      : FontWeight.w600,
-                                  color: isToday
-                                      ? Colors.white.withValues(alpha: 0.9)
-                                      : (hasHoliday
-                                          ? AppBranding.accentGold
-                                          : cs.primary),
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ],
+                              const SizedBox(height: 2),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  smallEnglishText,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: showGregMonth
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isToday
+                                        ? Colors.white.withValues(alpha: 0.9)
+                                        : (showGregMonth
+                                            ? cs.primary
+                                            : cs.onSurfaceVariant),
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -1715,8 +2227,8 @@ class HijriCalendarView extends ConsumerWidget {
             child: Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
                     color: cs.primaryContainer.withValues(alpha: 0.65),
                     borderRadius: BorderRadius.circular(12),
@@ -1725,7 +2237,7 @@ class HijriCalendarView extends ConsumerWidget {
                   child: Text(
                     '${selectedEntry.hijriDay}',
                     style: GoogleFonts.amiri(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: cs.primary,
                     ),
@@ -1745,7 +2257,7 @@ class HijriCalendarView extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${selectedEntry.weekdayEn}, ${selectedEntry.gregorianDay} $monthName ${selectedEntry.gregorianYear}',
+                        '${selectedEntry.weekdayEn}, ${selectedEntry.gregorianDay} ${_fullGregMonths[(selectedEntry.gregorianMonth - 1).clamp(0, 11)]} ${selectedEntry.gregorianYear}',
                         style: TextStyle(
                           fontSize: 12.5,
                           color: cs.onSurfaceVariant,
@@ -1771,7 +2283,7 @@ class HijriCalendarView extends ConsumerWidget {
 
         const SizedBox(height: 12),
 
-        // Hijri Moon Sighting Offset (-1 / 0 / +1) directly on Calendar screen
+        // Hijri Moon Sighting Offset (-1 / 0 / +1)
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(

@@ -139,18 +139,42 @@ class IslamicFeaturesService {
     }
   }
 
-  Future<List<CalendarDayEntry>> fetchMonthlyHijriCalendar({
-    required int year,
-    required int month,
+  Future<({int year, int month, int day})> resolveTodayHijriDate({
+    required int adjustment,
+  }) async {
+    final normAdj = adjustment.clamp(-1, 1);
+    final apiDate = formatAlAdhanDate(DateTime.now());
+    final uri = Uri.https('api.aladhan.com', '/v1/gToH/$apiDate', {
+      'calendarMethod': 'MATHEMATICAL',
+      'adjustment': '$normAdj',
+    });
+    final res = await _client.get(uri).timeout(const Duration(seconds: 12));
+    if (res.statusCode != 200) {
+      throw Exception('AlAdhan gToH HTTP ${res.statusCode}');
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>? ?? const {};
+    final hijri = data['hijri'] as Map<String, dynamic>? ?? const {};
+    final hMonth = hijri['month'] as Map<String, dynamic>? ?? const {};
+    final year = int.tryParse((hijri['year'] ?? '1448').toString()) ?? 1448;
+    final month = ((hMonth['number'] as num?)?.toInt() ?? 1).clamp(1, 12);
+    final day = int.tryParse((hijri['day'] ?? '1').toString()) ?? 1;
+    return (year: year, month: month, day: day);
+  }
+
+  Future<List<CalendarDayEntry>> fetchHijriMonthCalendar({
+    required int hijriYear,
+    required int hijriMonth,
     required int adjustment,
     required StorageService storage,
     bool forceRefresh = false,
   }) async {
     final normAdj = adjustment.clamp(-1, 1);
+    final normMonth = hijriMonth.clamp(1, 12);
 
     if (!forceRefresh) {
       final cached =
-          await storage.loadHijriCalendarCache(year, month, normAdj);
+          await storage.loadHijriCalendarCache(hijriYear, normMonth, normAdj);
       if (cached != null && cached.isNotEmpty) {
         return cached
             .whereType<Map<String, dynamic>>()
@@ -159,14 +183,14 @@ class IslamicFeaturesService {
       }
     }
 
-    final reqKey = '${year}_${month}_adj$normAdj';
+    final reqKey = '${hijriYear}_${normMonth}_adj$normAdj';
     if (_inFlightCalendar.containsKey(reqKey)) {
       return _inFlightCalendar[reqKey]!;
     }
 
-    final future = _fetchMonthlyHijriNetwork(
-      year: year,
-      month: month,
+    final future = _fetchHijriMonthNetwork(
+      hijriYear: hijriYear,
+      hijriMonth: normMonth,
       adjustment: normAdj,
       storage: storage,
     );
@@ -178,25 +202,29 @@ class IslamicFeaturesService {
     }
   }
 
-  Future<List<CalendarDayEntry>> _fetchMonthlyHijriNetwork({
-    required int year,
-    required int month,
+  Future<List<CalendarDayEntry>> _fetchHijriMonthNetwork({
+    required int hijriYear,
+    required int hijriMonth,
     required int adjustment,
     required StorageService storage,
   }) async {
-    final uri = Uri.https('api.aladhan.com', '/v1/gToHCalendar/$month/$year', {
-      'calendarMethod': 'MATHEMATICAL',
-      'adjustment': '$adjustment',
-    });
+    final uri = Uri.https(
+      'api.aladhan.com',
+      '/v1/hToGCalendar/$hijriMonth/$hijriYear',
+      {
+        'calendarMethod': 'MATHEMATICAL',
+        'adjustment': '$adjustment',
+      },
+    );
 
     final res = await _client.get(uri).timeout(const Duration(seconds: 12));
     if (res.statusCode != 200) {
-      throw Exception('AlAdhan calendar HTTP ${res.statusCode}');
+      throw Exception('AlAdhan Hijri calendar HTTP ${res.statusCode}');
     }
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final rawList = body['data'];
     if (rawList is! List) {
-      throw Exception('Invalid AlAdhan calendar response');
+      throw Exception('Invalid AlAdhan Hijri calendar response');
     }
 
     final entries = rawList
@@ -205,8 +233,8 @@ class IslamicFeaturesService {
         .toList();
 
     await storage.saveHijriCalendarCache(
-      year,
-      month,
+      hijriYear,
+      hijriMonth,
       adjustment,
       entries.map((e) => e.toCacheJson()).toList(),
     );

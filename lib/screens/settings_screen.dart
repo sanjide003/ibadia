@@ -297,7 +297,7 @@ class QuranSettingsSection extends ConsumerWidget {
   }
 }
 
-/// Modular Prayer Times, Qibla Location & Hijri Calendar Settings section.
+/// Modular Prayer Times, Alarms & Hijri Calendar Settings section.
 class FeaturesSettingsSection extends ConsumerWidget {
   const FeaturesSettingsSection({super.key});
 
@@ -502,12 +502,26 @@ class FeaturesSettingsSection extends ConsumerWidget {
 
         const Divider(height: 24),
 
-        // 4. Masjid Time Tune (+/- minutes per prayer)
+        // 4. Prayer Alarm & Sound Controls
+        Text(
+          t.alarmSoundSettings,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13.5,
+            color: cs.primary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const PrayerAlarmSoundControls(compact: true),
+
+        const Divider(height: 24),
+
+        // 5. Masjid Time Tune (+/- minutes per prayer)
         const PrayerTuneControlList(compact: true),
 
         const Divider(height: 24),
 
-        // 5. Hijri Moon Sighting Offset (-1 / 0 / +1)
+        // 6. Hijri Moon Sighting Offset (-1 / 0 / +1)
         const HijriAdjustmentControl(compact: true),
       ],
     );
@@ -722,7 +736,7 @@ class SettingsTabView extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // 2. Features Settings Card (Prayer Times, Qibla & Hijri Calendar)
+        // 2. Features Settings Card (Prayer Times, Alarms & Hijri Calendar)
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
