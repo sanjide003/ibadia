@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -971,26 +972,28 @@ class _QiblaCompassViewState extends ConsumerState<QiblaCompassView> {
   @override
   void initState() {
     super.initState();
-    try {
-      _compassSub = FlutterCompass.events?.listen(
-        (event) {
-          if (!mounted) return;
-          final h = event.heading;
-          if (h != null && h.isFinite) {
-            setState(() {
-              _rawHeading = (h + 360.0) % 360.0;
-              _hasLiveSensor = true;
-            });
-          }
-        },
-        onError: (_) {
-          if (mounted) {
-            setState(() => _hasLiveSensor = false);
-          }
-        },
-      );
-    } catch (_) {
-      _hasLiveSensor = false;
+    if (!kIsWeb) {
+      try {
+        _compassSub = FlutterCompass.events?.listen(
+          (event) {
+            if (!mounted) return;
+            final h = event.heading;
+            if (h != null && h.isFinite) {
+              setState(() {
+                _rawHeading = (h + 360.0) % 360.0;
+                _hasLiveSensor = true;
+              });
+            }
+          },
+          onError: (_) {
+            if (mounted) {
+              setState(() => _hasLiveSensor = false);
+            }
+          },
+        );
+      } catch (_) {
+        _hasLiveSensor = false;
+      }
     }
   }
 

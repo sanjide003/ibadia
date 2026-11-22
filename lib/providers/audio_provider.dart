@@ -87,7 +87,7 @@ class QuranAudioState {
 
 class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
   final Ref _ref;
-  final AudioPlayer _player = AudioPlayer();
+  AudioPlayer? _playerInstance;
   final AudioCacheService _cache = AudioCacheService.instance;
   final Map<int, SurahDetail> _loadedSurahs = {};
 
@@ -102,40 +102,60 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
           QuranAudioState(
             reciterId: _ref.read(settingsProvider).reciterId,
           ),
-        ) {
-    _bindPlayerStreams();
-  }
+        );
 
-  void _bindPlayerStreams() {
-    _durationSub = _player.onDurationChanged.listen((d) {
-      if (!mounted) return;
-      state = state.copyWith(duration: d);
-    });
+  AudioPlayer? _ensurePlayer() {
+    final existing = _playerInstance;
+    if (existing != null) return existing;
+    try {
+      final player = AudioPlayer();
+      _durationSub = player.onDurationChanged.listen(
+        (d) {
+          if (!mounted) return;
+          state = state.copyWith(duration: d);
+        },
+        onError: (_) {},
+      );
 
-    _positionSub = _player.onPositionChanged.listen((p) {
-      if (!mounted) return;
-      final clamped =
-          state.duration > Duration.zero && p > state.duration
-              ? state.duration
-              : p;
-      state = state.copyWith(position: clamped);
-    });
+      _positionSub = player.onPositionChanged.listen(
+        (p) {
+          if (!mounted) return;
+          final clamped =
+              state.duration > Duration.zero && p > state.duration
+                  ? state.duration
+                  : p;
+          state = state.copyWith(position: clamped);
+        },
+        onError: (_) {},
+      );
 
-    _stateSub = _player.onPlayerStateChanged.listen((ps) {
-      if (!mounted) return;
-      if (ps == PlayerState.playing) {
-        state = state.copyWith(isPlaying: true, isBuffering: false);
-      } else if (ps == PlayerState.paused) {
-        state = state.copyWith(isPlaying: false, isBuffering: false);
-      } else if (ps == PlayerState.stopped) {
-        state = state.copyWith(isPlaying: false, isBuffering: false);
-      }
-    });
+      _stateSub = player.onPlayerStateChanged.listen(
+        (ps) {
+          if (!mounted) return;
+          if (ps == PlayerState.playing) {
+            state = state.copyWith(isPlaying: true, isBuffering: false);
+          } else if (ps == PlayerState.paused) {
+            state = state.copyWith(isPlaying: false, isBuffering: false);
+          } else if (ps == PlayerState.stopped) {
+            state = state.copyWith(isPlaying: false, isBuffering: false);
+          }
+        },
+        onError: (_) {},
+      );
 
-    _completeSub = _player.onPlayerComplete.listen((_) {
-      if (!mounted || !state.isVisible) return;
-      _handleTrackCompleted(_opToken);
-    });
+      _completeSub = player.onPlayerComplete.listen(
+        (_) {
+          if (!mounted || !state.isVisible) return;
+          _handleTrackCompleted(_opToken);
+        },
+        onError: (_) {},
+      );
+
+      _playerInstance = player;
+      return player;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -145,7 +165,9 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
     _positionSub?.cancel();
     _stateSub?.cancel();
     _completeSub?.cancel();
-    _player.dispose();
+    try {
+      _playerInstance?.dispose();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -233,8 +255,18 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
       clearError: true,
     );
 
+    final player = _ensurePlayer();
+    if (player == null) {
+      state = state.copyWith(
+        isBuffering: false,
+        isPlaying: false,
+        errorKey: 'audio_load_error',
+      );
+      return;
+    }
+
     try {
-      await _player.stop();
+      await player.stop();
     } catch (_) {}
     if (!mounted || token != _opToken) return;
 
@@ -266,7 +298,7 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
 
     if (!autoPlay) {
       try {
-        await _player.setSource(source);
+        await player.setSource(source);
       } catch (_) {}
       if (!mounted || token != _opToken) return;
       state = state.copyWith(isBuffering: false, isPlaying: false);
@@ -275,7 +307,7 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
 
     bool started = false;
     try {
-      await _player.play(source);
+      await player.play(source);
       started = true;
     } catch (_) {
       if (!mounted || token != _opToken) return;
@@ -285,7 +317,7 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
           surahNumber: surahNumber,
           ayahNumber: ayahNumber,
         );
-        await _player.play(fallback);
+        await player.play(fallback);
         started = true;
       } catch (_) {
         started = false;
@@ -417,8 +449,13 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
 
     if (state.isBuffering) return;
 
+    final player = _ensurePlayer();
+    if (player == null) return;
+
     if (state.isPlaying) {
-      await _player.pause();
+      try {
+        await player.pause();
+      } catch (_) {}
       if (mounted) {
         state = state.copyWith(isPlaying: false);
       }
@@ -437,7 +474,7 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
     }
 
     try {
-      await _player.resume();
+      await player.resume();
       if (mounted) {
         state = state.copyWith(isPlaying: true);
       }
@@ -458,7 +495,7 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
         : (maxDur > Duration.zero && target > maxDur ? maxDur : target);
     state = state.copyWith(position: clamped);
     try {
-      await _player.seek(clamped);
+      await _playerInstance?.seek(clamped);
     } catch (_) {}
   }
 
@@ -540,7 +577,7 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
   Future<void> stopAndClose() async {
     _opToken++;
     try {
-      await _player.stop();
+      await _playerInstance?.stop();
     } catch (_) {}
     if (!mounted) return;
     state = QuranAudioState(reciterId: state.reciterId);

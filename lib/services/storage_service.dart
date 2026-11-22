@@ -15,21 +15,35 @@ class AppSettings {
   final double? fabRelX;
   final double? fabRelY;
 
-  // Prayer Times, Qibla & Hijri Calendar settings
-  final String prayerLocationMode; // 'city' | 'gps'
-  final String prayerCity;
-  final String prayerCountry;
-  final double prayerLat;
-  final double prayerLon;
+  // Prayer Times, Qibla & Hijri Calendar settings (nullable backing fields for DDC hot-reload safety)
+  final String? _prayerLocationMode; // 'city' | 'gps'
+  final String? _prayerCity;
+  final String? _prayerCountry;
+  final double? _prayerLat;
+  final double? _prayerLon;
   final String? gpsLocalityLabel;
-  final int prayerMethod; // default 1 = Karachi (UISK)
-  final int prayerSchool; // default 0 = Shafi / Standard, 1 = Hanafi
-  final int prayerTuneFajr;
-  final int prayerTuneDhuhr;
-  final int prayerTuneAsr;
-  final int prayerTuneMaghrib;
-  final int prayerTuneIsha;
-  final int hijriAdjustment; // -1, 0, +1
+  final int? _prayerMethod; // default 1 = Karachi (UISK)
+  final int? _prayerSchool; // default 0 = Shafi / Standard, 1 = Hanafi
+  final int? _prayerTuneFajr;
+  final int? _prayerTuneDhuhr;
+  final int? _prayerTuneAsr;
+  final int? _prayerTuneMaghrib;
+  final int? _prayerTuneIsha;
+  final int? _hijriAdjustment; // -1, 0, +1
+
+  String get prayerLocationMode => _prayerLocationMode ?? 'city';
+  String get prayerCity => _prayerCity ?? 'Kochi';
+  String get prayerCountry => _prayerCountry ?? 'India';
+  double get prayerLat => _prayerLat ?? 9.9312;
+  double get prayerLon => _prayerLon ?? 76.2673;
+  int get prayerMethod => _prayerMethod ?? 1;
+  int get prayerSchool => _prayerSchool ?? 0;
+  int get prayerTuneFajr => _prayerTuneFajr ?? 0;
+  int get prayerTuneDhuhr => _prayerTuneDhuhr ?? 0;
+  int get prayerTuneAsr => _prayerTuneAsr ?? 0;
+  int get prayerTuneMaghrib => _prayerTuneMaghrib ?? 0;
+  int get prayerTuneIsha => _prayerTuneIsha ?? 0;
+  int get hijriAdjustment => (_hijriAdjustment ?? 0).clamp(-1, 1);
 
   const AppSettings({
     this.appLanguage = 'en',
@@ -43,21 +57,33 @@ class AppSettings {
     this.reciterId = 'ar.alafasy',
     this.fabRelX,
     this.fabRelY,
-    this.prayerLocationMode = 'city',
-    this.prayerCity = 'Kochi',
-    this.prayerCountry = 'India',
-    this.prayerLat = 9.9312,
-    this.prayerLon = 76.2673,
+    String? prayerLocationMode = 'city',
+    String? prayerCity = 'Kochi',
+    String? prayerCountry = 'India',
+    double? prayerLat = 9.9312,
+    double? prayerLon = 76.2673,
     this.gpsLocalityLabel,
-    this.prayerMethod = 1,
-    this.prayerSchool = 0,
-    this.prayerTuneFajr = 0,
-    this.prayerTuneDhuhr = 0,
-    this.prayerTuneAsr = 0,
-    this.prayerTuneMaghrib = 0,
-    this.prayerTuneIsha = 0,
-    this.hijriAdjustment = 0,
-  });
+    int? prayerMethod = 1,
+    int? prayerSchool = 0,
+    int? prayerTuneFajr = 0,
+    int? prayerTuneDhuhr = 0,
+    int? prayerTuneAsr = 0,
+    int? prayerTuneMaghrib = 0,
+    int? prayerTuneIsha = 0,
+    int? hijriAdjustment = 0,
+  })  : _prayerLocationMode = prayerLocationMode,
+        _prayerCity = prayerCity,
+        _prayerCountry = prayerCountry,
+        _prayerLat = prayerLat,
+        _prayerLon = prayerLon,
+        _prayerMethod = prayerMethod,
+        _prayerSchool = prayerSchool,
+        _prayerTuneFajr = prayerTuneFajr,
+        _prayerTuneDhuhr = prayerTuneDhuhr,
+        _prayerTuneAsr = prayerTuneAsr,
+        _prayerTuneMaghrib = prayerTuneMaghrib,
+        _prayerTuneIsha = prayerTuneIsha,
+        _hijriAdjustment = hijriAdjustment;
 
   int tuneFor(String prayerKey) {
     switch (prayerKey) {
@@ -225,7 +251,8 @@ class AppResumeState {
   final String lastScreen; // 'home' | 'reader'
   final int homeTabIndex; // 0: Quran, 1: Features, 2: Settings
   final int quranSubTabIndex; // 0: Surah, 1: Juz, 2: Bookmarks, 3: Export
-  final int featuresSubTabIndex; // 0: Prayer Times, 1: Qibla, 2: Hijri
+  final int? _featuresSubTabIndex; // 0: Prayer Times, 1: Qibla, 2: Hijri
+  int get featuresSubTabIndex => _featuresSubTabIndex ?? 0;
   final double surahListScrollOffset;
   final double juzListScrollOffset;
   final double bookmarksScrollOffset;
@@ -239,7 +266,7 @@ class AppResumeState {
     this.lastScreen = 'home',
     this.homeTabIndex = 0,
     this.quranSubTabIndex = 0,
-    this.featuresSubTabIndex = 0,
+    int? featuresSubTabIndex = 0,
     this.surahListScrollOffset = 0.0,
     this.juzListScrollOffset = 0.0,
     this.bookmarksScrollOffset = 0.0,
@@ -248,7 +275,7 @@ class AppResumeState {
     this.activePageNumber,
     this.activeAnchorOffsetPx = 0.0,
     this.activeReadingMode = 'mushaf',
-  });
+  }) : _featuresSubTabIndex = featuresSubTabIndex;
 
   AppResumeState copyWith({
     String? lastScreen,

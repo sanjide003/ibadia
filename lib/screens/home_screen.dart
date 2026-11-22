@@ -27,8 +27,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
-  late final TabController _quranTabController;
-  late final TabController _featuresTabController;
+  TabController? _quranTabCtrl;
+  TabController? _featuresTabCtrl;
+  TabController get _quranTabController => _ensureQuranTabController();
+  TabController get _featuresTabController => _ensureFeaturesTabController();
   ScrollController? _surahScrollCtrl;
   ScrollController? _juzScrollCtrl;
   ScrollController? _bookmarksScrollCtrl;
@@ -55,14 +57,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   double? _pendingBookmarksScrollOffset;
   Timer? _homeScrollDebounce;
 
+  TabController _ensureQuranTabController() {
+    final existing = _quranTabCtrl;
+    if (existing != null && existing.length == 4) {
+      return existing;
+    }
+    if (existing != null) {
+      existing.removeListener(_onQuranSubTabChanged);
+      existing.dispose();
+    }
+    final ctrl = TabController(length: 4, vsync: this);
+    ctrl.addListener(_onQuranSubTabChanged);
+    _quranTabCtrl = ctrl;
+    return ctrl;
+  }
+
+  TabController _ensureFeaturesTabController() {
+    final existing = _featuresTabCtrl;
+    if (existing != null && existing.length == 3) {
+      return existing;
+    }
+    if (existing != null) {
+      existing.removeListener(_onFeaturesSubTabChanged);
+      existing.dispose();
+    }
+    final ctrl = TabController(length: 3, vsync: this);
+    ctrl.addListener(_onFeaturesSubTabChanged);
+    _featuresTabCtrl = ctrl;
+    return ctrl;
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _quranTabController = TabController(length: 4, vsync: this);
-    _quranTabController.addListener(_onQuranSubTabChanged);
-    _featuresTabController = TabController(length: 3, vsync: this);
-    _featuresTabController.addListener(_onFeaturesSubTabChanged);
+    _ensureQuranTabController();
+    _ensureFeaturesTabController();
     // Initialize lazy scroll controllers
     _surahScrollController;
     _juzScrollController;
@@ -76,13 +106,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   @override
+  void reassemble() {
+    super.reassemble();
+    _ensureQuranTabController();
+    _ensureFeaturesTabController();
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _homeScrollDebounce?.cancel();
-    _quranTabController.removeListener(_onQuranSubTabChanged);
-    _quranTabController.dispose();
-    _featuresTabController.removeListener(_onFeaturesSubTabChanged);
-    _featuresTabController.dispose();
+    _quranTabCtrl?.removeListener(_onQuranSubTabChanged);
+    _quranTabCtrl?.dispose();
+    _featuresTabCtrl?.removeListener(_onFeaturesSubTabChanged);
+    _featuresTabCtrl?.dispose();
     _surahScrollCtrl?.removeListener(_onHomeListScrolled);
     _juzScrollCtrl?.removeListener(_onHomeListScrolled);
     _bookmarksScrollCtrl?.removeListener(_onHomeListScrolled);
