@@ -7,11 +7,10 @@ import '../core/config/app_branding.dart';
 import '../providers/audio_provider.dart';
 import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
+import '../widgets/quick_reader_controls.dart';
 import '../widgets/web_pwa_widgets.dart';
 
 /// Compact slide-in side panel (endDrawer) mounted on both Home & Reader screens.
-/// Speed and font size sliders are intentionally omitted here and documented via
-/// the quick-controls info tip pointing to the floating button's long-press menu.
 class CompactSettingsDrawer extends ConsumerWidget {
   const CompactSettingsDrawer({super.key});
 
@@ -190,7 +189,7 @@ class CompactSettingsDrawer extends ConsumerWidget {
 
                     const Divider(height: 26),
 
-                    // 4. Reciter Selection (Al Quran Cloud / EveryAyah)
+                    // 4. Reciter Dropdown Selection (Al Quran Cloud / EveryAyah)
                     Text(
                       t.reciter,
                       style: const TextStyle(
@@ -198,96 +197,59 @@ class CompactSettingsDrawer extends ConsumerWidget {
                         fontSize: 13.5,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      t.reciterSubtitle,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
                     const SizedBox(height: 8),
-                    ...ApiConfig.reciters.map((reciter) {
-                      final selected = settings.reciterId == reciter.id;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Material(
-                          color: selected
-                              ? cs.primaryContainer.withValues(alpha: 0.72)
-                              : Colors.transparent,
+                    InputDecorator(
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.graphic_eq_rounded,
+                          size: 19,
+                          color: cs.primary,
+                        ),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () {
-                              notifier.update(
-                                settings.copyWith(reciterId: reciter.id),
-                              );
-                              ref
-                                  .read(quranAudioProvider.notifier)
-                                  .onReciterChanged(reciter.id);
-                            },
-                            child: Container(
-                              constraints: const BoxConstraints(minHeight: 44),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 9,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: selected
-                                      ? cs.primary.withValues(alpha: 0.7)
-                                      : cs.outlineVariant.withValues(alpha: 0.7),
-                                  width: selected ? 1.4 : 1.0,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    selected
-                                        ? Icons.graphic_eq_rounded
-                                        : Icons.record_voice_over_outlined,
-                                    size: 18,
-                                    color: selected
-                                        ? cs.primary
-                                        : cs.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      reciter.displayName(settings.appLanguage),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: selected
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        color: selected
-                                            ? cs.onPrimaryContainer
-                                            : cs.onSurface,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Icon(
-                                    selected
-                                        ? Icons.check_circle_rounded
-                                        : Icons.circle_outlined,
-                                    size: 18,
-                                    color: selected
-                                        ? cs.primary
-                                        : cs.onSurfaceVariant.withValues(
-                                            alpha: 0.5,
-                                          ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: cs.outlineVariant.withValues(alpha: 0.8),
                           ),
                         ),
-                      );
-                    }),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: ApiConfig.reciterById(settings.reciterId).id,
+                          isExpanded: true,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                          borderRadius: BorderRadius.circular(12),
+                          items: ApiConfig.reciters.map((reciter) {
+                            return DropdownMenuItem<String>(
+                              value: reciter.id,
+                              child: Text(
+                                reciter.displayName(settings.appLanguage),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val == null) return;
+                            notifier.update(settings.copyWith(reciterId: val));
+                            ref
+                                .read(quranAudioProvider.notifier)
+                                .onReciterChanged(val);
+                          },
+                        ),
+                      ),
+                    ),
 
                     const Divider(height: 24),
 
@@ -364,55 +326,19 @@ class CompactSettingsDrawer extends ConsumerWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    const Divider(height: 24),
 
-                    // 6. Information Note about Speed & Font Size in Floating Button
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: cs.primaryContainer.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: cs.primary.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.touch_app_rounded,
-                            size: 20,
-                            color: cs.primary,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  t.floatingControlsTipTitle,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: cs.onPrimaryContainer,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  t.floatingControlsTipDesc,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    height: 1.4,
-                                    color: cs.onPrimaryContainer
-                                        .withValues(alpha: 0.88),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                    // 6. Interactive Speed & Font Size Controls
+                    Text(
+                      t.floatingControlsTipTitle,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: cs.primary,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    const QuickReaderControls(compact: true),
 
                     const Divider(height: 28),
 

@@ -68,11 +68,11 @@ class _ReaderAudioPlayerBarState extends ConsumerState<ReaderAudioPlayerBar> {
             ),
           ),
         ),
-        padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 6),
+        padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Row 1: Metadata (Surah · Ayah · Reciter), Duration Clock, Close Button
+            // Row 1: Metadata (Surah · Ayah · Reciter) + Tabular Duration Clock
             Row(
               children: [
                 Expanded(
@@ -101,25 +101,10 @@ class _ReaderAudioPlayerBarState extends ConsumerState<ReaderAudioPlayerBar> {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                const SizedBox(width: 2),
-                IconButton(
-                  tooltip: t.closePlayer,
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 34,
-                    minHeight: 34,
-                  ),
-                  icon: Icon(
-                    Icons.close_rounded,
-                    size: 18,
-                    color: cs.onSurfaceVariant,
-                  ),
-                  onPressed: () =>
-                      ref.read(quranAudioProvider.notifier).stopAndClose(),
-                ),
               ],
             ),
+
+            const SizedBox(height: 2),
 
             // Row 2: Seekable Line Progress Slider
             SizedBox(
@@ -160,83 +145,151 @@ class _ReaderAudioPlayerBarState extends ConsumerState<ReaderAudioPlayerBar> {
               ),
             ),
 
-            // Row 3: Previous Ayah (Left) — Play/Pause (Center) — Next Ayah (Right)
+            // Row 3: Loop Ayah (Left) — Prev · Play/Pause · Next (Center) — Close (Right)
             Directionality(
               textDirection: TextDirection.ltr,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    tooltip: t.previousAyah,
-                    visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints(
-                      minWidth: 44,
-                      minHeight: 38,
-                    ),
-                    icon: Icon(
-                      Icons.skip_previous_rounded,
-                      size: 24,
-                      color: audio.canGoPrev
-                          ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.3),
-                    ),
-                    onPressed: audio.canGoPrev
-                        ? () =>
-                            ref.read(quranAudioProvider.notifier).prevAyah()
-                        : null,
-                  ),
-                  const SizedBox(width: 20),
-                  Material(
-                    color: cs.primary,
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => ref
-                          .read(quranAudioProvider.notifier)
-                          .togglePlayPause(),
-                      child: SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Center(
-                          child: audio.isBuffering
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.2,
-                                    color: cs.onPrimary,
-                                  ),
-                                )
-                              : Icon(
-                                  audio.isPlaying
-                                      ? Icons.pause_rounded
-                                      : Icons.play_arrow_rounded,
-                                  size: 24,
-                                  color: cs.onPrimary,
+                  Semantics(
+                    button: true,
+                    toggled: audio.isLoopingAyah,
+                    label: t.repeatAyah,
+                    child: Tooltip(
+                      message: t.repeatAyah,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => ref
+                            .read(quranAudioProvider.notifier)
+                            .toggleLoopAyah(),
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: audio.isLoopingAyah
+                                    ? cs.primary
+                                    : cs.surfaceContainerHighest
+                                        .withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: audio.isLoopingAyah
+                                      ? cs.primary
+                                      : cs.outlineVariant
+                                          .withValues(alpha: 0.55),
+                                  width: 1,
                                 ),
+                              ),
+                              child: Icon(
+                                Icons.repeat_one_rounded,
+                                size: 20,
+                                color: audio.isLoopingAyah
+                                    ? cs.onPrimary
+                                    : cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 20),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: t.previousAyah,
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
+                        ),
+                        icon: Icon(
+                          Icons.skip_previous_rounded,
+                          size: 24,
+                          color: audio.canGoPrev
+                              ? cs.onSurface
+                              : cs.onSurface.withValues(alpha: 0.3),
+                        ),
+                        onPressed: audio.canGoPrev
+                            ? () => ref
+                                .read(quranAudioProvider.notifier)
+                                .prevAyah()
+                            : null,
+                      ),
+                      const SizedBox(width: 14),
+                      Material(
+                        color: cs.primary,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => ref
+                              .read(quranAudioProvider.notifier)
+                              .togglePlayPause(),
+                          child: SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Center(
+                              child: audio.isBuffering
+                                  ? SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: cs.onPrimary,
+                                      ),
+                                    )
+                                  : Icon(
+                                      audio.isPlaying
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      size: 24,
+                                      color: cs.onPrimary,
+                                    ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      IconButton(
+                        tooltip: t.nextAyah,
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
+                        ),
+                        icon: Icon(
+                          Icons.skip_next_rounded,
+                          size: 24,
+                          color: audio.canGoNext
+                              ? cs.onSurface
+                              : cs.onSurface.withValues(alpha: 0.3),
+                        ),
+                        onPressed: audio.canGoNext
+                            ? () => ref
+                                .read(quranAudioProvider.notifier)
+                                .nextAyah()
+                            : null,
+                      ),
+                    ],
+                  ),
                   IconButton(
-                    tooltip: t.nextAyah,
+                    tooltip: t.closePlayer,
                     visualDensity: VisualDensity.compact,
                     constraints: const BoxConstraints(
                       minWidth: 44,
-                      minHeight: 38,
+                      minHeight: 44,
                     ),
                     icon: Icon(
-                      Icons.skip_next_rounded,
-                      size: 24,
-                      color: audio.canGoNext
-                          ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.3),
+                      Icons.close_rounded,
+                      size: 21,
+                      color: cs.onSurfaceVariant,
                     ),
-                    onPressed: audio.canGoNext
-                        ? () =>
-                            ref.read(quranAudioProvider.notifier).nextAyah()
-                        : null,
+                    onPressed: () =>
+                        ref.read(quranAudioProvider.notifier).stopAndClose(),
                   ),
                 ],
               ),

@@ -12,6 +12,7 @@ import '../providers/audio_provider.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
 import '../widgets/audio_player_bar.dart';
+import '../widgets/quick_reader_controls.dart';
 import 'settings_screen.dart';
 
 class _MushafPageSegment {
@@ -179,6 +180,9 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
   Map<String, BuildContext>? _playingAyahAnchorsBacking;
   Map<String, BuildContext> get _playingAyahAnchors =>
       _playingAyahAnchorsBacking ??= {};
+  Map<String, BuildContext>? _playingAyahStartAnchorsBacking;
+  Map<String, BuildContext> get _playingAyahStartAnchors =>
+      _playingAyahStartAnchorsBacking ??= {};
   final Map<int, GlobalKey> _headerKeys = {};
 
   /// Isolated AppBar header notifier so Surah transitions never rebuild the scroll view
@@ -729,9 +733,9 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         _forwardSurahs.isNotEmpty &&
         surahNo > _forwardSurahs.last.summary.number &&
         _forwardSurahs.last.summary.number < 114) {
+      final prevLast = _forwardSurahs.last.summary.number;
       await _loadNextSurahIfNeeded();
-      if (!mounted) return;
-      if (surahNo > _forwardSurahs.last.summary.number) break;
+      if (!mounted || _forwardSurahs.last.summary.number <= prevLast) break;
     }
 
     int earliestLoaded = _backwardSurahs.isNotEmpty
@@ -751,7 +755,6 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
     if (!mounted || !_scrollController.hasClients) return;
 
     final anchorKey = '${surahNo}_$ayahNo';
-    final anchorCtx = _playingAyahAnchors[anchorKey];
     final viewportBox =
         _scrollViewKey.currentContext?.findRenderObject() as RenderBox?;
     if (viewportBox == null || !viewportBox.hasSize || !viewportBox.attached) {
@@ -760,26 +763,53 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
 
     final viewportTopY = viewportBox.localToGlobal(Offset.zero).dy;
     final viewportH = viewportBox.size.height;
+    const double safeTopPad = 18.0;
 
-    if (anchorCtx != null && anchorCtx.mounted) {
-      final box = anchorCtx.findRenderObject() as RenderBox?;
-      if (box != null && box.hasSize && box.attached) {
-        final topRel = box.localToGlobal(Offset.zero).dy - viewportTopY;
-        final bottomRel = topRel + box.size.height;
-        if (topRel >= 24.0 && bottomRel <= viewportH - 56.0) {
+    final startCtx =
+        _playingAyahStartAnchors[anchorKey] ?? _playingAyahAnchors[anchorKey];
+    final endCtx = _playingAyahAnchors[anchorKey] ?? startCtx;
+
+    if (startCtx != null && startCtx.mounted) {
+      final startBox = startCtx.findRenderObject() as RenderBox?;
+      final endBox = (endCtx != null && endCtx.mounted)
+          ? endCtx.findRenderObject() as RenderBox?
+          : null;
+      if (startBox != null && startBox.hasSize && startBox.attached) {
+        final startTopRel =
+            startBox.localToGlobal(Offset.zero).dy - viewportTopY;
+        final endBottomRel = (endBox != null && endBox.hasSize && endBox.attached)
+            ? (endBox.localToGlobal(Offset.zero).dy +
+                endBox.size.height -
+                viewportTopY)
+            : (startTopRel + startBox.size.height);
+
+        final double ayahHeight = math.max(0.0, endBottomRel - startTopRel);
+        final bool fitsCompletely =
+            startTopRel >= safeTopPad && endBottomRel <= viewportH - 20.0;
+        final bool tallAyahPinnedCleanly =
+            ayahHeight > (viewportH - 44.0) &&
+            startTopRel >= safeTopPad &&
+            startTopRel <= 48.0;
+
+        if (fitsCompletely || tallAyahPinnedCleanly) {
           return;
         }
-        final targetY = viewportH * 0.28;
-        final desiredOffset = (_scrollController.offset + (topRel - targetY))
-            .clamp(
-              _scrollController.position.minScrollExtent,
-              _scrollController.position.maxScrollExtent,
-            );
-        await _scrollController.animateTo(
-          desiredOffset,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
+
+        final double targetStartY = ayahHeight > viewportH * 0.65
+            ? safeTopPad
+            : math.max(safeTopPad, math.min(44.0, viewportH * 0.08));
+        final desiredOffset =
+            (_scrollController.offset + (startTopRel - targetStartY)).clamp(
+          _scrollController.position.minScrollExtent,
+          _scrollController.position.maxScrollExtent,
         );
+        if ((desiredOffset - _scrollController.offset).abs() > 1.0) {
+          await _scrollController.animateTo(
+            desiredOffset,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+          );
+        }
         return;
       }
     }
@@ -793,15 +823,38 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
     );
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || !_scrollController.hasClients) return;
-    final postCtx = _playingAyahAnchors[anchorKey];
-    if (postCtx != null && postCtx.mounted) {
-      final box = postCtx.findRenderObject() as RenderBox?;
-      if (box != null && box.hasSize && box.attached) {
-        final topRel = box.localToGlobal(Offset.zero).dy - viewportTopY;
-        final bottomRel = topRel + box.size.height;
-        if (topRel < 24.0 || bottomRel > viewportH - 56.0) {
+    final postViewportBox =
+        _scrollViewKey.currentContext?.findRenderObject() as RenderBox?;
+    if (postViewportBox == null ||
+        !postViewportBox.hasSize ||
+        !postViewportBox.attached) {
+      return;
+    }
+    final postViewportTopY = postViewportBox.localToGlobal(Offset.zero).dy;
+    final postViewportH = postViewportBox.size.height;
+    final postStartCtx =
+        _playingAyahStartAnchors[anchorKey] ?? _playingAyahAnchors[anchorKey];
+    final postEndCtx = _playingAyahAnchors[anchorKey] ?? postStartCtx;
+    if (postStartCtx != null && postStartCtx.mounted) {
+      final startBox = postStartCtx.findRenderObject() as RenderBox?;
+      final endBox = (postEndCtx != null && postEndCtx.mounted)
+          ? postEndCtx.findRenderObject() as RenderBox?
+          : null;
+      if (startBox != null && startBox.hasSize && startBox.attached) {
+        final startTopRel =
+            startBox.localToGlobal(Offset.zero).dy - postViewportTopY;
+        final endBottomRel = (endBox != null && endBox.hasSize && endBox.attached)
+            ? (endBox.localToGlobal(Offset.zero).dy +
+                endBox.size.height -
+                postViewportTopY)
+            : (startTopRel + startBox.size.height);
+        final double ayahHeight = math.max(0.0, endBottomRel - startTopRel);
+        if (startTopRel < safeTopPad || endBottomRel > postViewportH - 20.0) {
+          final double targetStartY = ayahHeight > postViewportH * 0.65
+              ? safeTopPad
+              : math.max(safeTopPad, math.min(44.0, postViewportH * 0.08));
           final desiredOffset =
-              (_scrollController.offset + (topRel - viewportH * 0.28)).clamp(
+              (_scrollController.offset + (startTopRel - targetStartY)).clamp(
             _scrollController.position.minScrollExtent,
             _scrollController.position.maxScrollExtent,
           );
@@ -1180,231 +1233,19 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
       builder: (ctx) {
         return Consumer(
           builder: (context, modalRef, _) {
-            final settings = modalRef.watch(settingsProvider);
-            final notifier = modalRef.read(settingsProvider.notifier);
             final t = modalRef.watch(stringsProvider);
-            final cs = Theme.of(context).colorScheme;
-            const presets = [0.25, 0.35, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0];
-
             return SafeArea(
               child: Directionality(
                 textDirection: t.textDirection,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // 1. Auto-Scroll Speed + Play/Pause
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '${t.autoScrollSpeed}: ${_formatScrollSpeed(settings.autoScrollSpeed)}',
-                            style: const TextStyle(
-                              fontSize: 15.5,
-                              fontWeight: FontWeight.w700,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                          ValueListenableBuilder<bool>(
-                            valueListenable: _isAutoScrollingNotifier,
-                            builder: (_, isScrolling, __) {
-                              return FilledButton.tonalIcon(
-                                icon: Icon(
-                                  isScrolling
-                                      ? Icons.pause_rounded
-                                      : Icons.play_arrow_rounded,
-                                ),
-                                label: Text(isScrolling ? t.pause : t.play),
-                                onPressed: () {
-                                  _toggleAutoScroll();
-                                  Navigator.pop(ctx);
-                                },
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          IconButton.filledTonal(
-                            icon: const Icon(Icons.remove_rounded),
-                            onPressed: () {
-                              final next = _stepDownAutoScrollSpeed(
-                                settings.autoScrollSpeed,
-                              );
-                              notifier.update(
-                                settings.copyWith(autoScrollSpeed: next),
-                              );
-                            },
-                          ),
-                          Expanded(
-                            child: Slider(
-                              min: 0.25,
-                              max: 4.0,
-                              divisions: 75,
-                              value: settings.autoScrollSpeed.clamp(0.25, 4.0),
-                              onChanged: (v) => notifier.update(
-                                settings.copyWith(autoScrollSpeed: v),
-                              ),
-                            ),
-                          ),
-                          IconButton.filledTonal(
-                            icon: const Icon(Icons.add_rounded),
-                            onPressed: () {
-                              final next = _stepUpAutoScrollSpeed(
-                                settings.autoScrollSpeed,
-                              );
-                              notifier.update(
-                                settings.copyWith(autoScrollSpeed: next),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        alignment: WrapAlignment.center,
-                        children: presets.map((spd) {
-                          final selected =
-                              (settings.autoScrollSpeed - spd).abs() < 0.02;
-                          return ChoiceChip(
-                            label: Text(_formatScrollSpeed(spd)),
-                            selected: selected,
-                            onSelected: (_) => notifier.update(
-                              settings.copyWith(autoScrollSpeed: spd),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                      const Divider(height: 26),
-
-                      // 2. Arabic Font Size (+/- buttons & Slider)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            t.arabicFontSize,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '${settings.arabicFontSize.round()}',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: cs.primary,
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          IconButton.filledTonal(
-                            icon: const Icon(Icons.remove_rounded),
-                            onPressed: () {
-                              final next = (settings.arabicFontSize - 1.0)
-                                  .clamp(20.0, 50.0);
-                              notifier.update(
-                                settings.copyWith(arabicFontSize: next),
-                              );
-                            },
-                          ),
-                          Expanded(
-                            child: Slider(
-                              min: 20,
-                              max: 50,
-                              divisions: 30,
-                              value: settings.arabicFontSize.clamp(20.0, 50.0),
-                              onChanged: (v) => notifier.update(
-                                settings.copyWith(arabicFontSize: v),
-                              ),
-                            ),
-                          ),
-                          IconButton.filledTonal(
-                            icon: const Icon(Icons.add_rounded),
-                            onPressed: () {
-                              final next = (settings.arabicFontSize + 1.0)
-                                  .clamp(20.0, 50.0);
-                              notifier.update(
-                                settings.copyWith(arabicFontSize: next),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      // 3. Translation Font Size (+/- buttons & Slider)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            t.translationFontSize,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '${settings.translationFontSize.round()}',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: cs.primary,
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          IconButton.filledTonal(
-                            icon: const Icon(Icons.remove_rounded),
-                            onPressed: () {
-                              final next = (settings.translationFontSize - 1.0)
-                                  .clamp(13.0, 24.0);
-                              notifier.update(
-                                settings.copyWith(translationFontSize: next),
-                              );
-                            },
-                          ),
-                          Expanded(
-                            child: Slider(
-                              min: 13,
-                              max: 24,
-                              divisions: 11,
-                              value: settings.translationFontSize
-                                  .clamp(13.0, 24.0),
-                              onChanged: (v) => notifier.update(
-                                settings.copyWith(translationFontSize: v),
-                              ),
-                            ),
-                          ),
-                          IconButton.filledTonal(
-                            icon: const Icon(Icons.add_rounded),
-                            onPressed: () {
-                              final next = (settings.translationFontSize + 1.0)
-                                  .clamp(13.0, 24.0);
-                              notifier.update(
-                                settings.copyWith(translationFontSize: next),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
+                  child: QuickReaderControls(
+                    compact: false,
+                    isAutoScrollingListenable: _isAutoScrollingNotifier,
+                    onToggleAutoScroll: () {
+                      _toggleAutoScroll();
+                      Navigator.pop(ctx);
+                    },
                   ),
                 ),
               ),
@@ -1950,6 +1791,13 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                       t: t,
                       cs: cs,
                       styles: styles,
+                      onRegisterStartAnchor: (key, ctx) =>
+                          _playingAyahStartAnchors[key] = ctx,
+                      onUnregisterStartAnchor: (key, ctx) {
+                        if (_playingAyahStartAnchors[key] == ctx) {
+                          _playingAyahStartAnchors.remove(key);
+                        }
+                      },
                       onRegisterAnchor: (key, ctx) =>
                           _playingAyahAnchors[key] = ctx,
                       onUnregisterAnchor: (key, ctx) {
@@ -2046,10 +1894,16 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
 
     return _BlockMountTracker(
       blockId: 'verse_audio_$anchorKey',
-      onMount: (ctx) => _playingAyahAnchors[anchorKey] = ctx,
+      onMount: (ctx) {
+        _playingAyahAnchors[anchorKey] = ctx;
+        _playingAyahStartAnchors[anchorKey] = ctx;
+      },
       onUnmount: (ctx) {
         if (_playingAyahAnchors[anchorKey] == ctx) {
           _playingAyahAnchors.remove(anchorKey);
+        }
+        if (_playingAyahStartAnchors[anchorKey] == ctx) {
+          _playingAyahStartAnchors.remove(anchorKey);
         }
       },
       child: Consumer(
@@ -2244,6 +2098,8 @@ class _MushafSegmentBody extends ConsumerWidget {
   final AppStrings t;
   final ColorScheme cs;
   final _ReaderTextStyles styles;
+  final void Function(String key, BuildContext ctx) onRegisterStartAnchor;
+  final void Function(String key, BuildContext ctx) onUnregisterStartAnchor;
   final void Function(String key, BuildContext ctx) onRegisterAnchor;
   final void Function(String key, BuildContext ctx) onUnregisterAnchor;
   final void Function(String key, _MountedAyahInfo info) onRegisterMountedAyah;
@@ -2263,6 +2119,8 @@ class _MushafSegmentBody extends ConsumerWidget {
     required this.t,
     required this.cs,
     required this.styles,
+    required this.onRegisterStartAnchor,
+    required this.onUnregisterStartAnchor,
     required this.onRegisterAnchor,
     required this.onUnregisterAnchor,
     required this.onRegisterMountedAyah,
@@ -2293,6 +2151,20 @@ class _MushafSegmentBody extends ConsumerWidget {
               style: styles.arabicBase,
               children: [
                 for (final i in segment.ayahIndices) ...[
+                  () {
+                    final ayahNo = segment.detail.ayahs[i].numberInSurah;
+                    final anchorKey = '${surahNo}_$ayahNo';
+                    return WidgetSpan(
+                      alignment: PlaceholderAlignment.top,
+                      child: _BlockMountTracker(
+                        blockId: 'mushaf_start_$anchorKey',
+                        onMount: (ctx) => onRegisterStartAnchor(anchorKey, ctx),
+                        onUnmount: (ctx) =>
+                            onUnregisterStartAnchor(anchorKey, ctx),
+                        child: const SizedBox(width: 0, height: 2),
+                      ),
+                    );
+                  }(),
                   () {
                     final ayah = segment.detail.ayahs[i];
                     final isTarget =
@@ -2683,7 +2555,7 @@ class _DraggableAutoScrollFabState
                                         : cs.onPrimaryContainer,
                                   ),
                                   Text(
-                                    _formatScrollSpeed(speed),
+                                    formatAutoScrollSpeed(speed),
                                     style: TextStyle(
                                       fontSize: 9.5,
                                       fontWeight: FontWeight.w700,
@@ -2910,26 +2782,6 @@ class _SurahOrnamentalBanner extends StatelessWidget {
       ),
     );
   }
-}
-
-String _formatScrollSpeed(double speed) {
-  final hundredths = (speed * 100).round();
-  if (hundredths % 10 != 0) {
-    return '${(hundredths / 100).toStringAsFixed(2)}x';
-  }
-  return '${(hundredths / 100).toStringAsFixed(1)}x';
-}
-
-double _stepDownAutoScrollSpeed(double current) {
-  if (current > 0.55) return (current - 0.5).clamp(0.5, 4.0);
-  if (current > 0.36) return 0.35;
-  return 0.25;
-}
-
-double _stepUpAutoScrollSpeed(double current) {
-  if (current < 0.34) return 0.35;
-  if (current < 0.49) return 0.5;
-  return (current + 0.5).clamp(0.25, 4.0);
 }
 
 class _MushafCalligraphyFramePainter extends CustomPainter {

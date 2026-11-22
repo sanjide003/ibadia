@@ -350,6 +350,8 @@ class AppStrings {
       _pick('Next Ayah', 'അടുത്ത ആയത്ത്', 'الآية التالية');
   String get closePlayer =>
       _pick('Close player', 'പ്ലെയർ അടയ്ക്കുക', 'إغلاق المشغل');
+  String get repeatAyah =>
+      _pick('Repeat Ayah', 'ആയത്ത് ആവർത്തിക്കുക', 'تكرار الآية');
   String get audioLoadError => _pick(
         'Could not play audio. Tap retry.',
         'ഓഡിയോ പ്ലേ ചെയ്യാനായില്ല. വീണ്ടും ശ്രമിക്കുക.',

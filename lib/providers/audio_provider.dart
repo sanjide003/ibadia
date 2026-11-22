@@ -11,6 +11,7 @@ class QuranAudioState {
   final bool isVisible;
   final bool isPlaying;
   final bool isBuffering;
+  final bool isLoopingAyah;
   final int? surahNumber;
   final String surahName;
   final String surahArabicName;
@@ -25,6 +26,7 @@ class QuranAudioState {
     this.isVisible = false,
     this.isPlaying = false,
     this.isBuffering = false,
+    this.isLoopingAyah = false,
     this.surahNumber,
     this.surahName = '',
     this.surahArabicName = '',
@@ -53,6 +55,7 @@ class QuranAudioState {
     bool? isVisible,
     bool? isPlaying,
     bool? isBuffering,
+    bool? isLoopingAyah,
     int? surahNumber,
     String? surahName,
     String? surahArabicName,
@@ -68,6 +71,7 @@ class QuranAudioState {
       isVisible: isVisible ?? this.isVisible,
       isPlaying: isPlaying ?? this.isPlaying,
       isBuffering: isBuffering ?? this.isBuffering,
+      isLoopingAyah: isLoopingAyah ?? this.isLoopingAyah,
       surahNumber: surahNumber ?? this.surahNumber,
       surahName: surahName ?? this.surahName,
       surahArabicName: surahArabicName ?? this.surahArabicName,
@@ -358,11 +362,25 @@ class QuranAudioNotifier extends StateNotifier<QuranAudioState> {
     }
   }
 
+  void toggleLoopAyah() {
+    state = state.copyWith(isLoopingAyah: !state.isLoopingAyah);
+  }
+
   Future<void> _handleTrackCompleted(int token) async {
     if (!mounted || token != _opToken) return;
     final curSurah = state.surahNumber;
     final curAyah = state.ayahNumber;
     if (curSurah == null || curAyah == null) return;
+
+    if (state.isLoopingAyah) {
+      await playAyah(
+        surahNumber: curSurah,
+        ayahNumber: curAyah,
+        globalAyahNumber: state.globalAyahNumber,
+        autoPlay: true,
+      );
+      return;
+    }
 
     if (curSurah >= 114) {
       final detail = await _getSurahDetail(114);
