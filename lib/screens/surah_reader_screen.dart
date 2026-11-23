@@ -7,12 +7,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/config/api_config.dart';
 import '../core/l10n/app_strings.dart';
+import '../models/recent_activity_model.dart';
 import '../models/surah_model.dart';
 import '../providers/audio_provider.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/quick_reader_controls.dart';
+import '../widgets/tajweed_widgets.dart';
 import 'settings_screen.dart';
 
 class _MushafPageSegment {
@@ -579,6 +581,21 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         _isInitialLoading = false;
       });
       _audioNotifier.registerLoadedSurahs([..._backwardSurahs, ..._forwardSurahs]);
+      ref.read(recentActivityProvider.notifier).record(
+            RecentActivityEntry(
+              id: 'surah:${detail.summary.number}',
+              type: RecentActivityType.surah,
+              titleEn: '${detail.summary.number}. ${detail.summary.englishName}',
+              titleMl: '${detail.summary.number}. ${detail.summary.englishName}',
+              titleAr: '${detail.summary.number}. ${detail.summary.nameArabic}',
+              subtitleEn: detail.summary.nameArabic,
+              subtitleMl: detail.summary.nameArabic,
+              subtitleAr: '${detail.summary.numberOfAyahs} آيات',
+              timestampMs: DateTime.now().millisecondsSinceEpoch,
+              surahNumber: detail.summary.number,
+              ayahNumber: widget.initialAyahNumber ?? 1,
+            ),
+          );
 
       final int targetAyah = widget.initialAyahNumber ?? 1;
       final bool hasExplicitTarget = targetAyah > 1 ||
@@ -1401,6 +1418,11 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
               },
             ),
             actions: [
+              IconButton(
+                tooltip: t.tajweedGuideTitle,
+                icon: const Icon(Icons.palette_outlined),
+                onPressed: () => showTajweedLegendSheet(context, strings: t),
+              ),
               Builder(
                 builder: (drawerCtx) => IconButton(
                   tooltip: t.settings,
@@ -1415,6 +1437,21 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
             child: Column(
               children: [
                 const ReaderAudioPlayerBar(),
+                if (!_isInitialLoading && _errorText == null)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      readerHPad,
+                      6,
+                      readerHPad,
+                      2,
+                    ),
+                    child: TajweedLegendMiniBar(
+                      strings: t,
+                      cs: cs,
+                      cardBg: scaffoldBg,
+                      cardBorder: cs.outlineVariant.withValues(alpha: 0.45),
+                    ),
+                  ),
                 Expanded(
                   child: Stack(
                     fit: StackFit.expand,
@@ -1937,21 +1974,12 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Directionality(
-                      textDirection: TextDirection.rtl,
-                      child: Text.rich(
-                        TextSpan(
-                          style: styles.arabicBase,
-                          children: [
-                            TextSpan(text: ayah.arabicText),
-                            TextSpan(
-                              text: ApiConfig.ayahEndMarker(ayahNo),
-                              style: styles.arabicMarker,
-                            ),
-                          ],
-                        ),
-                        textAlign: TextAlign.right,
-                      ),
+                    TajweedAyahRichText(
+                      arabicText: ayah.arabicText,
+                      endMarker: ApiConfig.ayahEndMarker(ayahNo),
+                      baseStyle: styles.arabicBase,
+                      markerStyle: styles.arabicMarker,
+                      strings: t,
                     ),
                     if (showTranslation)
                       ...selectedTranslations.map((code) {
@@ -1988,6 +2016,27 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                           ),
                           onPressed: () {
                             ref.read(bookmarksProvider.notifier).toggle(ayahKey);
+                            if (!isBookmarked) {
+                              ref.read(recentActivityProvider.notifier).record(
+                                    RecentActivityEntry(
+                                      id: 'bm:$surahNo:$ayahNo',
+                                      type: RecentActivityType.bookmark,
+                                      titleEn:
+                                          '${detail.summary.englishName} $surahNo:$ayahNo',
+                                      titleMl:
+                                          '${detail.summary.englishName} $surahNo:$ayahNo',
+                                      titleAr:
+                                          '${detail.summary.nameArabic} $surahNo:$ayahNo',
+                                      subtitleEn: 'Bookmarked Ayah',
+                                      subtitleMl: 'ബുക്ക്‌മാർക്ക് ചെയ്ത ആയത്ത്',
+                                      subtitleAr: 'آية محفوظة',
+                                      timestampMs: DateTime.now()
+                                          .millisecondsSinceEpoch,
+                                      surahNumber: surahNo,
+                                      ayahNumber: ayahNo,
+                                    ),
+                                  );
+                            }
                             final captured = _captureVisibleReadingPosition();
                             final currentMode =
                                 ref.read(settingsProvider).readingMode;
@@ -2090,7 +2139,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
   }
 }
 
-class _MushafSegmentBody extends ConsumerWidget {
+class _MushafSegmentBody extends ConsumerStatefulWidget {
   final int pageNumber;
   final _MushafPageSegment segment;
   final bool showTranslation;
@@ -2129,7 +2178,23 @@ class _MushafSegmentBody extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MushafSegmentBody> createState() => _MushafSegmentBodyState();
+}
+
+class _MushafSegmentBodyState extends ConsumerState<_MushafSegmentBody>
+    with TajweedRecognizerPool<_MushafSegmentBody> {
+  @override
+  Widget build(BuildContext context) {
+    resetRecognizers();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final segment = widget.segment;
+    final styles = widget.styles;
+    final cs = widget.cs;
+    final t = widget.t;
+    final pageNumber = widget.pageNumber;
+    final showTranslation = widget.showTranslation;
+    final selectedTranslations = widget.selectedTranslations;
+
     final surahNo = segment.detail.summary.number;
     final activeAudio = ref.watch(
       quranAudioProvider.select(
@@ -2158,24 +2223,34 @@ class _MushafSegmentBody extends ConsumerWidget {
                       alignment: PlaceholderAlignment.top,
                       child: _BlockMountTracker(
                         blockId: 'mushaf_start_$anchorKey',
-                        onMount: (ctx) => onRegisterStartAnchor(anchorKey, ctx),
+                        onMount: (ctx) =>
+                            widget.onRegisterStartAnchor(anchorKey, ctx),
                         onUnmount: (ctx) =>
-                            onUnregisterStartAnchor(anchorKey, ctx),
+                            widget.onUnregisterStartAnchor(anchorKey, ctx),
                         child: const SizedBox(width: 0, height: 2),
                       ),
                     );
                   }(),
-                  () {
-                    final ayah = segment.detail.ayahs[i];
-                    final isTarget =
-                        activeAudio != null && activeAudio.$1 == ayah.numberInSurah;
-                    return TextSpan(
-                      text: ayah.arabicText,
-                      style: isTarget
-                          ? styles.arabicBase.copyWith(backgroundColor: highlightBg)
-                          : null,
-                    );
-                  }(),
+                  ...buildTajweedSpans(
+                    arabicText: segment.detail.ayahs[i].arabicText,
+                    baseStyle: styles.arabicBase,
+                    isDark: isDark,
+                    backgroundColor: (activeAudio != null &&
+                            activeAudio.$1 ==
+                                segment.detail.ayahs[i].numberInSurah)
+                        ? highlightBg
+                        : null,
+                    onRuleTap: (meta, sample) => showTajweedRuleInspectorSheet(
+                      context,
+                      meta: meta,
+                      tappedArabic: sample,
+                      strings: t,
+                      onOpenFullGuide: () => showTajweedLegendSheet(
+                        context,
+                        strings: t,
+                      ),
+                    ),
+                  ),
                   () {
                     final ayah = segment.detail.ayahs[i];
                     final isTarget =
@@ -2200,8 +2275,10 @@ class _MushafSegmentBody extends ConsumerWidget {
                       alignment: PlaceholderAlignment.middle,
                       child: _BlockMountTracker(
                         blockId: 'mushaf_anchor_$anchorKey',
-                        onMount: (ctx) => onRegisterAnchor(anchorKey, ctx),
-                        onUnmount: (ctx) => onUnregisterAnchor(anchorKey, ctx),
+                        onMount: (ctx) =>
+                            widget.onRegisterAnchor(anchorKey, ctx),
+                        onUnmount: (ctx) =>
+                            widget.onUnregisterAnchor(anchorKey, ctx),
                         child: Padding(
                           padding: const EdgeInsetsDirectional.only(
                             start: 3,
@@ -2213,7 +2290,7 @@ class _MushafSegmentBody extends ConsumerWidget {
                             isBuffering: isBufferingThis,
                             tooltip: isPlayingThis ? t.pauseAyah : t.playAyah,
                             cs: cs,
-                            onTap: () => onTogglePlay(
+                            onTap: () => widget.onTogglePlay(
                               surahNo,
                               ayahNo,
                               ayah.globalNumber,
@@ -2241,7 +2318,7 @@ class _MushafSegmentBody extends ConsumerWidget {
               return _BlockMountTracker(
                 blockId: mountedKey,
                 onMount: (ctx) {
-                  onRegisterMountedAyah(
+                  widget.onRegisterMountedAyah(
                     mountedKey,
                     _MountedAyahInfo(
                       surahNumber: surahNo,
@@ -2251,7 +2328,8 @@ class _MushafSegmentBody extends ConsumerWidget {
                     ),
                   );
                 },
-                onUnmount: (ctx) => onUnregisterMountedAyah(mountedKey, ctx),
+                onUnmount: (ctx) =>
+                    widget.onUnregisterMountedAyah(mountedKey, ctx),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   margin: const EdgeInsets.only(bottom: 10),

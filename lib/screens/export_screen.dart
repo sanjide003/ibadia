@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../models/recent_activity_model.dart';
 import '../models/surah_model.dart';
 import '../providers/quran_providers.dart';
 import '../services/export_service.dart';
@@ -190,6 +191,21 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         setState(() => _errorMessage = t.invalidAyahRange);
         return;
       }
+
+      ref.read(recentActivityProvider.notifier).record(
+            RecentActivityEntry(
+              id: 'tool:export',
+              type: RecentActivityType.exportPdf,
+              titleEn: docTitle,
+              titleMl: docTitle,
+              titleAr: docTitle,
+              subtitleEn: 'Export (${_format.name.toUpperCase()})',
+              subtitleMl: 'എക്സ്പോർട്ട് (${_format.name.toUpperCase()})',
+              subtitleAr: 'تصدير (${_format.name.toUpperCase()})',
+              timestampMs: DateTime.now().millisecondsSinceEpoch,
+              quranSubTab: 3,
+            ),
+          );
 
       await Navigator.push(
         context,

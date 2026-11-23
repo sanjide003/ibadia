@@ -10,8 +10,10 @@ import '../core/l10n/app_strings.dart';
 import '../models/islamic_features_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
+import '../services/prayer_alarm_bridge.dart';
 import '../services/storage_service.dart';
 import 'adhkar_tasbih_views.dart';
+import 'asmaul_husna_view.dart';
 
 /// Shared helper to open the City / GPS location picker bottom sheet.
 Future<void> showPrayerLocationPickerSheet(
@@ -657,6 +659,311 @@ class HijriAdjustmentControl extends ConsumerWidget {
   );
 }
 
+class PrayerAutoSilentSection extends ConsumerWidget {
+  final bool compact;
+
+  const PrayerAutoSilentSection({super.key, this.compact = false});
+
+  String _prayerName(String key, AppStrings t) {
+    switch (key) {
+      case 'fajr':
+        return t.fajrName;
+      case 'dhuhr':
+        return t.dhuhrName;
+      case 'asr':
+        return t.asrName;
+      case 'maghrib':
+        return t.maghribName;
+      case 'isha':
+        return t.ishaName;
+      default:
+        return key;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final alarmState = ref.watch(prayerAlarmProvider);
+    final alarmNotifier = ref.read(prayerAlarmProvider.notifier);
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final t = ref.watch(stringsProvider);
+    final cs = Theme.of(context).colorScheme;
+    final isNative = PrayerAlarmBridge.instance.isNativeAndroid;
+
+    const durations = [10, 15, 20, 25, 30];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(
+              settings.autoSilentEnabled
+                  ? Icons.do_not_disturb_on_rounded
+                  : Icons.do_not_disturb_off_outlined,
+              size: compact ? 19 : 22,
+              color:
+                  settings.autoSilentEnabled ? cs.primary : cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.autoSilentTitle,
+                    style: TextStyle(
+                      fontSize: compact ? 13.5 : 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: settings.autoSilentEnabled
+                          ? cs.primary
+                          : cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    t.autoSilentDesc,
+                    style: TextStyle(
+                      fontSize: compact ? 11.5 : 12,
+                      color: cs.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Switch(
+              value: settings.autoSilentEnabled,
+              onChanged: (val) async {
+                final ok = await alarmNotifier.setAutoSilentEnabled(val);
+                if (!ok && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(t.dndPermissionNeeded),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+
+        if (alarmState.autoSilentActiveNow) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: cs.primaryContainer.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cs.primary.withValues(alpha: 0.45)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.notifications_paused_rounded,
+                    size: 18, color: cs.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    t.dndActiveNowBanner,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: cs.primary,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () => alarmNotifier.restoreNormalRingerNow(),
+                  child: Text(t.restoreSoundNowBtn),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        if (isNative) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: alarmState.dndPermissionGranted
+                  ? cs.primaryContainer.withValues(alpha: 0.35)
+                  : cs.errorContainer.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  alarmState.dndPermissionGranted
+                      ? Icons.verified_user_rounded
+                      : Icons.security_rounded,
+                  size: 17,
+                  color: alarmState.dndPermissionGranted
+                      ? cs.primary
+                      : cs.onErrorContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    alarmState.dndPermissionGranted
+                        ? t.dndPermissionGranted
+                        : t.dndPermissionNeeded,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: alarmState.dndPermissionGranted
+                          ? cs.primary
+                          : cs.onErrorContainer,
+                    ),
+                  ),
+                ),
+                if (!alarmState.dndPermissionGranted)
+                  FilledButton.tonal(
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    onPressed: () => alarmNotifier.openDndPolicySettings(),
+                    child: Text(
+                      t.grantDndPermissionBtn,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ] else ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.38),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded,
+                    size: 16, color: cs.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    t.autoSilentWebNote,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: cs.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 12),
+        Text(
+          t.autoSilentDurationLabel,
+          style: TextStyle(
+            fontSize: compact ? 12.5 : 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: durations.map((mins) {
+            final selected = settings.autoSilentDurationMinutes == mins;
+            return ChoiceChip(
+              label: Text(
+                '$mins ${t.minutesUnitShort}',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? cs.onPrimary : cs.onSurface,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              selected: selected,
+              selectedColor: cs.primary,
+              showCheckmark: false,
+              onSelected: (_) => settingsNotifier.update(
+                settings.copyWith(autoSilentDurationMinutes: mins),
+              ),
+            );
+          }).toList(),
+        ),
+
+        const SizedBox(height: 12),
+        Text(
+          t.autoSilentPrayersLabel,
+          style: TextStyle(
+            fontSize: compact ? 12.5 : 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: AlAdhanCatalog.fivePrayerKeys.map((key) {
+            final enabled = settings.isAutoSilentEnabledFor(key);
+            return FilterChip(
+              label: Text(
+                _prayerName(key, t),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: enabled ? cs.primary : cs.onSurfaceVariant,
+                ),
+              ),
+              selected: enabled,
+              selectedColor: cs.primaryContainer.withValues(alpha: 0.65),
+              checkmarkColor: cs.primary,
+              onSelected: (val) {
+                final nextMap = Map<String, bool>.from(settings.autoSilentPrayers);
+                nextMap[key] = val;
+                settingsNotifier.update(
+                  settings.copyWith(autoSilentPrayers: nextMap),
+                );
+              },
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+Future<void> showAutoSilentSheet(BuildContext context, AppStrings t) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (ctx) {
+      return Directionality(
+        textDirection: t.textDirection,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            18,
+            4,
+            18,
+            24 + MediaQuery.viewInsetsOf(ctx).bottom,
+          ),
+          child: const PrayerAutoSilentSection(),
+        ),
+      );
+    },
+  );
+}
+
 class FeaturesContainerView extends StatelessWidget {
   final TabController controller;
   final void Function(int surahNumber)? onOpenSurah;
@@ -676,6 +983,7 @@ class FeaturesContainerView extends StatelessWidget {
         const HijriCalendarView(),
         const AdhkarDuasView(),
         const DigitalTasbihView(),
+        const AsmaulHusnaView(),
       ],
     );
   }
@@ -1609,6 +1917,25 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
               ),
             ],
           ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Auto-Silent (DND) during Prayer Card
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: settings.autoSilentEnabled
+                ? cs.primaryContainer.withValues(alpha: 0.25)
+                : palette.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: settings.autoSilentEnabled
+                  ? cs.primary.withValues(alpha: 0.45)
+                  : palette.cardBorder,
+            ),
+          ),
+          child: const PrayerAutoSilentSection(),
         ),
 
         const SizedBox(height: 14),

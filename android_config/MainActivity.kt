@@ -341,6 +341,54 @@ class MainActivity : FlutterActivity() {
                     result.success(act)
                 }
 
+                "isDndPolicyAccessGranted" -> {
+                    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        nm.isNotificationPolicyAccessGranted
+                    } else {
+                        true
+                    }
+                    result.success(granted)
+                }
+
+                "openDndPolicySettings" -> {
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val dndIntent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            startActivity(dndIntent)
+                        }
+                        result.success(true)
+                    } catch (_: Exception) {
+                        result.success(false)
+                    }
+                }
+
+                "schedulePrayerDndWindows" -> {
+                    try {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        val windows = call.argument<List<Map<String, Any?>>>("windows") ?: emptyList()
+                        PrayerAlarmController.saveAndScheduleDnd(
+                            context = applicationContext,
+                            enabled = enabled,
+                            windows = windows
+                        )
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("DND_SCHEDULE_ERROR", e.message, null)
+                    }
+                }
+
+                "restoreNormalRingerNow" -> {
+                    PrayerAlarmController.restoreSavedDndFilter(applicationContext)
+                    result.success(true)
+                }
+
+                "getAutoSilentStatus" -> {
+                    result.success(PrayerAlarmController.isDndSessionActive(applicationContext))
+                }
+
                 else -> result.notImplemented()
             }
         }
@@ -376,6 +424,28 @@ object PrayerAlarmController {
     private const val KEY_KAHF_BODY = "kahf_notif_body"
     private const val REQ_KAHF_THU = 8201
     private const val REQ_KAHF_FRI = 8202
+
+    private const val DND_CHANNEL_ID = "prayer_dnd_status_v1"
+    private const val DND_CHANNEL_NAME = "Prayer Auto-Silent Status"
+    private const val DND_NOTIFICATION_ID = 7703
+    private const val KEY_DND_ENABLED = "dnd_auto_enabled"
+    private const val KEY_DND_WINDOWS_JSON = "dnd_windows_json"
+    private const val KEY_DND_ACTIVE = "dnd_session_active"
+    private const val KEY_DND_PREV_FILTER = "dnd_prev_filter"
+    private val DND_START_CODES = mapOf(
+        "fajr" to 8301,
+        "dhuhr" to 8302,
+        "asr" to 8303,
+        "maghrib" to 8304,
+        "isha" to 8305
+    )
+    private val DND_END_CODES = mapOf(
+        "fajr" to 8401,
+        "dhuhr" to 8402,
+        "asr" to 8403,
+        "maghrib" to 8404,
+        "isha" to 8405
+    )
 
     private val PRAYER_REQUEST_CODES = mapOf(
         "fajr" to 8101,
@@ -949,6 +1019,210 @@ object PrayerAlarmController {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(KAHF_NOTIFICATION_ID, notif)
     }
+
+    private fun ensureDndNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (nm.getNotificationChannel(DND_CHANNEL_ID) == null) {
+                val ch = NotificationChannel(
+                    DND_CHANNEL_ID,
+                    DND_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Shows when Prayer Auto-Silent (DND) is active"
+                    setSound(null, null)
+                }
+                nm.createNotificationChannel(ch)
+            }
+        }
+    }
+
+    fun isDndSessionActive(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_DND_ACTIVE, false)
+    }
+
+    fun saveAndScheduleDnd(
+        context: Context,
+        enabled: Boolean,
+        windows: List<Map<String, Any?>>
+    ) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val arr = JSONArray()
+        for (w in windows) {
+            val obj = JSONObject()
+            obj.put("prayerKey", w["prayerKey"] ?: "")
+            obj.put("prayerName", w["prayerName"] ?: "")
+            obj.put("startMillis", (w["startMillis"] as? Number)?.toLong() ?: 0L)
+            obj.put("endMillis", (w["endMillis"] as? Number)?.toLong() ?: 0L)
+            obj.put("durationMinutes", (w["durationMinutes"] as? Number)?.toInt() ?: 15)
+            obj.put("notifTitle", w["notifTitle"] ?: "Prayer Auto-Silent Active")
+            obj.put("restoreBtn", w["restoreBtn"] ?: "Restore Sound")
+            arr.put(obj)
+        }
+        prefs.edit()
+            .putBoolean(KEY_DND_ENABLED, enabled)
+            .putString(KEY_DND_WINDOWS_JSON, arr.toString())
+            .apply()
+        rescheduleStoredDndWindows(context)
+    }
+
+    fun rescheduleStoredDndWindows(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        for ((key, code) in DND_START_CODES) {
+            val pi = PendingIntent.getBroadcast(
+                context,
+                code,
+                Intent(context, PrayerDndStartReceiver::class.java).apply { putExtra("prayerKey", key) },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pi)
+        }
+        for ((key, code) in DND_END_CODES) {
+            val pi = PendingIntent.getBroadcast(
+                context,
+                code,
+                Intent(context, PrayerDndEndReceiver::class.java).apply { putExtra("prayerKey", key) },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pi)
+        }
+
+        if (!prefs.getBoolean(KEY_DND_ENABLED, false)) return
+        val raw = prefs.getString(KEY_DND_WINDOWS_JSON, null) ?: return
+        val arr = try {
+            JSONArray(raw)
+        } catch (_: Exception) {
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val dayMs = 24L * 60L * 60L * 1000L
+
+        for (i in 0 until arr.length()) {
+            val obj = arr.optJSONObject(i) ?: continue
+            val prayerKey = obj.optString("prayerKey", "")
+            val startCode = DND_START_CODES[prayerKey] ?: continue
+            val endCode = DND_END_CODES[prayerKey] ?: continue
+
+            var startMs = obj.optLong("startMillis", 0L)
+            var endMs = obj.optLong("endMillis", 0L)
+            if (startMs <= 0L || endMs <= startMs) continue
+
+            while (startMs <= now + 1500L) {
+                startMs += dayMs
+                endMs += dayMs
+            }
+
+            val title = obj.optString("notifTitle", "Prayer Auto-Silent Active")
+            val restoreBtn = obj.optString("restoreBtn", "Restore Sound")
+            val durMin = obj.optInt("durationMinutes", 15)
+
+            val startIntent = Intent(context, PrayerDndStartReceiver::class.java).apply {
+                putExtra("prayerKey", prayerKey)
+                putExtra("notifTitle", title)
+                putExtra("restoreBtn", restoreBtn)
+                putExtra("durationMinutes", durMin)
+            }
+            val startPi = PendingIntent.getBroadcast(
+                context,
+                startCode,
+                startIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val endIntent = Intent(context, PrayerDndEndReceiver::class.java).apply {
+                putExtra("prayerKey", prayerKey)
+            }
+            val endPi = PendingIntent.getBroadcast(
+                context,
+                endCode,
+                endIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, startMs, startPi)
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endMs, endPi)
+                } else {
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, startMs, startPi)
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, endMs, endPi)
+                }
+            } catch (_: SecurityException) {
+                try {
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, startMs, startPi)
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, endMs, endPi)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    fun handleDndStartFired(context: Context, intent: Intent) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (!nm.isNotificationPolicyAccessGranted) {
+            rescheduleStoredDndWindows(context)
+            return
+        }
+
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_DND_ACTIVE, false)) {
+            prefs.edit()
+                .putInt(KEY_DND_PREV_FILTER, nm.currentInterruptionFilter)
+                .putBoolean(KEY_DND_ACTIVE, true)
+                .apply()
+        }
+
+        try {
+            nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
+        } catch (_: Exception) {}
+
+        ensureDndNotificationChannel(context)
+        val title = intent.getStringExtra("notifTitle") ?: "Prayer Auto-Silent Active"
+        val restoreBtn = intent.getStringExtra("restoreBtn") ?: "Restore Sound"
+        val durMin = intent.getIntExtra("durationMinutes", 15)
+
+        val restoreIntent = Intent(context, PrayerDndRestoreReceiver::class.java)
+        val restorePi = PendingIntent.getBroadcast(
+            context,
+            9501,
+            restoreIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, DND_CHANNEL_ID)
+        } else {
+            Notification.Builder(context)
+        }
+        val notif = builder
+            .setSmallIcon(android.R.drawable.ic_lock_silent_mode)
+            .setContentTitle(title)
+            .setContentText("Auto-restoring in $durMin min")
+            .setOngoing(true)
+            .addAction(Notification.Action.Builder(0, restoreBtn, restorePi).build())
+            .build()
+        nm.notify(DND_NOTIFICATION_ID, notif)
+
+        rescheduleStoredDndWindows(context)
+    }
+
+    fun restoreSavedDndFilter(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && nm.isNotificationPolicyAccessGranted) {
+            val prevFilter = prefs.getInt(KEY_DND_PREV_FILTER, NotificationManager.INTERRUPTION_FILTER_ALL)
+            try {
+                nm.setInterruptionFilter(prevFilter)
+            } catch (_: Exception) {}
+        }
+        prefs.edit().putBoolean(KEY_DND_ACTIVE, false).apply()
+        nm.cancel(DND_NOTIFICATION_ID)
+    }
 }
 
 class PrayerAlarmReceiver : BroadcastReceiver() {
@@ -971,11 +1245,32 @@ class PrayerKahfReceiver : BroadcastReceiver() {
     }
 }
 
+class PrayerDndStartReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        PrayerAlarmController.handleDndStartFired(context.applicationContext, intent)
+    }
+}
+
+class PrayerDndEndReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val appCtx = context.applicationContext
+        PrayerAlarmController.restoreSavedDndFilter(appCtx)
+        PrayerAlarmController.rescheduleStoredDndWindows(appCtx)
+    }
+}
+
+class PrayerDndRestoreReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        PrayerAlarmController.restoreSavedDndFilter(context.applicationContext)
+    }
+}
+
 class PrayerBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val appCtx = context.applicationContext
         PrayerAlarmController.rescheduleStoredAlarms(appCtx)
         PrayerAlarmController.rescheduleKahfFromPrefs(appCtx)
+        PrayerAlarmController.rescheduleStoredDndWindows(appCtx)
     }
 }
 

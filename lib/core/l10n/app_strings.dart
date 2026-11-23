@@ -634,6 +634,127 @@ class AppStrings {
         'اضغط مطولاً على شاشة هاتفك -> التطبيقات المصغرة -> "Al-Quran Prayer Times" لمتابعة الصلاة القادمة والتاريخ الهجري مباشرة.',
       );
 
+  // Dashboard & Navigation
+  String get dashboardTab => _pick('Dashboard', 'ഡാഷ്‌ബോർഡ്', 'الرئيسية');
+  String get dashboardTitle => _pick('Dashboard', 'ഡാഷ്‌ബോർഡ്', 'لوحة التحكم');
+  String get dashboardSearchHint => _pick(
+        'Search Surah, features, 99 Names, or Adhkar...',
+        'സൂറത്ത്, ഫീച്ചറുകൾ, 99 നാമങ്ങൾ, ദിക്ർ തിരയുക...',
+        'ابحث عن سورة أو ميزة أو اسم أو ذكر...',
+      );
+  String get recentActivityTitle =>
+      _pick('Recent Activity', 'സമീപകാല പ്രവർത്തനങ്ങൾ', 'النشاطات الأخيرة');
+  String get recentActivityEmpty => _pick(
+        'Your last 7 actions will appear here for quick access.',
+        'നിങ്ങൾ അവസാനം ചെയ്ത 7 പ്രവർത്തനങ്ങൾ വേഗത്തിൽ തുറക്കാൻ ഇവിടെ കാണാം.',
+        'ستظهر آخر 7 نشاطات قمت بها هنا للوصول السريع.',
+      );
+  String get clearHistoryLabel => _pick('Clear', 'മായ്ക്കുക', 'مسح');
+  String get quickActionsTitle =>
+      _pick('All Features & Tools', 'പ്രധാന വിഭാഗങ്ങൾ', 'جميع الأدوات');
+  String get noSearchResults => _pick(
+        'No matching Surah, tool, Name, or Dhikr found.',
+        'യോജിച്ച സൂറത്തോ ഫീച്ചറോ നാമമോ കണ്ടെത്താനായില്ല.',
+        'لم يتم العثور على نتائج مطابقة.',
+      );
+
+  // 12 Dashboard Grid Titles
+  String get actionReadQuran => _pick('Read Quran', 'ഖുർആൻ വായന', 'قراءة القرآن');
+  String get actionJuz => _pick('Juz Index', 'ജുസ്അ്', 'الأجزاء');
+  String get actionBookmarks => _pick('Bookmarks', 'ബുക്ക്‌മാർക്ക്', 'المحفوظات');
+  String get actionPrayer => _pick('Prayer Times', 'നിസ്കാര സമയം', 'أوقات الصلاة');
+  String get actionHijri => _pick('Hijri Calendar', 'ഹിജ്‌രി കലണ്ടർ', 'التقويم الهجري');
+  String get actionAutoSilent => _pick('Auto-Silent', 'ഓട്ടോ സൈലന്റ്', 'الصامت التلقائي');
+  String get actionAdhkar => _pick('Daily Adhkar', 'ദിക്ർ & ദുആ', 'الأذكار اليومية');
+  String get actionCounter => _pick('Counter', 'കൗണ്ടർ', 'العدّاد');
+  String get actionNames99 => _pick('99 Names', '99 നാമങ്ങൾ', 'أسماء الله');
+  String get actionTajweed => _pick('Tajweed Guide', 'തജ്‌വീദ് നിയമം', 'أحكام التجويد');
+  String get actionExport => _pick('Export PDF', 'എക്സ്പോർട്ട്', 'تصدير PDF');
+  String get actionSettings => _pick('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
+
+  // Tajweed Color Coding
+  String get tajweedGuideTitle =>
+      _pick('Tajweed Color Guide', 'തജ്‌വീദ് കളർ ഗൈഡ്', 'دليل ألوان التجويد');
+  String get tajweedLegendShort => _pick('Color Key', 'കളർ ഗൈഡ്', 'الألوان');
+  String get tajweedTapHint => _pick(
+        'Tajweed colors active · Tap any colored word to see its rule',
+        'തജ്‌വീദ് നിറങ്ങൾ സജീവം · നിയമം കാണാൻ നിറമുള്ള ഭാഗത്ത് ടാപ്പ് ചെയ്യുക',
+        'ألوان التجويد مفعّلة · اضغط على أي كلمة ملونة لعرض الحكم',
+      );
+  String get tajweedRuleHeader =>
+      _pick('Tajweed Rule', 'തജ്‌വീദ് നിയമം', 'حكم التجويد');
+  String get tajweedExamplesLabel =>
+      _pick('Examples', 'ഉദാഹരണങ്ങൾ', 'أمثلة');
+  String get tajweedFullGuideBtn => _pick(
+        'Open Full Tajweed Color Guide',
+        'മുഴുവൻ തജ്‌വീദ് കളർ ഗൈഡും കാണുക',
+        'عرض دليل ألوان التجويد الكامل',
+      );
+
+  // 99 Names of Allah (Asmaul Husna)
+  String get names99Tab => _pick('99 Names', 'നാമങ്ങൾ', 'الأسماء');
+  String get names99Title => _pick(
+        '99 Names of Allah (Asmaul Husna)',
+        'അല്ലാഹുവിന്റെ 99 നാമങ്ങൾ (അസ്മാഉൽ ഹുസ്ന)',
+        'أسماء الله الحسنى (99 اسماً)',
+      );
+  String get names99SearchHint => _pick(
+        'Search by number, Arabic, English, or Malayalam...',
+        'നമ്പർ, അറബിക്, ഇംഗ്ലീഷ് അല്ലെങ്കിൽ മലയാളം വഴി തിരയുക...',
+        'ابحث بالرقم أو الاسم أو المعنى...',
+      );
+  String get meaningEnglishLabel =>
+      _pick('English Meaning', 'ഇംഗ്ലീഷ് അർത്ഥം', 'المعنى بالإنجليزية');
+  String get meaningMalayalamLabel =>
+      _pick('Malayalam Meaning', 'മലയാളം അർത്ഥം', 'المعنى بالمالايالامية');
+  String get reflectionLabel =>
+      _pick('Reflection', 'ആശയം / വിവരണം', 'التدبر والتأمل');
+  String get copiedNameNotice =>
+      _pick('Copied to clipboard', 'കോപ്പി ചെയ്തു', 'تم النسخ');
+
+  // Auto-Silent (DND) during Prayer
+  String get autoSilentTitle => _pick(
+        'Auto-Silent (DND) during Prayer',
+        'നിസ്കാര സമയത്ത് ഓട്ടോ സൈലന്റ് (DND)',
+        'الوضع الصامت التلقائي وقت الصلاة',
+      );
+  String get autoSilentDesc => _pick(
+        'Automatically switches phone to Do Not Disturb from Iqamah time and restores previous sound after the selected duration.',
+        'ഇഖാമത്ത് സമയത്ത് ഫോൺ തനിയെ സൈലന്റ് (DND) മോഡിലാക്കുകയും, നിശ്ചിത മിനിറ്റിന് ശേഷം പഴയപടിയാക്കുകയും ചെയ്യും.',
+        'يحول الهاتف إلى وضع عدم الإزعاج تلقائياً عند الإقامة ويعيد الصوت كما كان بعد انتهاء المدة.',
+      );
+  String get autoSilentDurationLabel =>
+      _pick('Silent Duration from Iqamah', 'ഇഖാമത്ത് മുതൽ സൈലന്റ് സമയം', 'مدة الصامت من الإقامة');
+  String get dndPermissionGranted => _pick(
+        'Do Not Disturb access granted',
+        'DND അനുമതി നൽകിയിട്ടുണ്ട്',
+        'تم منح صلاحية عدم الإزعاج',
+      );
+  String get dndPermissionNeeded => _pick(
+        'DND Policy Access required to silence phone',
+        'ഫോൺ സൈലന്റ് ആക്കാൻ DND അനുമതി ആവശ്യമാണ്',
+        'مطلوب صلاحية عدم الإزعاج لتفعيل الصامت',
+      );
+  String get grantDndPermissionBtn =>
+      _pick('Grant DND Access', 'അനുമതി നൽകുക', 'منح الصلاحية');
+  String get dndActiveNowBanner => _pick(
+        'Prayer Auto-Silent is currently active',
+        'നിസ്കാര ഓട്ടോ-സൈലന്റ് ഇപ്പോൾ സജീവമാണ്',
+        'وضع الصامت للصلاة مفعّل الآن',
+      );
+  String get restoreSoundNowBtn =>
+      _pick('Restore Sound Now', 'സൗണ്ട് പഴയപടിയാക്കുക', 'إعادة الصوت الآن');
+  String get autoSilentWebNote => _pick(
+        'Your Auto-Silent preference (15 min default from Iqamah) is saved. System DND executes natively on the Android app.',
+        'നിങ്ങളുടെ ഓട്ടോ-സൈലന്റ് സെറ്റിംഗ് സേവ് ചെയ്തിട്ടുണ്ട്. യഥാർത്ഥ ഫോൺ DND Android ആപ്പിലാണ് പ്രവർത്തിക്കുക.',
+        'تم حفظ إعداد الصامت التلقائي. يعمل الوضع الصامت للنظام على تطبيق أندرويد.',
+      );
+  String get autoSilentPrayersLabel => _pick(
+        'Prayers for Auto-Silent',
+        'ഓട്ടോ-സൈലന്റ് വേണ്ട നമസ്കാരങ്ങൾ',
+        'الصلوات المفعّلة للصامت',
+      );
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

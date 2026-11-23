@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/config/api_config.dart';
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
+import '../models/recent_activity_model.dart';
 import '../models/surah_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
@@ -15,6 +16,7 @@ import '../services/prayer_alarm_bridge.dart';
 import '../services/storage_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/web_pwa_widgets.dart';
+import 'dashboard_view.dart';
 import 'export_screen.dart';
 import 'features_views.dart';
 import 'settings_screen.dart';
@@ -76,14 +78,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   TabController _ensureFeaturesTabController() {
     final existing = _featuresTabCtrl;
-    if (existing != null && existing.length == 4) {
+    if (existing != null && existing.length == 5) {
       return existing;
     }
     if (existing != null) {
       existing.removeListener(_onFeaturesSubTabChanged);
       existing.dispose();
     }
-    final ctrl = TabController(length: 4, vsync: this);
+    final ctrl = TabController(length: 5, vsync: this);
     ctrl.addListener(_onFeaturesSubTabChanged);
     _featuresTabCtrl = ctrl;
     return ctrl;
@@ -106,7 +108,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
     PrayerAlarmBridge.instance.setOnOpenPrayerTabHandler(() {
       if (!mounted) return;
-      setState(() => _tabIndex = 1);
+      setState(() => _tabIndex = 2);
       if (_featuresTabController.index != 0) {
         _featuresTabController.animateTo(0);
       }
@@ -246,16 +248,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await ref.read(settingsProvider.notifier).ensureLoaded();
     if (!mounted) return;
 
-    final restoredTab = resume.homeTabIndex.clamp(0, 2);
+    final restoredTab = resume.homeTabIndex.clamp(0, 3);
     final restoredSubTab = resume.quranSubTabIndex.clamp(0, 3);
-    final restoredFeaturesSubTab = resume.featuresSubTabIndex.clamp(0, 3);
+    final restoredFeaturesSubTab = resume.featuresSubTabIndex.clamp(0, 4);
 
     final launchAction =
         await PrayerAlarmBridge.instance.getInitialLaunchAction();
     if (!mounted) return;
 
     setState(() {
-      _tabIndex = (launchAction?.openPrayerTab == true) ? 1 : restoredTab;
+      _tabIndex = (launchAction?.openPrayerTab == true) ? 2 : restoredTab;
       if (_quranTabController.index != restoredSubTab) {
         _quranTabController.index = restoredSubTab;
       }
@@ -347,7 +349,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final String appBarTitle = _tabIndex == 0
         ? t.appTitle
-        : (_tabIndex == 1 ? t.featuresTab : t.settings);
+        : (_tabIndex == 1
+            ? t.quranTab
+            : (_tabIndex == 2 ? t.featuresTab : t.settings));
 
     return Directionality(
       textDirection: t.textDirection,
@@ -398,14 +402,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     color: Colors.white,
                   ),
                 ),
-          actions: _tabIndex == 2
+          actions: _tabIndex == 3
               ? const []
               : [
                   Builder(
                     builder: (drawerCtx) => IconButton(
-                      tooltip: _tabIndex == 1
+                      tooltip: _tabIndex == 2
                           ? t.featuresSettingsTitle
-                          : t.quranSettingsTitle,
+                          : (_tabIndex == 1
+                              ? t.quranSettingsTitle
+                              : t.settings),
                       icon: Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -432,7 +438,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                   ),
                 ],
-          bottom: _tabIndex == 0
+          bottom: _tabIndex == 1
               ? _buildSubTabBar(
                   controller: _quranTabController,
                   tabs: [
@@ -454,7 +460,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                   ],
                 )
-              : _tabIndex == 1
+              : _tabIndex == 2
                   ? _buildSubTabBar(
                       controller: _featuresTabController,
                       tabs: [
@@ -474,128 +480,190 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           icon: Icons.touch_app_rounded,
                           label: t.tasbihTab,
                         ),
+                        _HeaderIconTab(
+                          icon: Icons.auto_awesome_rounded,
+                          label: t.names99Tab,
+                        ),
                       ],
                     )
                   : null,
         ),
-        endDrawer: _tabIndex == 2
+        endDrawer: _tabIndex == 3
             ? null
             : CompactSettingsDrawer(
-                scope: _tabIndex == 1
+                scope: _tabIndex == 2
                     ? SettingsScope.features
-                    : SettingsScope.quran,
+                    : (_tabIndex == 1
+                        ? SettingsScope.quran
+                        : SettingsScope.all),
               ),
         body: Column(
           children: [
             OfflineStatusBanner(strings: t),
             Expanded(
               child: _tabIndex == 0
-                  ? Stack(
-                      children: [
-                        TabBarView(
-                          controller: _quranTabController,
+                  ? DashboardView(
+                      onNavigateTab: (tabIdx, {int? subTab}) {
+                        setState(() {
+                          _tabIndex = tabIdx.clamp(0, 3);
+                          if (tabIdx == 1 && subTab != null) {
+                            _quranTabController.index = subTab.clamp(0, 3);
+                          } else if (tabIdx == 2 && subTab != null) {
+                            _featuresTabController.index = subTab.clamp(0, 4);
+                          }
+                        });
+                        _persistHomeState(forceHomeActive: true);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _applyPendingHomeScrollOffsets();
+                        });
+                      },
+                      onOpenSurah: (
+                        surahNo, {
+                        int? ayahNo,
+                        double? anchorOffsetPx,
+                        String? savedReadingMode,
+                      }) =>
+                          _openSurah(
+                        context,
+                        surahNo,
+                        ayahNo: ayahNo,
+                        anchorOffsetPx: anchorOffsetPx,
+                        savedReadingMode: savedReadingMode,
+                      ),
+                    )
+                  : _tabIndex == 1
+                      ? Stack(
                           children: [
-                            // 1. Surah Tab View
-                            _SurahTabView(
-                              scrollController: _surahScrollController,
-                              surahsAsync: surahsAsync,
-                              lastRead: lastRead,
-                              appLanguage: settings.appLanguage,
-                              strings: t,
-                              cs: cs,
-                              cardBg: cardBg,
-                              cardBorder: cardBorder,
-                              onRetry: () => ref.invalidate(surahListProvider),
-                              onOpenSurah: (
-                                surahNo, {
-                                int? ayahNo,
-                                double? anchorOffsetPx,
-                                String? savedReadingMode,
-                              }) =>
-                                  _openSurah(
-                                context,
-                                surahNo,
-                                ayahNo: ayahNo,
-                                anchorOffsetPx: anchorOffsetPx,
-                                savedReadingMode: savedReadingMode,
-                              ),
-                            ),
-
-                            // 2. Juz Tab View
-                            _JuzTabView(
-                              scrollController: _juzScrollController,
-                              strings: t,
-                              cs: cs,
-                              cardBg: cardBg,
-                              cardBorder: cardBorder,
-                              onOpenJuz: (juz) => _openSurah(
-                                context,
-                                juz.startSurah,
-                                initialAyah: juz.startAyah,
-                                ayahNo: juz.startAyah,
-                              ),
-                            ),
-
-                            // 3. Bookmarks Tab View
-                            _BookmarksTab(
-                              scrollController: _bookmarksScrollController,
-                              bookmarks: bookmarks,
-                              surahs: surahsAsync.valueOrNull ?? const [],
-                              strings: t,
-                              onOpenSurah: (surahNo, {int? ayahNo}) =>
-                                  _openSurah(context, surahNo, ayahNo: ayahNo),
-                            ),
-
-                            // 4. Export Tab View
-                            const ExportScreen(),
-                          ],
-                        ),
-
-                        // Floating Search Surah Pill (only on Surah & Juz sub-tabs)
-                        if (_quranTabController.index <= 1)
-                          PositionedDirectional(
-                            end: math.max(
-                              16.0,
-                              (MediaQuery.sizeOf(context).width - 860) / 2,
-                            ),
-                            bottom: 16,
-                            child: FloatingActionButton.extended(
-                              heroTag: 'search_surah_pill',
-                              backgroundColor: headerBg,
-                              foregroundColor: Colors.white,
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              icon: const Icon(Icons.search_rounded),
-                              label: Text(
-                                t.searchSurah,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700),
-                              ),
-                              onPressed: () {
-                                final list = surahsAsync.valueOrNull;
-                                if (list == null || list.isEmpty) return;
-                                _showSurahSearchSheet(
-                                  context: context,
-                                  surahs: list,
+                            TabBarView(
+                              controller: _quranTabController,
+                              children: [
+                                // 1. Surah Tab View
+                                _SurahTabView(
+                                  scrollController: _surahScrollController,
+                                  surahsAsync: surahsAsync,
+                                  lastRead: lastRead,
+                                  appLanguage: settings.appLanguage,
                                   strings: t,
                                   cs: cs,
                                   cardBg: cardBg,
                                   cardBorder: cardBorder,
-                                );
-                              },
+                                  onRetry: () =>
+                                      ref.invalidate(surahListProvider),
+                                  onOpenSurah: (
+                                    surahNo, {
+                                    int? ayahNo,
+                                    double? anchorOffsetPx,
+                                    String? savedReadingMode,
+                                  }) =>
+                                      _openSurah(
+                                    context,
+                                    surahNo,
+                                    ayahNo: ayahNo,
+                                    anchorOffsetPx: anchorOffsetPx,
+                                    savedReadingMode: savedReadingMode,
+                                  ),
+                                ),
+
+                                // 2. Juz Tab View
+                                _JuzTabView(
+                                  scrollController: _juzScrollController,
+                                  strings: t,
+                                  cs: cs,
+                                  cardBg: cardBg,
+                                  cardBorder: cardBorder,
+                                  onOpenJuz: (juz) {
+                                    ref
+                                        .read(recentActivityProvider.notifier)
+                                        .record(
+                                          RecentActivityEntry(
+                                            id: 'juz:${juz.number}',
+                                            type: RecentActivityType.juz,
+                                            titleEn:
+                                                '${t.juzLabel} ${juz.number}',
+                                            titleMl:
+                                                '${t.juzLabel} ${juz.number}',
+                                            titleAr: juz.arabicName,
+                                            subtitleEn: juz.openingCue,
+                                            subtitleMl: juz.openingCue,
+                                            subtitleAr:
+                                                'الصفحة ${juz.startPage}',
+                                            timestampMs: DateTime.now()
+                                                .millisecondsSinceEpoch,
+                                            surahNumber: juz.startSurah,
+                                            ayahNumber: juz.startAyah,
+                                            quranSubTab: 1,
+                                          ),
+                                        );
+                                    _openSurah(
+                                      context,
+                                      juz.startSurah,
+                                      initialAyah: juz.startAyah,
+                                      ayahNo: juz.startAyah,
+                                    );
+                                  },
+                                ),
+
+                                // 3. Bookmarks Tab View
+                                _BookmarksTab(
+                                  scrollController: _bookmarksScrollController,
+                                  bookmarks: bookmarks,
+                                  surahs: surahsAsync.valueOrNull ?? const [],
+                                  strings: t,
+                                  onOpenSurah: (surahNo, {int? ayahNo}) =>
+                                      _openSurah(context, surahNo,
+                                          ayahNo: ayahNo),
+                                ),
+
+                                // 4. Export Tab View
+                                const ExportScreen(),
+                              ],
                             ),
-                          ),
-                      ],
-                    )
-                  : _tabIndex == 1
-                      ? FeaturesContainerView(
-                          controller: _featuresTabController,
-                          onOpenSurah: (surahNo) =>
-                              _openSurah(context, surahNo),
+
+                            // Floating Search Surah Pill (only on Surah & Juz sub-tabs)
+                            if (_quranTabController.index <= 1)
+                              PositionedDirectional(
+                                end: math.max(
+                                  16.0,
+                                  (MediaQuery.sizeOf(context).width - 860) / 2,
+                                ),
+                                bottom: 16,
+                                child: FloatingActionButton.extended(
+                                  heroTag: 'search_surah_pill',
+                                  backgroundColor: headerBg,
+                                  foregroundColor: Colors.white,
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  icon: const Icon(Icons.search_rounded),
+                                  label: Text(
+                                    t.searchSurah,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700),
+                                  ),
+                                  onPressed: () {
+                                    final list = surahsAsync.valueOrNull;
+                                    if (list == null || list.isEmpty) return;
+                                    _showSurahSearchSheet(
+                                      context: context,
+                                      surahs: list,
+                                      strings: t,
+                                      cs: cs,
+                                      cardBg: cardBg,
+                                      cardBorder: cardBorder,
+                                    );
+                                  },
+                                ),
+                              ),
+                          ],
                         )
-                      : const SettingsTabView(),
+                      : _tabIndex == 2
+                          ? FeaturesContainerView(
+                              controller: _featuresTabController,
+                              onOpenSurah: (surahNo) =>
+                                  _openSurah(context, surahNo),
+                            )
+                          : const SettingsTabView(),
             ),
           ],
         ),
@@ -609,6 +677,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             });
           },
           destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.dashboard_outlined),
+              selectedIcon: const Icon(Icons.dashboard_rounded),
+              label: t.dashboardTab,
+            ),
             NavigationDestination(
               icon: const Icon(Icons.auto_stories_outlined),
               selectedIcon: const Icon(Icons.auto_stories_rounded),
@@ -1523,15 +1596,15 @@ class _HeaderIconTab extends StatelessWidget {
     return Tab(
       height: 36,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 15),
-              const SizedBox(width: 4),
+              Icon(icon, size: 14),
+              const SizedBox(width: 3),
               Text(
                 label,
                 maxLines: 1,

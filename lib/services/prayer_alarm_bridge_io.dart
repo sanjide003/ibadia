@@ -368,4 +368,72 @@ class PrayerAlarmBridge {
       return null;
     }
   }
+
+  Future<bool> isDndPolicyAccessGranted() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final ok =
+          await _channel.invokeMethod<bool>('isDndPolicyAccessGranted');
+      return ok ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> openDndPolicySettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod<bool>('openDndPolicySettings');
+    } catch (_) {}
+  }
+
+  Future<void> syncAutoSilentWindows({
+    required List<ComputedPrayerSlot> slots,
+    required AppSettings settings,
+    required AppStrings strings,
+  }) async {
+    if (!Platform.isAndroid) return;
+    final List<Map<String, dynamic>> windows = [];
+    if (settings.autoSilentEnabled) {
+      final durMin = settings.autoSilentDurationMinutes;
+      for (final slot in slots) {
+        if (!settings.isAutoSilentEnabledFor(slot.prayerKey)) continue;
+        final startDt = slot.iqamahTime;
+        final endDt = startDt.add(Duration(minutes: durMin));
+        final prayerLabel = _prayerNameFor(slot.prayerKey, strings);
+        windows.add({
+          'prayerKey': slot.prayerKey,
+          'prayerName': prayerLabel,
+          'startMillis': startDt.millisecondsSinceEpoch,
+          'endMillis': endDt.millisecondsSinceEpoch,
+          'durationMinutes': durMin,
+          'notifTitle': '$prayerLabel • ${strings.dndActiveNowBanner}',
+          'restoreBtn': strings.restoreSoundNowBtn,
+        });
+      }
+    }
+    try {
+      await _channel.invokeMethod<bool>('schedulePrayerDndWindows', {
+        'enabled': settings.autoSilentEnabled,
+        'windows': windows,
+      });
+    } catch (_) {}
+  }
+
+  Future<void> restoreNormalRingerNow() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod<bool>('restoreNormalRingerNow');
+    } catch (_) {}
+  }
+
+  Future<bool> isAutoSilentActiveNow() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final active = await _channel.invokeMethod<bool>('getAutoSilentStatus');
+      return active ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 }

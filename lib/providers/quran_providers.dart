@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/l10n/app_strings.dart';
+import '../models/recent_activity_model.dart';
 import '../models/surah_model.dart';
 import '../services/quran_api_service.dart';
 import '../services/storage_service.dart';
@@ -214,4 +215,52 @@ class AppResumeNotifier extends StateNotifier<AppResumeState> {
 final appResumeProvider =
     StateNotifierProvider<AppResumeNotifier, AppResumeState>((ref) {
   return AppResumeNotifier(ref.read(storageServiceProvider));
+});
+
+class RecentActivityNotifier extends StateNotifier<List<RecentActivityEntry>> {
+  final StorageService _storage;
+  Future<void>? _initFutureBacking;
+  Future<void> get _initFuture => _initFutureBacking ??= _init();
+  bool? _hasExplicitWriteBacking;
+  bool get _hasExplicitWrite => _hasExplicitWriteBacking ?? false;
+  set _hasExplicitWrite(bool v) => _hasExplicitWriteBacking = v;
+
+  RecentActivityNotifier(this._storage) : super(const []) {
+    _initFuture;
+  }
+
+  Future<void> _init() async {
+    final raw = await _storage.loadRecentActivitiesRaw();
+    if (!_hasExplicitWrite) {
+      state = raw
+          .map(RecentActivityEntry.fromJson)
+          .take(RecentActivityEntry.maxHistoryCount)
+          .toList();
+    }
+  }
+
+  Future<void> record(RecentActivityEntry entry) async {
+    await _initFuture;
+    _hasExplicitWrite = true;
+    final updated = [
+      entry,
+      ...state.where((e) => e.id != entry.id),
+    ].take(RecentActivityEntry.maxHistoryCount).toList();
+    state = updated;
+    await _storage.saveRecentActivitiesRaw(
+      updated.map((e) => e.toJson()).toList(),
+    );
+  }
+
+  Future<void> clearAll() async {
+    _hasExplicitWrite = true;
+    state = const [];
+    await _storage.saveRecentActivitiesRaw(const []);
+  }
+}
+
+final recentActivityProvider =
+    StateNotifierProvider<RecentActivityNotifier, List<RecentActivityEntry>>(
+        (ref) {
+  return RecentActivityNotifier(ref.read(storageServiceProvider));
 });

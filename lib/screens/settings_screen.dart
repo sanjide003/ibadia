@@ -517,6 +517,11 @@ class FeaturesSettingsSection extends ConsumerWidget {
 
         const Divider(height: 24),
 
+        // 4b. Auto-Silent (DND) during Prayer
+        const PrayerAutoSilentSection(compact: true),
+
+        const Divider(height: 24),
+
         // 5. Masjid Time Tune (+/- minutes per prayer)
         const PrayerTuneControlList(compact: true),
 

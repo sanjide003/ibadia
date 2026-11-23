@@ -137,6 +137,20 @@ class PrayerAlarmBridge {
 
   Future<({int? openSurah, bool openPrayerTab})?> getInitialLaunchAction() async =>
       null;
+
+  Future<bool> isDndPolicyAccessGranted() async => false;
+
+  Future<void> openDndPolicySettings() async {}
+
+  Future<void> syncAutoSilentWindows({
+    required List<ComputedPrayerSlot> slots,
+    required AppSettings settings,
+    required AppStrings strings,
+  }) async {}
+
+  Future<void> restoreNormalRingerNow() async {}
+
+  Future<bool> isAutoSilentActiveNow() async => false;
 }
 
 typedef VoidCallback = void Function();

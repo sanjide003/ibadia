@@ -9,6 +9,7 @@ import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
 import '../data/adhkar_data.dart';
 import '../models/adhkar_tasbih_model.dart';
+import '../models/recent_activity_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
@@ -267,6 +268,21 @@ class AdhkarDuasView extends ConsumerWidget {
                           child: InkWell(
                             onTap: () async {
                               if (done) return;
+                              ref.read(recentActivityProvider.notifier).record(
+                                    RecentActivityEntry(
+                                      id: 'tool:adhkar',
+                                      type: RecentActivityType.adhkar,
+                                      titleEn: entry.titleEn,
+                                      titleMl: entry.titleMl,
+                                      titleAr: entry.titleEn,
+                                      subtitleEn: entry.reference,
+                                      subtitleMl: entry.reference,
+                                      subtitleAr: entry.reference,
+                                      timestampMs:
+                                          DateTime.now().millisecondsSinceEpoch,
+                                      featureSubTab: 2,
+                                    ),
+                                  );
                               final justDone =
                                   await notifier.incrementEntry(entry);
                               if (justDone) {
@@ -459,6 +475,9 @@ class DigitalTasbihView extends ConsumerStatefulWidget {
 class _DigitalTasbihViewState extends ConsumerState<DigitalTasbihView>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseCtrl;
+  bool? _recordedSessionBacking;
+  bool get _recordedSession => _recordedSessionBacking ?? false;
+  set _recordedSession(bool v) => _recordedSessionBacking = v;
 
   @override
   void initState() {
@@ -482,6 +501,24 @@ class _DigitalTasbihViewState extends ConsumerState<DigitalTasbihView>
       if (mounted) _pulseCtrl.reverse();
     });
     final stateBefore = ref.read(tasbihProvider);
+    if (!_recordedSession) {
+      _recordedSession = true;
+      final preset = stateBefore.activePreset;
+      ref.read(recentActivityProvider.notifier).record(
+            RecentActivityEntry(
+              id: 'tool:counter',
+              type: RecentActivityType.counter,
+              titleEn: preset.titleEn,
+              titleMl: preset.titleMl,
+              titleAr: preset.arabic.isNotEmpty ? preset.arabic : preset.titleEn,
+              subtitleEn: 'Counter · ${stateBefore.todayTotal + 1} today',
+              subtitleMl: 'കൗണ്ടർ · ഇന്ന് ${stateBefore.todayTotal + 1}',
+              subtitleAr: 'العدّاد · ${stateBefore.todayTotal + 1}',
+              timestampMs: DateTime.now().millisecondsSinceEpoch,
+              featureSubTab: 3,
+            ),
+          );
+    }
     final hitTarget = ref.read(tasbihProvider.notifier).tap();
     if (stateBefore.vibrateOnTap) {
       if (hitTarget) {

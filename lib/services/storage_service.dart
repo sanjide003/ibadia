@@ -63,6 +63,11 @@ class AppSettings {
   int get prayerTuneIsha => _prayerTuneIsha ?? 0;
   int get hijriAdjustment => (_hijriAdjustment ?? 0).clamp(-1, 1);
 
+  // Prayer Auto-Silent (DND) settings (Iqamah -> +N min, default 15 min)
+  final bool? _autoSilentEnabled;
+  final int? _autoSilentDurationMinutes;
+  final Map<String, bool>? _autoSilentPrayers;
+
   bool get prayerAlarmMasterEnabled => _prayerAlarmMasterEnabled ?? false;
   String get alarmSoundType => _alarmSoundType ?? 'adhan_alafasy';
   double get alarmVolume => (_alarmVolume ?? 0.85).clamp(0.1, 1.0);
@@ -76,6 +81,21 @@ class AppSettings {
   int get kahfThuMinute => (_kahfThuMinute ?? 0).clamp(0, 59);
   int get kahfFriHour => (_kahfFriHour ?? 8).clamp(0, 23);
   int get kahfFriMinute => (_kahfFriMinute ?? 0).clamp(0, 59);
+
+  bool get autoSilentEnabled => _autoSilentEnabled ?? false;
+  int get autoSilentDurationMinutes =>
+      (_autoSilentDurationMinutes ?? 15).clamp(5, 60);
+  Map<String, bool> get autoSilentPrayers =>
+      _autoSilentPrayers ??
+      const {
+        'fajr': true,
+        'dhuhr': true,
+        'asr': true,
+        'maghrib': true,
+        'isha': true,
+      };
+  bool isAutoSilentEnabledFor(String prayerKey) =>
+      autoSilentPrayers[prayerKey] ?? true;
 
   PrayerAlarmConfig alarmConfigFor(String prayerKey) =>
       prayerConfigs[prayerKey] ?? PrayerAlarmConfig(prayerKey: prayerKey);
@@ -117,6 +137,9 @@ class AppSettings {
     int? kahfThuMinute = 0,
     int? kahfFriHour = 8,
     int? kahfFriMinute = 0,
+    bool? autoSilentEnabled = false,
+    int? autoSilentDurationMinutes = 15,
+    Map<String, bool>? autoSilentPrayers,
   })  : _prayerLocationMode = prayerLocationMode,
         _prayerCity = prayerCity,
         _prayerCountry = prayerCountry,
@@ -140,7 +163,10 @@ class AppSettings {
         _kahfThuHour = kahfThuHour,
         _kahfThuMinute = kahfThuMinute,
         _kahfFriHour = kahfFriHour,
-        _kahfFriMinute = kahfFriMinute;
+        _kahfFriMinute = kahfFriMinute,
+        _autoSilentEnabled = autoSilentEnabled,
+        _autoSilentDurationMinutes = autoSilentDurationMinutes,
+        _autoSilentPrayers = autoSilentPrayers;
 
   int tuneFor(String prayerKey) {
     switch (prayerKey) {
@@ -247,6 +273,9 @@ class AppSettings {
     int? kahfThuMinute,
     int? kahfFriHour,
     int? kahfFriMinute,
+    bool? autoSilentEnabled,
+    int? autoSilentDurationMinutes,
+    Map<String, bool>? autoSilentPrayers,
   }) {
     return AppSettings(
       appLanguage: appLanguage ?? this.appLanguage,
@@ -288,6 +317,10 @@ class AppSettings {
       kahfThuMinute: kahfThuMinute ?? this.kahfThuMinute,
       kahfFriHour: kahfFriHour ?? this.kahfFriHour,
       kahfFriMinute: kahfFriMinute ?? this.kahfFriMinute,
+      autoSilentEnabled: autoSilentEnabled ?? this.autoSilentEnabled,
+      autoSilentDurationMinutes:
+          autoSilentDurationMinutes ?? this.autoSilentDurationMinutes,
+      autoSilentPrayers: autoSilentPrayers ?? this.autoSilentPrayers,
     );
   }
 }
@@ -475,6 +508,10 @@ class StorageService {
   static const _kahfThuMinKey = 'pref_kahf_thu_min_v1';
   static const _kahfFriHourKey = 'pref_kahf_fri_hour_v1';
   static const _kahfFriMinKey = 'pref_kahf_fri_min_v1';
+  static const _autoSilentEnabledKey = 'pref_auto_silent_enabled_v1';
+  static const _autoSilentDurationKey = 'pref_auto_silent_duration_v1';
+  static const _autoSilentPrayersKey = 'pref_auto_silent_prayers_v1';
+  static const _recentActivityKey = 'user_recent_activity_v1';
 
   // Offline API caches
   static const _dailyPrayerCacheKey = 'prayer_daily_cache_v1';
@@ -590,6 +627,25 @@ class StorageService {
       } catch (_) {}
     }
 
+    final autoSilentPrayersMap = <String, bool>{
+      'fajr': true,
+      'dhuhr': true,
+      'asr': true,
+      'maghrib': true,
+      'isha': true,
+    };
+    final rawAutoSilentPrayers = _readTyped<String>(box, _autoSilentPrayersKey);
+    if (rawAutoSilentPrayers != null) {
+      try {
+        final dec = jsonDecode(rawAutoSilentPrayers) as Map<String, dynamic>;
+        for (final key in AlAdhanCatalog.fivePrayerKeys) {
+          if (dec[key] is bool) {
+            autoSilentPrayersMap[key] = dec[key] as bool;
+          }
+        }
+      } catch (_) {}
+    }
+
     return AppSettings(
       appLanguage: _readTyped<String>(box, _appLangKey) ?? 'en',
       readingMode: _readTyped<String>(box, _readModeKey) ?? 'mushaf',
@@ -629,6 +685,10 @@ class StorageService {
       kahfThuMinute: _readInt(box, _kahfThuMinKey) ?? 0,
       kahfFriHour: _readInt(box, _kahfFriHourKey) ?? 8,
       kahfFriMinute: _readInt(box, _kahfFriMinKey) ?? 0,
+      autoSilentEnabled: _readTyped<bool>(box, _autoSilentEnabledKey) ?? false,
+      autoSilentDurationMinutes:
+          (_readInt(box, _autoSilentDurationKey) ?? 15).clamp(5, 60),
+      autoSilentPrayers: autoSilentPrayersMap,
     );
   }
 
@@ -670,6 +730,9 @@ class StorageService {
       _kahfThuMinKey: settings.kahfThuMinute,
       _kahfFriHourKey: settings.kahfFriHour,
       _kahfFriMinKey: settings.kahfFriMinute,
+      _autoSilentEnabledKey: settings.autoSilentEnabled,
+      _autoSilentDurationKey: settings.autoSilentDurationMinutes,
+      _autoSilentPrayersKey: jsonEncode(settings.autoSilentPrayers),
     });
 
     if (settings.fabRelX != null && settings.fabRelY != null) {
@@ -841,5 +904,26 @@ class StorageService {
         'tapAnywhere': tapAnywhere,
       }),
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // RECENT ACTIVITY STORE (HIVE - MAX 7 ITEMS)
+  // -------------------------------------------------------------------------
+
+  Future<List<Map<String, dynamic>>> loadRecentActivitiesRaw() async {
+    final box = await _prefsBox();
+    final raw = _readTyped<String>(box, _recentActivityKey);
+    if (raw == null) return const [];
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.whereType<Map<String, dynamic>>().toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> saveRecentActivitiesRaw(List<Map<String, dynamic>> items) async {
+    final box = await _prefsBox();
+    await box.put(_recentActivityKey, jsonEncode(items));
   }
 }
