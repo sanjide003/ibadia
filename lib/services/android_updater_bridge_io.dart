@@ -19,7 +19,7 @@ enum ApkInstallResult {
   failed,
 }
 
-/// Native Android self-updater using MethodChannel `com.quranapp.malayalam/app_updater`
+/// Native Android self-updater using MethodChannel `com.ibadia/app_updater`
 /// implemented in `MainActivity.kt` + `FileProvider`.
 class AndroidUpdaterBridge {
   const AndroidUpdaterBridge._();
@@ -27,7 +27,7 @@ class AndroidUpdaterBridge {
   static const AndroidUpdaterBridge instance = AndroidUpdaterBridge._();
 
   static const MethodChannel _channel =
-      MethodChannel('com.quranapp.malayalam/app_updater');
+      MethodChannel('com.ibadia/app_updater');
 
   bool get isSupported => Platform.isAndroid;
 

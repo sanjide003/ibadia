@@ -1,4 +1,4 @@
-# അൽ-ഖുർആൻ (Al-Quran) — ആപ്പ് ബ്രാൻഡിംഗ് & കസ്റ്റമൈസേഷൻ ഗൈഡ്
+# ഇബാദിയ (Ibadia) — ആപ്പ് ബ്രാൻഡിംഗ് & കസ്റ്റമൈസേഷൻ ഗൈഡ്
 
 ഈ ആപ്പിന്റെ **പേര്, ലോഗോ, ഫോൺ ഐക്കൺ, നിറങ്ങൾ, APK ഫയൽ പേര്, പാക്കേജ് ഐഡി** എന്നിവ ഭാവിയിൽ നിങ്ങൾക്ക് സ്വയം എളുപ്പത്തിൽ മാറ്റുന്നതിനുള്ള സമ്പൂർണ്ണ മാർഗ്ഗനിർദ്ദേശമാണിത്.
 
@@ -12,27 +12,27 @@
 | ഭാഷാടിസ്ഥാനത്തിലുള്ള പേര് (EN / ML / AR) | `lib/core/l10n/app_strings.dart` | `appTitle` |
 | മാസ്റ്റർ ലോഗോ & അഡാപ്റ്റീവ് ഐക്കൺ | `assets/branding/app_logo.png` | `1024 × 1024 px` PNG |
 | ഫോൺ ഹോം സ്ക്രീൻ ലോഗോ പശ്ചാത്തലം | `pubspec.yaml` | `flutter_launcher_icons` |
-| ആൻഡ്രോയിഡ് ആപ്പ് പേര് (ഫോണിൽ കാണുന്നത്) | `android_config/AndroidManifest.xml` | `android:label="Al-Quran"` |
+| ആൻഡ്രോയിഡ് ആപ്പ് പേര് (ഫോണിൽ കാണുന്നത്) | `android_config/AndroidManifest.xml` | `android:label="Ibadia"` |
 | വെബ് / PWA പേരും നിറവും | `web/manifest.json`, `web/index.html` | `name`, `short_name`, `theme_color`, `<title>` |
-| APK ഫയൽ പേരും പാക്കേജ് ഐഡിയും | `.github/workflows/android-build.yml` | `--org`, `Al-Quran.apk` |
+| APK ഫയൽ പേരും പാക്കേജ് ഐഡിയും | `.github/workflows/android-build.yml` | `--org com.ibadia`, `Ibadia.apk` |
 
 ---
 
 ## 2. ആപ്പിന്റെ പേര് മാറ്റുന്ന വിധം
 
-ആപ്പിന്റെ ഡിഫോൾട്ട് പേര് ഇപ്പോൾ **`Al-Quran`** എന്നാണ് സെറ്റ് ചെയ്തിരിക്കുന്നത്. ഇത് മറ്റൊരു പേരിലേക്ക് മാറ്റാൻ താഴെ പറയുന്ന സ്ഥലങ്ങളിൽ മാറ്റം വരുത്തുക:
+ആപ്പിന്റെ ഡിഫോൾട്ട് പേര് ഇപ്പോൾ **`Ibadia`** (`ഇബാദിയ` / `عبادية`) എന്നാണ് സെറ്റ് ചെയ്തിരിക്കുന്നത്. ഇത് മറ്റൊരു പേരിലേക്ക് മാറ്റാൻ താഴെ പറയുന്ന സ്ഥലങ്ങളിൽ മാറ്റം വരുത്തുക:
 
 ### A. ആപ്പിനുള്ളിലെ പേരും ടാഗ്‌ലൈനും (In-App UI)
 1. `lib/core/config/app_branding.dart` തുറക്കുക:
    ```dart
-   static const String appName = 'Al-Quran';
-   static const String appTagline = 'Read, Listen & Export';
-   static const String appVersion = '4.0.0';
+   static const String appName = 'Ibadia';
+   static const String appTagline = 'Quran, Prayer & Daily Adhkar';
+   static const String appVersion = '5.0.0';
    ```
-   ഇവിടെ `'Al-Quran'` എന്നതിന് പകരം നിങ്ങൾക്ക് ഇഷ്ടമുള്ള പേര് നൽകുക.
-2. മലയാളം, ഇംഗ്ലീഷ്, അറബിക് ഭാഷകളിലെ ഹെഡർ പേര് മാറ്റാൻ `lib/core/l10n/app_strings.dart` തുറന്ന് 12-ാമത്തെ വരി തിരുത്തുക:
+   ഇവിടെ `'Ibadia'` എന്നതിന് പകരം നിങ്ങൾക്ക് ഇഷ്ടമുള്ള പേര് നൽകുക.
+2. മലയാളം, ഇംഗ്ലീഷ്, അറബിക് ഭാഷകളിലെ ഹെഡർ പേര് മാറ്റാൻ `lib/core/l10n/app_strings.dart` തുറന്ന് `appTitle` തിരുത്തുക:
    ```dart
-   String get appTitle => _pick('Al-Quran', 'അൽ-ഖുർആൻ', 'القرآن الكريم');
+   String get appTitle => _p('Ibadia', 'ഇബാദിയ', 'عبادية');
    ```
 
 ### B. ആൻഡ്രോയിഡ് ഫോണിൽ ഇൻസ്റ്റാൾ ചെയ്യുമ്പോൾ കാണുന്ന പേര്
@@ -44,13 +44,13 @@
 
 ### C. വെബ് ബ്രൗസറിലും PWA-യിലും കാണുന്ന പേര്
 1. `web/index.html` തുറന്ന് താഴെ കാണുന്ന 3 വരികൾ മാറ്റുക:
-   - `<title>Al-Quran</title>`
-   - `<meta name="apple-mobile-web-app-title" content="Al-Quran">`
-   - `<meta property="og:title" content="Al-Quran">`
+   - `<title>Ibadia</title>`
+   - `<meta name="apple-mobile-web-app-title" content="Ibadia">`
+   - `<meta property="og:title" content="Ibadia">`
 2. `web/manifest.json` തുറന്ന് `name`, `short_name` എന്നിവ മാറ്റുക:
    ```json
-   "name": "Al-Quran",
-   "short_name": "Al-Quran",
+   "name": "Ibadia",
+   "short_name": "Ibadia",
    ```
 
 ---
@@ -127,20 +127,20 @@ flutter_launcher_icons:
 1. **പാക്കേജ് ഐഡി (Package / Organization ID)**:
    `.github/workflows/android-build.yml` തുറന്ന് `--org` ഭാഗം മാറ്റുക:
    ```yaml
-   run: flutter create . --platforms=android --org com.quranapp.malayalam && rm -f test/widget_test.dart
+   run: flutter create . --platforms=android --org com.ibadia && rm -f test/widget_test.dart
    ```
-   *(ശ്രദ്ധിക്കുക: `com.yourcompany` നൽകിയാൽ Flutter സ്വയം `com.yourcompany.quran_malayalam_app` എന്ന പാക്കേജ് ഐഡി നിർമ്മിക്കും. ഒരിക്കൽ Play Store-ൽ ഇട്ടതിന് ശേഷം പാക്കേജ് ഐഡി മാറ്റരുത്.)*
+   *(ശ്രദ്ധിക്കുക: `pubspec.yaml`-ൽ `name: ibadia` ആയതിനാൽ `--org com.ibadia` നൽകുമ്പോൾ Flutter സ്വയം `com.ibadia.ibadia` എന്ന പാക്കേജ് ഐഡി നിർമ്മിക്കും. ഒരിക്കൽ Play Store-ൽ ഇട്ടതിന് ശേഷം പാക്കേജ് ഐഡി മാറ്റരുത്.)*
 
 2. **APK ഫയലിന്റെ പേര്**:
    `.github/workflows/android-build.yml` ഫയലിൽ അവസാന ഭാഗത്ത്:
    ```yaml
-   cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Al-Quran.apk
+   cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Ibadia.apk
    ```
-   എന്നതിലെ `Al-Quran.apk` എന്നതും `name: Al-Quran-APK` എന്നതും നിങ്ങൾക്ക് ഇഷ്ടമുള്ള പേരാക്കി മാറ്റാം.
+   എന്നതിലെ `Ibadia.apk` എന്നതും `name: Ibadia-APK` എന്നതും നിങ്ങൾക്ക് ഇഷ്ടമുള്ള പേരാക്കി മാറ്റാം.
 
 3. **ആപ്പ് വേർഷൻ നമ്പർ (Version Update)**:
-   - `pubspec.yaml`: `version: 4.0.0+4` (ഉദാഹരണത്തിന് അടുത്ത അപ്ഡേറ്റിന് `4.1.0+5`)
-   - `lib/core/config/app_branding.dart`: `static const String appVersion = '4.0.0';`
+   - `pubspec.yaml`: `version: 5.0.0+5` (ഉദാഹരണത്തിന് അടുത്ത അപ്ഡേറ്റിന് `5.1.0+6`)
+   - `lib/core/config/app_branding.dart`: `static const String appVersion = '5.0.0';`
 
 ---
 
@@ -149,7 +149,7 @@ flutter_launcher_icons:
 എഡിറ്റിംഗ് പൂർത്തിയായാൽ പുതിയ ആപ്പ് നിർമ്മിക്കാൻ:
 
 ### 1. GitHub Actions വഴി Android APK ഉണ്ടാക്കാൻ:
-മാറ്റങ്ങൾ `main` ബ്രാഞ്ചിലേക്ക് Push ചെയ്യുക (അല്ലെങ്കിൽ GitHub Actions-ൽ **Build Quran Android APK → Run workflow** ക്ലിക്ക് ചെയ്യുക). ബിൽഡ് പൂർത്തിയാകുമ്പോൾ പുതിയ ലോഗോയും പേരുമുള്ള **`Al-Quran.apk`** ഡൗൺലോഡ് ചെയ്യാൻ ലഭിക്കും.
+മാറ്റങ്ങൾ `main` ബ്രാഞ്ചിലേക്ക് Push ചെയ്യുക (അല്ലെങ്കിൽ GitHub Actions-ൽ **Build Ibadia Android APK → Run workflow** ക്ലിക്ക് ചെയ്യുക). ബിൽഡ് പൂർത്തിയാകുമ്പോൾ പുതിയ ലോഗോയും പേരുമുള്ള **`Ibadia.apk`** ഡൗൺലോഡ് ചെയ്യാൻ ലഭിക്കും.
 
 ### 2. കമ്പ്യൂട്ടറിൽ ലോക്കലായി ബിൽഡ് ചെയ്യാൻ:
 ```bash

@@ -28,12 +28,12 @@
     (function () {
       var deferredPrompt = null;
       var notify = function () {
-        window.dispatchEvent(new Event('alquran-pwa-changed'));
+        window.dispatchEvent(new Event('ibadia-pwa-changed'));
         window.dispatchEvent(new Event('ibadia-install-ready'));
       };
 
       window.__ibadiaDeferredPrompt = null;
-      window.__alQuranPwa = {
+      window.__ibadiaPwa = {
         isIOS: function () {
           var ua = window.navigator.userAgent || '';
           return /iPhone|iPad|iPod/i.test(ua) ||

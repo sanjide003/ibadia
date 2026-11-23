@@ -12,6 +12,21 @@ class FeaturedSurahItem {
     required this.ml,
     required this.ar,
   });
+
+  dynamic operator [](String key) {
+    switch (key) {
+      case 'number':
+        return number;
+      case 'en':
+        return en;
+      case 'ml':
+        return ml;
+      case 'ar':
+        return ar;
+      default:
+        return null;
+    }
+  }
 }
 
 class JuzInfo {
@@ -311,7 +326,7 @@ class ApiConfig {
           prayerKey: k,
           enabled: true,
           iqamahGapMinutes: 15,
-          alarmRef: 'beforeAdhan',
+          alarmRef: PrayerAlarmRef.beforeAdhan,
           alarmOffsetMinutes: 10,
         ),
     };

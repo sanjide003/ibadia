@@ -1,22 +1,38 @@
+import '../core/config/api_config.dart';
+
+export '../core/config/api_config.dart'
+    show AlarmSoundOption, CityPreset, PrayerCalculationMethod;
+
+enum PrayerAlarmRef {
+  beforeAdhan,
+  relativeToIqamah;
+
+  static PrayerAlarmRef fromRaw(dynamic raw) {
+    final s = (raw ?? '').toString();
+    if (s == 'relativeToIqamah') return PrayerAlarmRef.relativeToIqamah;
+    return PrayerAlarmRef.beforeAdhan;
+  }
+}
+
 class PrayerAlarmConfig {
   final String prayerKey;
   final bool enabled;
   final int iqamahGapMinutes;
-  final String alarmRef; // 'beforeAdhan' | 'relativeToIqamah'
+  final PrayerAlarmRef alarmRef;
   final int alarmOffsetMinutes;
 
   const PrayerAlarmConfig({
     required this.prayerKey,
-    required this.enabled,
-    required this.iqamahGapMinutes,
-    required this.alarmRef,
-    required this.alarmOffsetMinutes,
+    this.enabled = true,
+    this.iqamahGapMinutes = 15,
+    this.alarmRef = PrayerAlarmRef.beforeAdhan,
+    this.alarmOffsetMinutes = 10,
   });
 
   PrayerAlarmConfig copyWith({
     bool? enabled,
     int? iqamahGapMinutes,
-    String? alarmRef,
+    PrayerAlarmRef? alarmRef,
     int? alarmOffsetMinutes,
   }) {
     return PrayerAlarmConfig(
@@ -32,16 +48,19 @@ class PrayerAlarmConfig {
         'prayerKey': prayerKey,
         'enabled': enabled,
         'iqamahGapMinutes': iqamahGapMinutes,
-        'alarmRef': alarmRef,
+        'alarmRef': alarmRef.name,
         'alarmOffsetMinutes': alarmOffsetMinutes,
       };
 
-  factory PrayerAlarmConfig.fromJson(Map<String, dynamic> json) {
+  factory PrayerAlarmConfig.fromJson(
+    String prayerKey,
+    Map<String, dynamic> json,
+  ) {
     return PrayerAlarmConfig(
-      prayerKey: (json['prayerKey'] ?? 'fajr').toString(),
+      prayerKey: (json['prayerKey'] ?? prayerKey).toString(),
       enabled: json['enabled'] is bool ? json['enabled'] as bool : true,
       iqamahGapMinutes: (json['iqamahGapMinutes'] as num?)?.toInt() ?? 15,
-      alarmRef: (json['alarmRef'] ?? 'beforeAdhan').toString(),
+      alarmRef: PrayerAlarmRef.fromRaw(json['alarmRef']),
       alarmOffsetMinutes: (json['alarmOffsetMinutes'] as num?)?.toInt() ?? 10,
     );
   }
@@ -61,6 +80,9 @@ class ComputedPrayerSlot {
   final int tuneMinutes;
   final int effectiveIqamahGap;
   final int maxAllowedIqamahGap;
+
+  bool get isAlarmActive =>
+      masterEnabled && prayerAlarmEnabled && alarmTime != null;
 
   const ComputedPrayerSlot({
     required this.prayerKey,
@@ -121,6 +143,115 @@ class DailyPrayerData {
     this.loadedFromCache = false,
     this.cacheSig = '',
   });
+
+  static String format12Hour(DateTime dt) {
+    final h24 = dt.hour;
+    final amPm = h24 >= 12 ? 'PM' : 'AM';
+    final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h12:$m $amPm';
+  }
+
+  DateTime tunedTimeFor(
+    String prayerKey,
+    int tuneMinutes,
+    DateTime referenceDay,
+  ) {
+    final raw = baseTimings[prayerKey] ?? '00:00';
+    final parts = raw.split(':');
+    final h = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? 0) : 0;
+    final m = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+    final dt = DateTime(
+      referenceDay.year,
+      referenceDay.month,
+      referenceDay.day,
+      h,
+      m,
+    );
+    return dt.add(Duration(minutes: tuneMinutes));
+  }
+
+  List<ComputedPrayerSlot> computeDailySlots({
+    required DateTime referenceDay,
+    required int Function(String prayerKey) tuneFor,
+    required Map<String, PrayerAlarmConfig> configs,
+    required bool masterAlarmEnabled,
+    required Set<String> dismissedTodayKeys,
+  }) {
+    final fajrAdhan = tunedTimeFor('fajr', tuneFor('fajr'), referenceDay);
+    final sunrise = tunedTimeFor('sunrise', 0, referenceDay);
+    final dhuhrAdhan = tunedTimeFor('dhuhr', tuneFor('dhuhr'), referenceDay);
+    final asrAdhan = tunedTimeFor('asr', tuneFor('asr'), referenceDay);
+    final maghribAdhan =
+        tunedTimeFor('maghrib', tuneFor('maghrib'), referenceDay);
+    final ishaAdhan = tunedTimeFor('isha', tuneFor('isha'), referenceDay);
+    final tomorrow = referenceDay.add(const Duration(days: 1));
+    final tomorrowFajr = tunedTimeFor('fajr', tuneFor('fajr'), tomorrow);
+
+    final adhans = <String, DateTime>{
+      'fajr': fajrAdhan,
+      'dhuhr': dhuhrAdhan,
+      'asr': asrAdhan,
+      'maghrib': maghribAdhan,
+      'isha': ishaAdhan,
+    };
+
+    final boundaries = <String, ({String key, DateTime dt})>{
+      'fajr': (key: 'sunrise', dt: sunrise),
+      'dhuhr': (key: 'asr', dt: asrAdhan),
+      'asr': (key: 'maghrib', dt: maghribAdhan),
+      'maghrib': (key: 'isha', dt: ishaAdhan),
+      'isha': (key: 'fajr', dt: tomorrowFajr),
+    };
+
+    final y = referenceDay.year.toString().padLeft(4, '0');
+    final m = referenceDay.month.toString().padLeft(2, '0');
+    final d = referenceDay.day.toString().padLeft(2, '0');
+    final dateStr = '$y-$m-$d';
+
+    return ApiConfig.fivePrayerKeys.map((key) {
+      final adhan = adhans[key]!;
+      final b = boundaries[key]!;
+      final safetyLimit = b.dt.subtract(const Duration(minutes: 10));
+      final maxGap = safetyLimit.difference(adhan).inMinutes < 0
+          ? 0
+          : safetyLimit.difference(adhan).inMinutes;
+
+      final cfg = configs[key] ?? PrayerAlarmConfig(prayerKey: key);
+      final clampedGap = cfg.iqamahGapMinutes.clamp(0, maxGap);
+      final iqamah = adhan.add(Duration(minutes: clampedGap));
+
+      DateTime? alarmTime;
+      if (cfg.enabled) {
+        if (cfg.alarmRef == PrayerAlarmRef.beforeAdhan) {
+          final minsBefore = cfg.alarmOffsetMinutes.clamp(0, 120);
+          alarmTime = adhan.subtract(Duration(minutes: minsBefore));
+        } else {
+          final signed = cfg.alarmOffsetMinutes.clamp(-60, 60);
+          alarmTime = iqamah.add(Duration(minutes: signed));
+        }
+        if (alarmTime.isAfter(safetyLimit)) {
+          alarmTime = safetyLimit;
+        }
+      }
+
+      return ComputedPrayerSlot(
+        prayerKey: key,
+        adhanTime: adhan,
+        iqamahTime: iqamah,
+        alarmTime: alarmTime,
+        nextBoundaryAdhan: b.dt,
+        safetyLimitTime: safetyLimit,
+        nextBoundaryKey: b.key,
+        masterEnabled: masterAlarmEnabled,
+        prayerAlarmEnabled: cfg.enabled,
+        dismissedToday: dismissedTodayKeys.contains('$dateStr|$key'),
+        tuneMinutes: tuneFor(key),
+        effectiveIqamahGap: clampedGap,
+        maxAllowedIqamahGap: maxGap,
+      );
+    }).toList();
+  }
 
   DailyPrayerData copyWith({bool? loadedFromCache}) => DailyPrayerData(
         dateKey: dateKey,
@@ -195,6 +326,21 @@ class DailyPrayerData {
 }
 
 class CalendarDayEntry {
+  static const List<String> _shortGregMonths = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
   final int gregorianDay;
   final int gregorianMonth;
   final int gregorianYear;
@@ -220,6 +366,14 @@ class CalendarDayEntry {
     required this.hijriYear,
     required this.holidays,
   });
+
+  DateTime get gregorianDate =>
+      DateTime(gregorianYear, gregorianMonth, gregorianDay);
+
+  String get shortGregorianLabel {
+    final m = _shortGregMonths[(gregorianMonth - 1).clamp(0, 11)];
+    return '$gregorianDay $m';
+  }
 
   Map<String, dynamic> toJson() => {
         'gregorianDay': gregorianDay,
@@ -247,7 +401,36 @@ class CalendarDayEntry {
       hijriMonthEn: (json['hijriMonthEn'] ?? '').toString(),
       hijriMonthAr: (json['hijriMonthAr'] ?? '').toString(),
       hijriYear: (json['hijriYear'] as num?)?.toInt() ?? 1448,
-      holidays: (json['holidays'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      holidays:
+          (json['holidays'] as List?)?.map((e) => e.toString()).toList() ??
+              const [],
     );
+  }
+}
+
+class AlAdhanCatalog {
+  static List<String> get fivePrayerKeys => ApiConfig.fivePrayerKeys;
+  static List<PrayerCalculationMethod> get methods => ApiConfig.prayerMethods;
+  static List<AlarmSoundOption> get alarmSounds => ApiConfig.alarmSounds;
+  static List<CityPreset> get quickCities => ApiConfig.quickCities;
+
+  static PrayerCalculationMethod methodById(int id) {
+    return ApiConfig.prayerMethods.firstWhere(
+      (m) => m.id == id,
+      orElse: () => ApiConfig.prayerMethods.first,
+    );
+  }
+
+  static AlarmSoundOption soundById(String id) => ApiConfig.alarmSoundById(id);
+
+  static Map<String, PrayerAlarmConfig> defaultPrayerConfigs() =>
+      ApiConfig.defaultPrayerConfigs();
+}
+
+class HijriMonthCatalog {
+  static String monthName(int month, String lang) {
+    final idx = (month - 1).clamp(0, 11);
+    if (lang == 'ar') return ApiConfig.hijriMonthsAr[idx];
+    return ApiConfig.hijriMonthsEn[idx];
   }
 }

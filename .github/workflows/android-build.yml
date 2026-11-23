@@ -55,7 +55,7 @@ jobs:
           fi
 
       - name: Generate fresh Android Gradle wrapper
-        run: flutter create . --platforms=android --org com.quranapp.malayalam && rm -f test/widget_test.dart
+        run: flutter create . --platforms=android --org com.ibadia && rm -f test/widget_test.dart
 
       - name: Configure resilient Gradle mirrors and HTTP limits
         run: |
@@ -135,11 +135,11 @@ jobs:
         run: |
           rm -rf android/app/src/main/res/mipmap-*
           mkdir -p android/app/src/main/res/xml
-          mkdir -p android/app/src/main/kotlin/com/quranapp/malayalam/quran_malayalam_app
+          mkdir -p android/app/src/main/kotlin/com/ibadia/ibadia
           cp -r android_config/res/. android/app/src/main/res/
           cp android_config/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           cp android_config/file_paths.xml android/app/src/main/res/xml/file_paths.xml
-          cp android_config/MainActivity.kt android/app/src/main/kotlin/com/quranapp/malayalam/quran_malayalam_app/MainActivity.kt
+          cp android_config/MainActivity.kt android/app/src/main/kotlin/com/ibadia/ibadia/MainActivity.kt
 
       - name: Configure release keystore signing if secret is present
         if: env.USE_RELEASE_KEYSTORE == 'true'

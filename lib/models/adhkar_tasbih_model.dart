@@ -20,6 +20,10 @@ class AdhkarEntry {
     required this.reference,
     required this.targetCount,
   });
+
+  String titleFor(String lang) => lang == 'ml' ? titleMl : titleEn;
+  String translationFor(String lang) =>
+      lang == 'ml' ? translationMl : translationEn;
 }
 
 class TasbihPreset {
@@ -38,6 +42,8 @@ class TasbihPreset {
     required this.defaultTarget,
     this.isCustom = false,
   });
+
+  String titleFor(String lang) => lang == 'ml' ? titleMl : titleEn;
 
   Map<String, dynamic> toJson() => {
         'id': id,

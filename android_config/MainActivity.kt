@@ -1,4 +1,4 @@
-package com.quranapp.malayalam.quran_malayalam_app
+package com.ibadia.ibadia
 
 import android.Manifest
 import android.app.AlarmManager
@@ -44,8 +44,8 @@ import java.util.Locale
 
 class MainActivity : FlutterActivity() {
     companion object {
-        private const val UPDATER_CHANNEL = "com.quranapp.malayalam/app_updater"
-        private const val ALARM_CHANNEL = "com.quranapp.malayalam/prayer_alarm"
+        private const val UPDATER_CHANNEL = "com.ibadia/app_updater"
+        private const val ALARM_CHANNEL = "com.ibadia/prayer_alarm"
         private const val REQ_POST_NOTIF = 4102
     }
 
@@ -651,7 +651,7 @@ object PrayerAlarmController {
                 PowerManager.FULL_WAKE_LOCK or
                     PowerManager.ACQUIRE_CAUSES_WAKEUP or
                     PowerManager.ON_AFTER_RELEASE,
-                "quranapp:prayer_alarm"
+                "ibadia:prayer_alarm"
             )
             wl.acquire(15_000L)
         } catch (_: Exception) {}
