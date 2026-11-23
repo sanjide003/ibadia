@@ -17,11 +17,16 @@ class IbadahAudioCard extends ConsumerWidget {
   final Color? badgeColor;
   final String? orderBadge;
   final bool isHighlighted;
+  final bool isJumpFocused;
   final String? arabicText;
   final String? transliterationMl;
   final String? meaningText;
   final String? noteText;
   final String? audioPath;
+  final bool showTransliteration;
+  final bool showMeaning;
+  final bool showNotes;
+  final bool showAudio;
   final AppStrings strings;
   final Color cardBg;
   final Color cardBorder;
@@ -35,11 +40,16 @@ class IbadahAudioCard extends ConsumerWidget {
     this.badgeColor,
     this.orderBadge,
     this.isHighlighted = false,
+    this.isJumpFocused = false,
     this.arabicText,
     this.transliterationMl,
     this.meaningText,
     this.noteText,
     this.audioPath,
+    this.showTransliteration = false,
+    this.showMeaning = false,
+    this.showNotes = false,
+    this.showAudio = false,
     required this.strings,
     required this.cardBg,
     required this.cardBorder,
@@ -59,9 +69,17 @@ class IbadahAudioCard extends ConsumerWidget {
 
     final Color accentColor = isDark ? AppBranding.accentGold : cs.primary;
     final Color effectiveBadgeColor = badgeColor ?? accentColor;
-    final Color resolvedBorder = (isPlayingThis || isHighlighted)
-        ? accentColor.withValues(alpha: isDark ? 0.6 : 0.45)
-        : cardBorder;
+    final Color resolvedBorder = isJumpFocused
+        ? AppBranding.accentGold
+        : ((isPlayingThis || isHighlighted)
+            ? accentColor.withValues(alpha: isDark ? 0.6 : 0.45)
+            : cardBorder);
+    final Color resolvedBg = isJumpFocused
+        ? Color.alphaBlend(
+            accentColor.withValues(alpha: isDark ? 0.14 : 0.06),
+            cardBg,
+          )
+        : cardBg;
     final Color arabicPanelBg = isDark
         ? const Color(0xFF101915)
         : (cardBg == const Color(0xFFFFFDF7)
@@ -75,19 +93,21 @@ class IbadahAudioCard extends ConsumerWidget {
         pos.inMilliseconds.toDouble().clamp(0.0, maxMs);
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
+      duration: const Duration(milliseconds: 240),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: cardBg,
+        color: resolvedBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: resolvedBorder,
-          width: (isPlayingThis || isHighlighted) ? 1.4 : 1.0,
+          width: isJumpFocused ? 2.0 : ((isPlayingThis || isHighlighted) ? 1.4 : 1.0),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.035),
-            blurRadius: 10,
+            color: isJumpFocused
+                ? accentColor.withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: isDark ? 0.22 : 0.035),
+            blurRadius: isJumpFocused ? 14 : 10,
             offset: const Offset(0, 3),
           ),
         ],
@@ -183,11 +203,13 @@ class IbadahAudioCard extends ConsumerWidget {
                     ),
                     onPressed: () {
                       final buffer = StringBuffer(arabicText!.trim());
-                      if (transliterationMl != null &&
+                      if (showTransliteration &&
+                          transliterationMl != null &&
                           transliterationMl!.trim().isNotEmpty) {
                         buffer.writeln('\n${transliterationMl!.trim()}');
                       }
-                      if (meaningText != null &&
+                      if (showMeaning &&
+                          meaningText != null &&
                           meaningText!.trim().isNotEmpty) {
                         buffer.writeln(meaningText!.trim());
                       }
@@ -233,8 +255,9 @@ class IbadahAudioCard extends ConsumerWidget {
               ),
             ],
 
-            // Malayalam Transliteration
-            if (transliterationMl != null &&
+            // Malayalam Transliteration (toggled in Ibadah Settings)
+            if (showTransliteration &&
+                transliterationMl != null &&
                 transliterationMl!.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(
@@ -258,8 +281,10 @@ class IbadahAudioCard extends ConsumerWidget {
               ),
             ],
 
-            // Meaning
-            if (meaningText != null && meaningText!.trim().isNotEmpty) ...[
+            // Meaning (toggled in Ibadah Settings)
+            if (showMeaning &&
+                meaningText != null &&
+                meaningText!.trim().isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 strings.meaningLabel.toUpperCase(),
@@ -281,8 +306,10 @@ class IbadahAudioCard extends ConsumerWidget {
               ),
             ],
 
-            // Fiqh / Context Note
-            if (noteText != null && noteText!.trim().isNotEmpty) ...[
+            // Fiqh / Context Note (toggled in Ibadah Settings)
+            if (showNotes &&
+                noteText != null &&
+                noteText!.trim().isNotEmpty) ...[
               const SizedBox(height: 9),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -322,8 +349,8 @@ class IbadahAudioCard extends ConsumerWidget {
               footerExtra!,
             ],
 
-            // Inline Offline Audio Control Bar
-            if (hasAudio) ...[
+            // Inline Offline Audio Control Bar (toggled in Ibadah Settings)
+            if (showAudio && hasAudio) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

@@ -1427,6 +1427,14 @@ class _StandaloneFeatureScreenState
         return t.bookmarksTab;
       case 'export':
         return t.exportTitle;
+      case 'ibadah_niyyah':
+        return t.actionNiyyah;
+      case 'ibadah_salah':
+        return t.actionSalahGuide;
+      case 'ibadah_rawatib':
+        return t.actionRawatibSurahs;
+      case 'ibadah_mayyith':
+        return t.actionMayyithGuide;
       case 'ibadah_guide':
         return t.ibadahGuideTitle;
       default:
@@ -1442,6 +1450,12 @@ class _StandaloneFeatureScreenState
       case 'bookmarks':
       case 'export':
         return SettingsScope.quran;
+      case 'ibadah_niyyah':
+      case 'ibadah_salah':
+      case 'ibadah_rawatib':
+      case 'ibadah_mayyith':
+      case 'ibadah_guide':
+        return SettingsScope.ibadah;
       default:
         return null;
     }
@@ -1493,8 +1507,28 @@ class _StandaloneFeatureScreenState
       case 'export':
         body = const ExportScreen(showHeader: false);
         break;
+      case 'ibadah_niyyah':
+        body = IbadahGuideScreen(
+          section: IbadahSection.niyyah,
+          onOpenSurah: (surahNo) => widget.onOpenSurah(surahNo),
+        );
+        break;
+      case 'ibadah_salah':
       case 'ibadah_guide':
         body = IbadahGuideScreen(
+          section: IbadahSection.salah,
+          onOpenSurah: (surahNo) => widget.onOpenSurah(surahNo),
+        );
+        break;
+      case 'ibadah_rawatib':
+        body = IbadahGuideScreen(
+          section: IbadahSection.rawatib,
+          onOpenSurah: (surahNo) => widget.onOpenSurah(surahNo),
+        );
+        break;
+      case 'ibadah_mayyith':
+        body = IbadahGuideScreen(
+          section: IbadahSection.mayyith,
           onOpenSurah: (surahNo) => widget.onOpenSurah(surahNo),
         );
         break;

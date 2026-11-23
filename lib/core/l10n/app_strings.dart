@@ -131,8 +131,8 @@ class AppStrings {
         'ستظهر السور والميزات التي تفتحها مؤخراً هنا تلقائياً.',
       );
   String get clearHistoryLabel => _p('Clear', 'മായ്ക്കുക', 'مسح');
-  String get quickActionsTitle => _p('Features & Tools', 'ഫീച്ചറുകളും ടൂളുകളും', 'الأدوات والميزات');
-  String get categoriesTitle => _p('Islamic Sections', 'ഇസ്‌ലാമിക വിഭാഗങ്ങൾ', 'الأقسام الإسلامية');
+    String get quickActionsTitle => _p('Features & Tools', 'ഫീച്ചറുകളും ടൂളുകളും', 'الأدوات والميزات');
+  String get categoriesTitle => _p('Other Features', 'മറ്റ് ഫീച്ചറുകൾ', 'ميزات أخرى');
   String get noSearchResults => _p(
         'No matching Surah, tool, Name, or Dhikr found.',
         'യോജിച്ച സൂറത്തോ ഫീച്ചറോ നാമമോ കണ്ടെത്താനായില്ല.',
@@ -150,6 +150,10 @@ class AppStrings {
   String get actionTajweed => _p('Tajweed Guide', 'തജ്‌വീദ് നിയമം', 'أحكام التجويد');
   String get actionExport => _p('Export PDF / PNG', 'എക്സ്പോർട്ട് PDF / PNG', 'تصدير PDF');
   String get actionIbadahGuide => _p('Ibadah & Salah', 'ഇബാദത്ത് & നിസ്കാരം', 'دليل الصلاة والعبادات');
+  String get actionNiyyah => _p('Niyyah', 'നിയ്യത്ത്', 'النية');
+  String get actionSalahGuide => _p('Salah Guide', 'സ്വലാത്ത് ഗൈഡ്', 'دليل الصلاة');
+  String get actionRawatibSurahs => _p('Rawatib & Surahs', 'റവാതിബും സൂറത്തുകളും', 'الرواتب والسور');
+  String get actionMayyithGuide => _p('Mayyith Guide', 'മയ്യിത്ത് ഗൈഡ്', 'دليل الجنازة');
   String get actionSettings => _p('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
 
   // Daily Spotlight Cards on Home
@@ -506,9 +510,9 @@ class AppStrings {
         'شروط صحة الصلاة',
       );
   String get arkanSectionTitle => _p(
-        '13 Pillars of Salah (Fard / Arkan)',
-        'നിസ്കാരത്തിലെ 13 ഫർളുകൾ (അർക്കാൻ)',
-        'أركان الصلاة الثلاثة عشر',
+        '14 Pillars of Salah (Fard / Arkan)',
+        'നിസ്കാരത്തിലെ 14 ഫർളുകൾ (അർക്കാൻ)',
+        'أركان الصلاة الأربعة عشر',
       );
   String get stepByStepSalahTitle => _p(
         'Step-by-Step Salah Order (Takbir to Salam)',
@@ -564,5 +568,62 @@ class AppStrings {
         'Audio file not found yet. Add the MP3 file under assets/audio/ibadah/ to enable playback.',
         'ഓഡിയോ ഫയൽ ഇതുവരെ ചേർത്തിട്ടില്ല. പ്ലേ ചെയ്യാൻ MP3 ഫയൽ assets/audio/ibadah/ ഫോൾഡറിൽ ചേർക്കുക.',
         'ملف الصوت غير موجود بعد. أضف ملف MP3 في assets/audio/ibadah/.',
+      );
+
+  // Ibadah Settings & Summary Navigation
+  String get ibadahSettingsTitle => _p(
+        'Ibadah Display Settings',
+        'ഇബാദത്ത് ഡിസ്പ്ലേ സെറ്റിംഗ്സ്',
+        'إعدادات عرض العبادات',
+      );
+  String get ibadahSettingsDesc => _p(
+        'Headings & Arabic appear by default. Turn on study aids below whenever needed.',
+        'തലക്കെട്ടും അറബിക്കും എപ്പോഴും കാണാം. ആവശ്യാനുസരണം മറ്റ് വിവരങ്ങൾ ഓൺ ആക്കാം.',
+        'تظهر العناوين والنص العربي افتراضياً. فعّل المساعدات أدناه عند الحاجة.',
+      );
+  String get malayalamHeadingsSetting => _p(
+        'Malayalam Headings Always',
+        'തലക്കെട്ടുകളും ശർത്വുകളും അർക്കാനും മലയാളത്തിൽ',
+        'إظهار العناوين بالمالايالامية دائماً',
+      );
+  String get malayalamHeadingsDesc => _p(
+        'Keep section titles, Shart & 14 Arkan in Malayalam even when app language is English',
+        'ആപ്പ് ഭാഷ ഇംഗ്ലീഷ് ആണെങ്കിലും ശർത്വുകളും 14 അർക്കാനും മലയാളത്തിൽ നിലനിർത്തും',
+        'إبقاء العناوين والشروط والأركان بالمالايالامية حتى مع اللغة الإنجليزية',
+      );
+  String get showTransliterationSetting => _p(
+        'Show Malayalam Transliteration',
+        'മലയാളം ഉച്ചാരണം കാണിക്കുക',
+        'إظهار النطق بالمالايالامية',
+      );
+  String get showMeaningSetting => _p(
+        'Show Meaning',
+        'അർത്ഥം കാണിക്കുക',
+        'إظهار المعنى',
+      );
+  String get showNotesSetting => _p(
+        'Show Fiqh Notes',
+        'ഫിഖ്ഹ് കുറിപ്പുകൾ കാണിക്കുക',
+        'إظهار الملاحظات الفقهية',
+      );
+  String get showAudioSetting => _p(
+        'Show Offline Audio Player',
+        'ഓഫ്‌ലൈൻ ഓഡിയോ പ്ലെയർ കാണിക്കുക',
+        'إظهار مشغل الصوت',
+      );
+  String get summaryTableTitle => _p(
+        'Overview & Counts (Tap row to jump)',
+        'ചുരുക്കവിവരണം & എണ്ണം (കാണാൻ ടാപ്പ് ചെയ്യുക)',
+        'ملخص الأقسام والعدد (اضغط للانتقال)',
+      );
+  String get orderedChainTitle => _p(
+        'Step Sequence Chain',
+        'ക്രമീകൃത ശൃംഖല (ഓർഡർ)',
+        'تسلسل الخطوات',
+      );
+  String get ibadahDisplayTip => _p(
+        'Tip: Tap ⚙ at top-right to show Transliteration, Meaning, Notes or Audio.',
+        'ടിപ്പ്: ഉച്ചാരണം, അർത്ഥം, കുറിപ്പുകൾ, ഓഡിയോ എന്നിവയ്ക്ക് മുകളിലെ ⚙ അമർത്തുക.',
+        'ملاحظة: اضغط ⚙ في الأعلى لإظهار النطق أو المعنى أو الصوت.',
       );
 }

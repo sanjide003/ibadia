@@ -15,7 +15,100 @@ import '../widgets/quick_reader_controls.dart';
 import '../widgets/web_pwa_widgets.dart';
 import 'features_views.dart';
 
-enum SettingsScope { quran, features, all }
+enum SettingsScope { quran, features, ibadah, all }
+
+/// Modular Ibadah & Salah Guide display toggles (Arabic-only default + study aids).
+class IbadahSettingsSection extends ConsumerWidget {
+  const IbadahSettingsSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final notifier = ref.read(settingsProvider.notifier);
+    final t = ref.watch(stringsProvider);
+    final cs = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          t.ibadahSettingsDesc,
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.4,
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(
+            t.malayalamHeadingsSetting,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+          ),
+          subtitle: Text(
+            t.malayalamHeadingsDesc,
+            style: const TextStyle(fontSize: 11.5),
+          ),
+          value: settings.ibadahMalayalamHeadings,
+          onChanged: (v) => notifier.updateWith(
+            (cur) => cur.copyWith(ibadahMalayalamHeadings: v),
+          ),
+        ),
+        const Divider(height: 12),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(
+            t.showTransliterationSetting,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+          ),
+          value: settings.ibadahShowTransliteration,
+          onChanged: (v) => notifier.updateWith(
+            (cur) => cur.copyWith(ibadahShowTransliteration: v),
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(
+            t.showMeaningSetting,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+          ),
+          value: settings.ibadahShowMeaning,
+          onChanged: (v) => notifier.updateWith(
+            (cur) => cur.copyWith(ibadahShowMeaning: v),
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(
+            t.showNotesSetting,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+          ),
+          value: settings.ibadahShowNotes,
+          onChanged: (v) => notifier.updateWith(
+            (cur) => cur.copyWith(ibadahShowNotes: v),
+          ),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text(
+            t.showAudioSetting,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+          ),
+          value: settings.ibadahShowAudio,
+          onChanged: (v) => notifier.updateWith(
+            (cur) => cur.copyWith(ibadahShowAudio: v),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// Modular Quran Reader & Display Preferences section.
 class QuranSettingsSection extends ConsumerWidget {
@@ -832,6 +925,8 @@ class CompactSettingsDrawer extends ConsumerWidget {
         title = t.quranSettingsTitle;
       case SettingsScope.features:
         title = t.featuresSettingsTitle;
+      case SettingsScope.ibadah:
+        title = t.ibadahSettingsTitle;
       case SettingsScope.all:
         title = t.settings;
     }
@@ -887,6 +982,12 @@ class CompactSettingsDrawer extends ConsumerWidget {
                     if (scope == SettingsScope.features ||
                         scope == SettingsScope.all)
                       const FeaturesSettingsSection(),
+                    if (scope == SettingsScope.ibadah)
+                      const IbadahSettingsSection(),
+                    if (scope == SettingsScope.all) ...[
+                      const Divider(height: 30),
+                      const IbadahSettingsSection(),
+                    ],
                     const Divider(height: 28),
                     DrawerBottomAppActions(strings: t),
                     const SizedBox(height: 12),
@@ -990,7 +1091,42 @@ class SettingsTabView extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // 3. App Updates, Install / APK Download, Share & Version Card
+        // 3. Ibadah Display Settings Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.menu_book_outlined, color: cs.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t.ibadahSettingsTitle,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: cs.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 22),
+              const IbadahSettingsSection(),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 4. App Updates, Install / APK Download, Share & Version Card
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

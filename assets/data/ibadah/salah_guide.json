@@ -53,17 +53,18 @@
   "arkan": [
     { "order": 1, "titleEn": "Niyyah (Intention in heart)", "titleMl": "നിയ്യത്ത് (ഹൃദയത്തിൽ കരുതുക)" },
     { "order": 2, "titleEn": "Standing (Qiyam) if able", "titleMl": "സാധ്യമാണെങ്കിൽ നിവർന്നു നിൽക്കുക (ഖിയാം)" },
-    { "order": 3, "titleEn": "Takbiratul Ihram", "titleMl": "തക്ബീറതുൽ ഇഹ്റാം (അല്ലാഹു അക്ബർ)" },
-    { "order": 4, "titleEn": "Reciting Surah Al-Fatihah", "titleMl": "സൂറത്തുൽ ഫാതിഹ ഓതുക (ബിസ്മി സഹിതം)" },
-    { "order": 5, "titleEn": "Ruku with Tuma'ninah", "titleMl": "റുകൂഅ് (അടങ്ങി നിൽക്കലോടു കൂടി)" },
-    { "order": 6, "titleEn": "I'tidal with Tuma'ninah", "titleMl": "ഇഅ്തിദാൽ (നിവർന്നു നിൽക്കുക + അടങ്ങൽ)" },
-    { "order": 7, "titleEn": "Two Sujuds with Tuma'ninah", "titleMl": "രണ്ട് സുജൂദുകൾ (അടങ്ങി നിൽക്കലോടു കൂടി)" },
-    { "order": 8, "titleEn": "Sitting Between Sujuds with Tuma'ninah", "titleMl": "രണ്ട് സുജൂദുകൾക്കിടയിലെ ഇരുത്തം (+ അടങ്ങൽ)" },
-    { "order": 9, "titleEn": "Final Tashahhud Sitting", "titleMl": "അവസാന അത്തഹിയ്യാത്തിനുള്ള ഇരുത്തം" },
-    { "order": 10, "titleEn": "Final Tashahhud Recitation", "titleMl": "അവസാന അത്തഹിയ്യാത്ത് ഓതുക" },
-    { "order": 11, "titleEn": "Salawat on Prophet (SAW)", "titleMl": "നബി (സ) യുടെ മേൽ സ്വലാത്ത് ചൊല്ലുക" },
-    { "order": 12, "titleEn": "First Salam", "titleMl": "ഒന്നാമത്തെ സലാം വീട്ടുക" },
-    { "order": 13, "titleEn": "Tartib (Strict Sequential Order)", "titleMl": "തർത്തീബ് (ക്രമപ്രകാരം നിർവ്വഹിക്കുക)" }
+    { "order": 3, "titleEn": "Takbiratul Ihram (Allahu Akbar)", "titleMl": "തക്ബീറതുൽ ഇഹ്‌റാം (അല്ലാഹു അക്ബർ)" },
+    { "order": 4, "titleEn": "Reciting Surah Al-Fatihah with Bismillah", "titleMl": "സൂറത്തുൽ ഫാതിഹ ഓതുക (ബിസ്മി സഹിതം)" },
+    { "order": 5, "titleEn": "Ruku (Bowing)", "titleMl": "റുകൂഅ് (കുനിഞ്ഞു നിൽക്കുക)" },
+    { "order": 6, "titleEn": "I'tidal (Rising upright from Ruku)", "titleMl": "ഇഅ്തിദാൽ (റുകൂഇൽ നിന്ന് നിവർന്നു നിൽക്കുക)" },
+    { "order": 7, "titleEn": "Two Sujuds (Prostrations)", "titleMl": "രണ്ട് സുജൂദുകൾ (സാഷ്ടാംഗം ചെയ്യുക)" },
+    { "order": 8, "titleEn": "Sitting between the two Sujuds", "titleMl": "രണ്ട് സുജൂദുകൾക്കിടയിലെ ഇരുത്തം" },
+    { "order": 9, "titleEn": "Tuma'ninah (Calm stillness in Ruku, I'tidal, Sujud & Sitting)", "titleMl": "ത്വുമഅ്നീനത്ത് (റുകൂഅ്, ഇഅ്തിദാൽ, സുജൂദ്, ഇരുത്തം എന്നിവയിൽ അടങ്ങി നിൽക്കൽ)" },
+    { "order": 10, "titleEn": "Final Tashahhud Sitting", "titleMl": "അവസാന അത്തഹിയ്യാത്തിനുള്ള ഇരുത്തം" },
+    { "order": 11, "titleEn": "Reciting Final Tashahhud", "titleMl": "അവസാന അത്തഹിയ്യാത്ത് ഓതുക" },
+    { "order": 12, "titleEn": "Salawat on Prophet (SAW)", "titleMl": "നബി (സ) യുടെ മേൽ സ്വലാത്ത് ചൊല്ലുക" },
+    { "order": 13, "titleEn": "First Salam", "titleMl": "ഒന്നാമത്തെ സലാം വീട്ടുക" },
+    { "order": 14, "titleEn": "Tartib (Strict Sequential Order)", "titleMl": "തർത്തീബ് (ക്രമപ്രകാരം നിർവ്വഹിക്കുക)" }
   ],
   "steps": [
     {

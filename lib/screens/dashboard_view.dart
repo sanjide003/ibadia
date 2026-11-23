@@ -220,7 +220,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         showAutoSilentSheet(context, t);
         break;
       case RecentActivityType.ibadah:
-        widget.onOpenFeature('ibadah_guide');
+        final featureId = entry.id.startsWith('tool:ibadah_')
+            ? entry.id.substring(5)
+            : 'ibadah_salah';
+        widget.onOpenFeature(featureId);
         break;
       case RecentActivityType.exportPdf:
         widget.onOpenFeature('export');
@@ -677,47 +680,150 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       ),
     ];
 
-    final ibadahAction = _DashboardQuickAction(
-      id: 'ibadah_guide',
-      icon: Icons.menu_book_outlined,
-      accent: const Color(0xFF047857),
-      titleEn: t.actionIbadahGuide,
-      titleMl: t.actionIbadahGuide,
-      titleAr: t.actionIbadahGuide,
-      subtitleEn: 'Niyyah, Salah, Rawatib & Mayyith',
-      subtitleMl: 'നിയ്യത്ത്, നിസ്കാരം, റവാതിബ്, മയ്യിത്ത്',
-      subtitleAr: 'النية والصلاة والرواتب والجنازة',
-      keywords: const [
-        'ibadah',
-        'salah',
-        'niyyah',
-        'namaz',
-        'rawatib',
-        'mayyith',
-        'janazah',
-        'qunoot',
-        'witr',
-        'shafi',
-        'ഇബാദത്ത്',
-        'നിസ്കാരം',
-        'നിയ്യത്ത്',
-        'മയ്യിത്ത്',
-        'ഖുനൂത്ത്',
-      ],
-      onTap: () {
-        _recordSimpleActivity(
-          id: 'tool:ibadah_guide',
-          type: RecentActivityType.ibadah,
-          titleEn: 'Ibadah & Salah Guide',
-          titleMl: 'ഇബാദത്ത് & നിസ്കാര ഗൈഡ്',
-          titleAr: 'دليل الصلاة والعبادات',
-          subtitleEn: 'Niyyah, Salah, Rawatib & Mayyith',
-          subtitleMl: 'നിയ്യത്ത്, നിസ്കാരം, റവാതിബ്, മയ്യിത്ത്',
-          subtitleAr: 'الفقه الشافعي',
-        );
-        widget.onOpenFeature('ibadah_guide');
-      },
-    );
+    final ibadahActions = <_DashboardQuickAction>[
+      _DashboardQuickAction(
+        id: 'ibadah_niyyah',
+        icon: Icons.record_voice_over_rounded,
+        accent: const Color(0xFF047857),
+        titleEn: t.actionNiyyah,
+        titleMl: t.actionNiyyah,
+        titleAr: t.actionNiyyah,
+        subtitleEn: 'Fard & Sunnah Intentions',
+        subtitleMl: 'ഫർള് & സുന്നത്ത് നിയ്യത്തുകൾ',
+        subtitleAr: 'نيات الفرائض والنوافل',
+        keywords: const [
+          'niyyah',
+          'intention',
+          'fajr',
+          'dhuhr',
+          'asr',
+          'maghrib',
+          'isha',
+          'witr',
+          'taraweeh',
+          'നിയ്യത്ത്',
+        ],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:ibadah_niyyah',
+            type: RecentActivityType.ibadah,
+            titleEn: 'Niyyah',
+            titleMl: 'നിയ്യത്ത്',
+            titleAr: 'النية',
+            subtitleEn: 'Fard & Sunnah Intentions',
+            subtitleMl: 'ഫർള് & സുന്നത്ത് നിയ്യത്തുകൾ',
+            subtitleAr: 'نيات الصلاة',
+          );
+          widget.onOpenFeature('ibadah_niyyah');
+        },
+      ),
+      _DashboardQuickAction(
+        id: 'ibadah_salah',
+        icon: Icons.menu_book_outlined,
+        accent: const Color(0xFF0F766E),
+        titleEn: t.actionSalahGuide,
+        titleMl: t.actionSalahGuide,
+        titleAr: t.actionSalahGuide,
+        subtitleEn: '7 Shart, 14 Arkan & 14 Steps',
+        subtitleMl: '7 ശർത്വുകൾ, 14 ഫർളുകൾ & ക്രമം',
+        subtitleAr: 'الشروط والأركان والصفة',
+        keywords: const [
+          'salah',
+          'namaz',
+          'shart',
+          'arkan',
+          'qunoot',
+          'tashahhud',
+          'fatihah',
+          'നിസ്കാരം',
+          'സ്വലാത്ത്',
+          'അർക്കാൻ',
+          'ശർത്ത്',
+          'ഖുനൂത്ത്',
+        ],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:ibadah_salah',
+            type: RecentActivityType.ibadah,
+            titleEn: 'Salah Guide',
+            titleMl: 'സ്വലാത്ത് ഗൈഡ്',
+            titleAr: 'دليل الصلاة',
+            subtitleEn: 'Shafi\'i Step-by-Step Guide',
+            subtitleMl: 'നിസ്കാരത്തിന്റെ പൂർണ്ണ ക്രമം',
+            subtitleAr: 'صفة الصلاة الشافعية',
+          );
+          widget.onOpenFeature('ibadah_salah');
+        },
+      ),
+      _DashboardQuickAction(
+        id: 'ibadah_rawatib',
+        icon: Icons.schedule_rounded,
+        accent: const Color(0xFFB45309),
+        titleEn: t.actionRawatibSurahs,
+        titleMl: t.actionRawatibSurahs,
+        titleAr: t.actionRawatibSurahs,
+        subtitleEn: 'Sunnah Schedule & Surahs',
+        subtitleMl: 'റവാതിബ് & ഉത്തമ സൂറത്തുകൾ',
+        subtitleAr: 'السنن الرواتب والسور',
+        keywords: const [
+          'rawatib',
+          'sunnah',
+          'surah',
+          'muakkadah',
+          'റവാതിബ്',
+          'സുന്നത്ത്',
+          'സൂറത്ത്',
+        ],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:ibadah_rawatib',
+            type: RecentActivityType.ibadah,
+            titleEn: 'Rawatib & Surahs',
+            titleMl: 'റവാതിബും സൂറത്തുകളും',
+            titleAr: 'الرواتب والسور',
+            subtitleEn: 'Sunnah Prayers & Surahs',
+            subtitleMl: 'സുന്നത്ത് നിസ്കാരങ്ങൾ',
+            subtitleAr: 'الرواتب والسور المستحبة',
+          );
+          widget.onOpenFeature('ibadah_rawatib');
+        },
+      ),
+      _DashboardQuickAction(
+        id: 'ibadah_mayyith',
+        icon: Icons.volunteer_activism_rounded,
+        accent: const Color(0xFF475569),
+        titleEn: t.actionMayyithGuide,
+        titleMl: t.actionMayyithGuide,
+        titleAr: t.actionMayyithGuide,
+        subtitleEn: 'Ghusl, Kafan, 4 Takbirs & Burial',
+        subtitleMl: 'മയ്യിത്ത് നിസ്കാരം & തൽഖീൻ',
+        subtitleAr: 'الغسل والتكفين وصلاة الجنازة',
+        keywords: const [
+          'mayyith',
+          'janazah',
+          'funeral',
+          'talqeen',
+          'ghusl',
+          'kafan',
+          'മയ്യിത്ത്',
+          'ജനാസ',
+          'തൽഖീൻ',
+        ],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:ibadah_mayyith',
+            type: RecentActivityType.ibadah,
+            titleEn: 'Mayyith Guide',
+            titleMl: 'മയ്യിത്ത് ഗൈഡ്',
+            titleAr: 'دليل الجنازة',
+            subtitleEn: 'Janazah & Preparation',
+            subtitleMl: 'മയ്യിത്ത് പരിപാലനവും നിസ്കാരവും',
+            subtitleAr: 'أحكام الجنائز',
+          );
+          widget.onOpenFeature('ibadah_mayyith');
+        },
+      ),
+    ];
 
     // Remaining 6 tools under Categories grid (balanced 3x2 layout)
     final categoryTools = <_DashboardQuickAction>[
@@ -865,15 +971,13 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       ),
     ];
 
-    final allActions = [...topTools, ibadahAction, ...categoryTools];
+    final allActions = [...topTools, ...ibadahActions, ...categoryTools];
 
-    // Daily Asmaul Husna & Daily Tajweed Rule indices
+    // Daily Asmaul Husna index
     final now = DateTime.now();
     final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays;
     final dailyNameIdx = dayOfYear % AsmaulHusnaCatalog.names.length;
     final dailyName = AsmaulHusnaCatalog.names[dailyNameIdx];
-    final dailyRuleIdx = dayOfYear % TajweedEngine.legend.length;
-    final dailyRule = TajweedEngine.legend[dailyRuleIdx];
 
     return Stack(
       children: [
@@ -1180,161 +1284,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               ),
             ),
 
-            const SizedBox(height: 12),
-
-            // 4B. Daily Tajweed Rule Card (Right Below Asmaul Husna)
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: hPad),
-              child: _DailyTajweedRuleCard(
-                meta: dailyRule,
-                cardBg: palette.cardBg,
-                cardBorder: palette.cardBorder,
-                strings: t,
-                appLanguage: settings.appLanguage,
-                onTap: () => showTajweedRuleInspectorSheet(
-                  context,
-                  meta: dailyRule,
-                  tappedArabic: dailyRule.sampleAr,
-                  strings: t,
-                  onOpenFullGuide: () => showTajweedLegendSheet(
-                    context,
-                    strings: t,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 4C. Featured Ibadah & Salah Complete Guide Card
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: hPad),
-              child: Material(
-                color: palette.cardBg,
-                borderRadius: BorderRadius.circular(18),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(18),
-                  onTap: ibadahAction.onTap,
-                  child: Container(
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: (isDark ? AppBranding.accentGold : cs.primary)
-                            .withValues(alpha: 0.35),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black
-                              .withValues(alpha: isDark ? 0.2 : 0.035),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 42,
-                              height: 42,
-                              decoration: BoxDecoration(
-                                color: (isDark
-                                        ? AppBranding.accentGold
-                                        : cs.primary)
-                                    .withValues(alpha: 0.13),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              alignment: Alignment.center,
-                              child: Icon(
-                                Icons.menu_book_outlined,
-                                size: 22,
-                                color: isDark
-                                    ? AppBranding.accentGold
-                                    : cs.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    t.ibadahGuideTitle,
-                                    style: const TextStyle(
-                                      fontSize: 15.5,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    t.ibadahFiqhSubtitle,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: cs.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 16,
-                              color: isDark
-                                  ? AppBranding.accentGold
-                                  : cs.primary,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 11),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            for (final label in [
-                              t.niyyahTabLabel,
-                              t.salahGuideTabLabel,
-                              t.rawatibTabLabel,
-                              t.mayyithTabLabel,
-                            ])
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 9,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: (isDark
-                                          ? AppBranding.accentGold
-                                          : cs.primary)
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  label,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark
-                                        ? AppBranding.accentGold
-                                        : cs.primary,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
             const SizedBox(height: 20),
 
-            // 5. Categories (3-Column Grid of Remaining Core Features)
+            // 5. Other Features (4 Standalone Ibadah Modules + 6 Remaining Tools)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: hPad),
               child: Text(
@@ -1347,6 +1299,21 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
               ),
             ),
             const SizedBox(height: 10),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: _DashboardActionGrid(
+                actions: ibadahActions,
+                appLanguage: settings.appLanguage,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                cs: cs,
+                isDark: isDark,
+                crossAxisCount: 2,
+                mainAxisExtent: 106,
+                showSubtitle: true,
+              ),
+            ),
+            const SizedBox(height: 12),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: hPad),
               child: _DashboardActionGrid(
@@ -1717,6 +1684,9 @@ class _DashboardActionGrid extends StatelessWidget {
   final Color cardBorder;
   final ColorScheme cs;
   final bool isDark;
+  final int crossAxisCount;
+  final double mainAxisExtent;
+  final bool showSubtitle;
 
   const _DashboardActionGrid({
     required this.actions,
@@ -1725,6 +1695,9 @@ class _DashboardActionGrid extends StatelessWidget {
     required this.cardBorder,
     required this.cs,
     required this.isDark,
+    this.crossAxisCount = 3,
+    this.mainAxisExtent = 102,
+    this.showSubtitle = false,
   });
 
   @override
@@ -1732,11 +1705,11 @@ class _DashboardActionGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: 11,
         crossAxisSpacing: 11,
-        mainAxisExtent: 102,
+        mainAxisExtent: mainAxisExtent,
       ),
       itemCount: actions.length,
       itemBuilder: (_, idx) {
@@ -1770,8 +1743,8 @@ class _DashboardActionGrid extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: showSubtitle ? 40 : 44,
+                    height: showSubtitle ? 40 : 44,
                     decoration: BoxDecoration(
                       color: iconTint.withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(13),
@@ -1779,22 +1752,36 @@ class _DashboardActionGrid extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Icon(
                       action.icon,
-                      size: 24,
+                      size: showSubtitle ? 22 : 24,
                       color: iconTint,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 7),
                   Text(
                     action.titleFor(appLanguage),
-                    maxLines: 2,
+                    maxLines: showSubtitle ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 12.2,
                       fontWeight: FontWeight.w700,
                       height: 1.18,
                     ),
                   ),
+                  if (showSubtitle) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      action.subtitleFor(appLanguage),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -2001,130 +1988,6 @@ class _DailyAsmaulHusnaBanner extends StatelessWidget {
   }
 }
 
-class _DailyTajweedRuleCard extends StatelessWidget {
-  final TajweedRuleMeta meta;
-  final Color cardBg;
-  final Color cardBorder;
-  final AppStrings strings;
-  final String appLanguage;
-  final VoidCallback onTap;
-
-  const _DailyTajweedRuleCard({
-    required this.meta,
-    required this.cardBg,
-    required this.cardBorder,
-    required this.strings,
-    required this.appLanguage,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ruleColor = meta.colorFor(isDark);
-    final langToDisplay = appLanguage == 'en' || appLanguage == 'ar'
-        ? appLanguage
-        : 'ml';
-
-    return Material(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: ruleColor.withValues(alpha: 0.42),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: ruleColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      strings.dailyTajweedTitle,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: ruleColor,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    meta.sampleAr,
-                    textDirection: TextDirection.rtl,
-                    style: GoogleFonts.amiri(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: ruleColor,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                meta.titleFor(langToDisplay),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                meta.descriptionFor(langToDisplay),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.45,
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    strings.exploreRuleBtn,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: ruleColor,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded, size: 15, color: ruleColor),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _SearchSectionHeader extends StatelessWidget {
   final String label;

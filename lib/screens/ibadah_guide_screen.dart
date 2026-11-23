@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,16 +7,26 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
+import '../providers/audio_provider.dart';
 import '../providers/quran_providers.dart';
 import '../services/ibadah_audio_controller.dart';
 import '../services/ibadah_data_service.dart';
 import '../widgets/ibadah_audio_card.dart';
 
+enum IbadahSection {
+  niyyah,
+  salah,
+  rawatib,
+  mayyith,
+}
+
 class IbadahGuideScreen extends ConsumerStatefulWidget {
+  final IbadahSection section;
   final void Function(int surahNo)? onOpenSurah;
 
   const IbadahGuideScreen({
     super.key,
+    this.section = IbadahSection.salah,
     this.onOpenSurah,
   });
 
@@ -23,9 +34,11 @@ class IbadahGuideScreen extends ConsumerStatefulWidget {
   ConsumerState<IbadahGuideScreen> createState() => _IbadahGuideScreenState();
 }
 
-class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _jumpKeys = <String, GlobalKey>{};
+  String? _activeJumpKey;
+  Timer? _jumpHighlightTimer;
 
   // Niyyah filters
   String _niyyahScope = 'all'; // 'all' | 'fard' | 'sunnah'
@@ -46,8 +59,55 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-    _loadPersistedSharts();
+    if (widget.section == IbadahSection.salah) {
+      _loadPersistedSharts();
+    }
+  }
+
+  GlobalKey _keyFor(String id) =>
+      _jumpKeys.putIfAbsent(id, () => GlobalKey());
+
+  void _jumpToKey(
+    String id, {
+    VoidCallback? beforeJumpStateChange,
+  }) {
+    final bool needsRebuild = beforeJumpStateChange != null;
+    if (needsRebuild) {
+      setState(() {
+        beforeJumpStateChange();
+        _activeJumpKey = id;
+      });
+    } else {
+      setState(() => _activeJumpKey = id);
+    }
+
+    _jumpHighlightTimer?.cancel();
+    _jumpHighlightTimer = Timer(const Duration(milliseconds: 1900), () {
+      if (mounted && _activeJumpKey == id) {
+        setState(() => _activeJumpKey = null);
+      }
+    });
+
+    void scrollNow() {
+      if (!mounted) return;
+      final ctx = _jumpKeys[id]?.currentContext;
+      if (ctx != null) {
+        unawaited(
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeOutCubic,
+            alignment: 0.05,
+          ),
+        );
+      }
+    }
+
+    if (needsRebuild) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => scrollNow());
+    } else {
+      scrollNow();
+    }
   }
 
   Future<void> _loadPersistedSharts() async {
@@ -75,8 +135,9 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
 
   @override
   void dispose() {
+    _jumpHighlightTimer?.cancel();
+    _scrollController.dispose();
     IbadahAudioController.instance.stopOnDispose();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -99,16 +160,58 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
     );
   }
 
+  String _cleanStepShortLabel(String title) {
+    final stripped = title.replaceFirst(RegExp(r'^\d+\.\s*'), '').trim();
+    final parenIdx = stripped.indexOf('(');
+    final base = parenIdx > 4 ? stripped.substring(0, parenIdx).trim() : stripped;
+    if (base.length <= 22) return base;
+    return '${base.substring(0, 20).trim()}…';
+  }
+
+  Widget _highlightBox({
+    required String keyId,
+    required Color accentColor,
+    required Widget child,
+  }) {
+    final focused = _activeJumpKey == keyId;
+    return KeyedSubtree(
+      key: _keyFor(keyId),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 240),
+        decoration: focused
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppBranding.accentGold, width: 2),
+                color: accentColor.withValues(alpha: 0.05),
+              )
+            : null,
+        child: child,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
     final lang = settings.appLanguage;
+    final headingLang = settings.ibadahMalayalamHeadings ? 'ml' : lang;
+    final hStrings = AppStrings(headingLang);
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = _palette(context, settings.themeMode);
     final accentColor = isDark ? AppBranding.accentGold : cs.primary;
     final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 960) / 2);
+
+    // Stop playback automatically if audio bar visibility is toggled off in Settings.
+    ref.listen<bool>(
+      settingsProvider.select((s) => s.ibadahShowAudio),
+      (prev, next) {
+        if (prev == true && !next) {
+          IbadahAudioController.instance.stopOnDispose();
+        }
+      },
+    );
 
     // Show clean localized feedback when an offline audio asset is not bundled yet.
     ref.listen<int>(
@@ -127,12 +230,80 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
       },
     );
 
+    Widget sectionBody;
+    switch (widget.section) {
+      case IbadahSection.niyyah:
+        sectionBody = _buildNiyyahView(
+          t: t,
+          hStrings: hStrings,
+          lang: lang,
+          headingLang: headingLang,
+          showTransliteration: settings.ibadahShowTransliteration,
+          showMeaning: settings.ibadahShowMeaning,
+          showNotes: settings.ibadahShowNotes,
+          showAudio: settings.ibadahShowAudio,
+          palette: palette,
+          hPad: hPad,
+          accentColor: accentColor,
+          cs: cs,
+        );
+        break;
+      case IbadahSection.salah:
+        sectionBody = _buildSalahGuideView(
+          t: t,
+          hStrings: hStrings,
+          lang: lang,
+          headingLang: headingLang,
+          showTransliteration: settings.ibadahShowTransliteration,
+          showMeaning: settings.ibadahShowMeaning,
+          showNotes: settings.ibadahShowNotes,
+          showAudio: settings.ibadahShowAudio,
+          palette: palette,
+          hPad: hPad,
+          accentColor: accentColor,
+          cs: cs,
+        );
+        break;
+      case IbadahSection.rawatib:
+        sectionBody = _buildRawatibAndSurahsView(
+          t: t,
+          hStrings: hStrings,
+          lang: lang,
+          headingLang: headingLang,
+          showTransliteration: settings.ibadahShowTransliteration,
+          showMeaning: settings.ibadahShowMeaning,
+          showNotes: settings.ibadahShowNotes,
+          showAudio: settings.ibadahShowAudio,
+          palette: palette,
+          hPad: hPad,
+          accentColor: accentColor,
+          cs: cs,
+        );
+        break;
+      case IbadahSection.mayyith:
+        sectionBody = _buildMayyithView(
+          t: t,
+          hStrings: hStrings,
+          lang: lang,
+          headingLang: headingLang,
+          showTransliteration: settings.ibadahShowTransliteration,
+          showMeaning: settings.ibadahShowMeaning,
+          showNotes: settings.ibadahShowNotes,
+          showAudio: settings.ibadahShowAudio,
+          palette: palette,
+          hPad: hPad,
+          accentColor: accentColor,
+          cs: cs,
+        );
+        break;
+    }
+
     return Column(
       children: [
-        // Sub-header pill TabBar matching Ibadia Material 3 styling
+        // Compact header strip: Shafi'i Fiqh label + subtle Settings hint
         Container(
           width: double.infinity,
-          padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 10),
+          padding: EdgeInsets.fromLTRB(hPad, 9, hPad, 9),
           decoration: BoxDecoration(
             color: palette.tabBarBg,
             border: Border(
@@ -148,7 +319,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      t.ibadahFiqhSubtitle,
+                      hStrings.ibadahFiqhSubtitle,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -158,72 +329,48 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: palette.cardBg,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: palette.cardBorder),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: false,
-                  dividerColor: Colors.transparent,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  indicator: BoxDecoration(
-                    color: accentColor,
-                    borderRadius: BorderRadius.circular(10),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  Icon(Icons.tune_rounded, size: 13.5, color: accentColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      t.ibadahDisplayTip,
+                      style: TextStyle(
+                        fontSize: 11.2,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
                   ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: cs.onSurfaceVariant,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  labelStyle: const TextStyle(
-                    fontSize: 12.2,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontSize: 12.0,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  tabs: [
-                    Tab(text: t.niyyahTabLabel, height: 36),
-                    Tab(text: t.salahGuideTabLabel, height: 36),
-                    Tab(text: t.rawatibTabLabel, height: 36),
-                    Tab(text: t.mayyithTabLabel, height: 36),
-                  ],
-                ),
+                ],
               ),
             ],
           ),
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildNiyyahTab(t, lang, palette, hPad, accentColor, cs),
-              _buildSalahGuideTab(t, lang, palette, hPad, accentColor, cs),
-              _buildRawatibAndSurahsTab(
-                  t, lang, palette, hPad, accentColor, cs),
-              _buildMayyithTab(t, lang, palette, hPad, accentColor, cs),
-            ],
-          ),
-        ),
+        Expanded(child: sectionBody),
       ],
     );
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 1: NIYYAH (INTENTIONS)
+  // VIEW 1: NIYYAH (INTENTIONS)
   // ---------------------------------------------------------------------------
-  Widget _buildNiyyahTab(
-    AppStrings t,
-    String lang,
-    ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
-    double hPad,
-    Color accentColor,
-    ColorScheme cs,
-  ) {
+  Widget _buildNiyyahView({
+    required AppStrings t,
+    required AppStrings hStrings,
+    required String lang,
+    required String headingLang,
+    required bool showTransliteration,
+    required bool showMeaning,
+    required bool showNotes,
+    required bool showAudio,
+    required ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
+    required double hPad,
+    required Color accentColor,
+    required ColorScheme cs,
+  }) {
     final asyncBundle = ref.watch(ibadahNiyyahProvider);
     return asyncBundle.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -236,146 +383,271 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
         final showFard = _niyyahScope == 'all' || _niyyahScope == 'fard';
         final showSunnah = _niyyahScope == 'all' || _niyyahScope == 'sunnah';
 
-        return ListView(
-          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 28),
-          children: [
-            // Scope Filter Row
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _FilterChipButton(
-                    label: t.filterAll,
-                    selected: _niyyahScope == 'all',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _niyyahScope = 'all'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChipButton(
-                    label: '${t.fardBadgeLabel} (5)',
-                    selected: _niyyahScope == 'fard',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _niyyahScope = 'fard'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChipButton(
-                    label: '${t.sunnahBadgeLabel} (${bundle.sunnahPrayers.length})',
-                    selected: _niyyahScope == 'sunnah',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _niyyahScope = 'sunnah'),
-                  ),
-                ],
+        final summaryRows = <_SummaryRowEntry>[
+          _SummaryRowEntry(
+            label: hStrings.fardPrayersSection,
+            countText: '${bundle.fardPrayers.length}',
+            icon: Icons.mosque_rounded,
+            accent: accentColor,
+            onTap: () => _jumpToKey(
+              'niyyah_fard_section',
+              beforeJumpStateChange: _niyyahScope == 'sunnah'
+                  ? () => _niyyahScope = 'all'
+                  : null,
+            ),
+          ),
+          _SummaryRowEntry(
+            label: hStrings.sunnahPrayersSection,
+            countText: '${bundle.sunnahPrayers.length}',
+            icon: Icons.auto_awesome_rounded,
+            accent: AppBranding.accentGold,
+            onTap: () => _jumpToKey(
+              'niyyah_sunnah_section',
+              beforeJumpStateChange: _niyyahScope == 'fard'
+                  ? () => _niyyahScope = 'all'
+                  : null,
+            ),
+          ),
+        ];
+
+        final chainNodes = <_ChainNodeEntry>[
+          for (int i = 0; i < bundle.fardPrayers.length; i++)
+            _ChainNodeEntry(
+              order: i + 1,
+              label: _cleanStepShortLabel(
+                bundle.fardPrayers[i].titleFor(headingLang),
+              ),
+              isPrimary: true,
+              isActive:
+                  _activeJumpKey == 'niyyah_fard_${bundle.fardPrayers[i].id}',
+              onTap: () => _jumpToKey(
+                'niyyah_fard_${bundle.fardPrayers[i].id}',
+                beforeJumpStateChange: _niyyahScope == 'sunnah'
+                    ? () => _niyyahScope = 'all'
+                    : null,
               ),
             ),
+          for (int i = 0; i < bundle.sunnahPrayers.length; i++)
+            _ChainNodeEntry(
+              order: bundle.fardPrayers.length + i + 1,
+              label: _cleanStepShortLabel(
+                bundle.sunnahPrayers[i].titleFor(headingLang),
+              ),
+              isPrimary: false,
+              isActive: _activeJumpKey ==
+                  'niyyah_sunnah_${bundle.sunnahPrayers[i].id}',
+              onTap: () => _jumpToKey(
+                'niyyah_sunnah_${bundle.sunnahPrayers[i].id}',
+                beforeJumpStateChange: _niyyahScope == 'fard'
+                    ? () => _niyyahScope = 'all'
+                    : null,
+              ),
+            ),
+        ];
 
-            if (showFard) ...[
-              const SizedBox(height: 16),
-              _SectionTitleRow(
-                icon: Icons.mosque_rounded,
-                title: t.fardPrayersSection,
+        return SingleChildScrollView(
+          controller: _scrollController,
+          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _IbadahSummaryTable(
+                title: hStrings.summaryTableTitle,
+                rows: summaryRows,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
                 accentColor: accentColor,
               ),
-              const SizedBox(height: 10),
-              // Role selector: Munfarid / Imam / Ma'moom
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: palette.cardBg,
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: palette.cardBorder),
-                ),
+              const SizedBox(height: 12),
+              _OrderedChainBar(
+                title: hStrings.orderedChainTitle,
+                nodes: chainNodes,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                accentColor: accentColor,
+              ),
+              const SizedBox(height: 14),
+
+              // Scope Filter Row
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _RoleSegmentButton(
-                      label: t.roleMunfarid,
-                      selected: _selectedRole == 'munfarid',
+                    _FilterChipButton(
+                      label: hStrings.filterAll,
+                      selected: _niyyahScope == 'all',
                       accentColor: accentColor,
-                      onTap: () => setState(() => _selectedRole = 'munfarid'),
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _niyyahScope = 'all'),
                     ),
-                    _RoleSegmentButton(
-                      label: t.roleImam,
-                      selected: _selectedRole == 'imam',
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label:
+                          '${hStrings.fardBadgeLabel} (${bundle.fardPrayers.length})',
+                      selected: _niyyahScope == 'fard',
                       accentColor: accentColor,
-                      onTap: () => setState(() => _selectedRole = 'imam'),
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _niyyahScope = 'fard'),
                     ),
-                    _RoleSegmentButton(
-                      label: t.roleMamoom,
-                      selected: _selectedRole == 'mamoom',
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label:
+                          '${hStrings.sunnahBadgeLabel} (${bundle.sunnahPrayers.length})',
+                      selected: _niyyahScope == 'sunnah',
                       accentColor: accentColor,
-                      onTap: () => setState(() => _selectedRole = 'mamoom'),
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _niyyahScope = 'sunnah'),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              for (final prayer in bundle.fardPrayers)
-                Builder(
-                  builder: (_) {
-                    final variant = prayer.variantForRole(_selectedRole);
-                    return IbadahAudioCard(
-                      title: prayer.titleFor(lang),
-                      subtitle: variant.labelFor(lang),
-                      badgeText: '${prayer.rakaat} Raka\'at',
-                      badgeColor: accentColor,
-                      isHighlighted: true,
-                      arabicText: variant.arabic,
-                      transliterationMl: variant.transliterationMl,
-                      meaningText: variant.meaningFor(lang),
-                      audioPath: variant.audioPath,
-                      strings: t,
-                      cardBg: palette.cardBg,
-                      cardBorder: palette.cardBorder,
-                    );
-                  },
-                ),
-            ],
 
-            if (showSunnah) ...[
-              const SizedBox(height: 14),
-              _SectionTitleRow(
-                icon: Icons.auto_awesome_rounded,
-                title: t.sunnahPrayersSection,
-                accentColor: AppBranding.accentGold,
-              ),
-              const SizedBox(height: 10),
-              for (final item in bundle.sunnahPrayers)
-                IbadahAudioCard(
-                  title: item.titleFor(lang),
-                  badgeText: t.sunnahBadgeLabel,
-                  badgeColor: AppBranding.accentGold,
-                  arabicText: item.arabic,
-                  transliterationMl: item.transliterationMl,
-                  meaningText: item.meaningFor(lang),
-                  noteText: item.noteFor(lang),
-                  audioPath: item.audioPath,
-                  strings: t,
-                  cardBg: palette.cardBg,
-                  cardBorder: palette.cardBorder,
+              if (showFard) ...[
+                const SizedBox(height: 16),
+                KeyedSubtree(
+                  key: _keyFor('niyyah_fard_section'),
+                  child: _SectionTitleRow(
+                    icon: Icons.mosque_rounded,
+                    title: hStrings.fardPrayersSection,
+                    accentColor: accentColor,
+                  ),
                 ),
+                const SizedBox(height: 10),
+                // Role selector: Munfarid / Imam / Ma'moom
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: palette.cardBg,
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: palette.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      _RoleSegmentButton(
+                        label: hStrings.roleMunfarid,
+                        selected: _selectedRole == 'munfarid',
+                        accentColor: accentColor,
+                        onTap: () => setState(() => _selectedRole = 'munfarid'),
+                      ),
+                      _RoleSegmentButton(
+                        label: hStrings.roleImam,
+                        selected: _selectedRole == 'imam',
+                        accentColor: accentColor,
+                        onTap: () => setState(() => _selectedRole = 'imam'),
+                      ),
+                      _RoleSegmentButton(
+                        label: hStrings.roleMamoom,
+                        selected: _selectedRole == 'mamoom',
+                        accentColor: accentColor,
+                        onTap: () => setState(() => _selectedRole = 'mamoom'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                for (int i = 0; i < bundle.fardPrayers.length; i++)
+                  Builder(
+                    builder: (_) {
+                      final prayer = bundle.fardPrayers[i];
+                      final variant = prayer.variantForRole(_selectedRole);
+                      final keyId = 'niyyah_fard_${prayer.id}';
+                      return KeyedSubtree(
+                        key: _keyFor(keyId),
+                        child: IbadahAudioCard(
+                          orderBadge: '${i + 1}',
+                          title: prayer.titleFor(headingLang),
+                          subtitle: variant.labelFor(headingLang),
+                          badgeText: headingLang == 'ml'
+                              ? '${prayer.rakaat} റക്അത്ത്'
+                              : '${prayer.rakaat} Raka\'at',
+                          badgeColor: accentColor,
+                          isHighlighted: true,
+                          isJumpFocused: _activeJumpKey == keyId,
+                          arabicText: variant.arabic,
+                          transliterationMl: variant.transliterationMl,
+                          meaningText: variant.meaningFor(lang),
+                          audioPath: variant.audioPath,
+                          showTransliteration: showTransliteration,
+                          showMeaning: showMeaning,
+                          showNotes: showNotes,
+                          showAudio: showAudio,
+                          strings: t,
+                          cardBg: palette.cardBg,
+                          cardBorder: palette.cardBorder,
+                        ),
+                      );
+                    },
+                  ),
+              ],
+
+              if (showSunnah) ...[
+                const SizedBox(height: 14),
+                KeyedSubtree(
+                  key: _keyFor('niyyah_sunnah_section'),
+                  child: _SectionTitleRow(
+                    icon: Icons.auto_awesome_rounded,
+                    title: hStrings.sunnahPrayersSection,
+                    accentColor: AppBranding.accentGold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                for (int i = 0; i < bundle.sunnahPrayers.length; i++)
+                  Builder(
+                    builder: (_) {
+                      final item = bundle.sunnahPrayers[i];
+                      final keyId = 'niyyah_sunnah_${item.id}';
+                      return KeyedSubtree(
+                        key: _keyFor(keyId),
+                        child: IbadahAudioCard(
+                          orderBadge: '${bundle.fardPrayers.length + i + 1}',
+                          title: item.titleFor(headingLang),
+                          badgeText: hStrings.sunnahBadgeLabel,
+                          badgeColor: AppBranding.accentGold,
+                          isJumpFocused: _activeJumpKey == keyId,
+                          arabicText: item.arabic,
+                          transliterationMl: item.transliterationMl,
+                          meaningText: item.meaningFor(lang),
+                          noteText: item.noteFor(lang),
+                          audioPath: item.audioPath,
+                          showTransliteration: showTransliteration,
+                          showMeaning: showMeaning,
+                          showNotes: showNotes,
+                          showAudio: showAudio,
+                          strings: t,
+                          cardBg: palette.cardBg,
+                          cardBorder: palette.cardBorder,
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ],
-          ],
+          ),
         );
       },
     );
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 2: COMPLETE SALAH GUIDE
+  // VIEW 2: COMPLETE SALAH GUIDE
   // ---------------------------------------------------------------------------
-  Widget _buildSalahGuideTab(
-    AppStrings t,
-    String lang,
-    ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
-    double hPad,
-    Color accentColor,
-    ColorScheme cs,
-  ) {
+  Widget _buildSalahGuideView({
+    required AppStrings t,
+    required AppStrings hStrings,
+    required String lang,
+    required String headingLang,
+    required bool showTransliteration,
+    required bool showMeaning,
+    required bool showNotes,
+    required bool showAudio,
+    required ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
+    required double hPad,
+    required Color accentColor,
+    required ColorScheme cs,
+  }) {
     final asyncBundle = ref.watch(ibadahSalahGuideProvider);
     return asyncBundle.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -393,306 +665,406 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
             ? bundle.steps.where((s) => s.isFard).toList()
             : bundle.steps;
 
-        return ListView(
-          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 28),
-          children: [
-            // 1. Shart (Pre-Salah Conditions) Interactive Checklist
-            Container(
-              decoration: BoxDecoration(
-                color: palette.cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: palette.cardBorder),
+        final summaryRows = <_SummaryRowEntry>[
+          _SummaryRowEntry(
+            label: hStrings.shartChecklistTitle,
+            countText: '$totalSharts',
+            icon: Icons.checklist_rounded,
+            accent: accentColor,
+            onTap: () => _jumpToKey(
+              'salah_shart',
+              beforeJumpStateChange: () => _shartsExpanded = true,
+            ),
+          ),
+          _SummaryRowEntry(
+            label: hStrings.arkanSectionTitle,
+            countText: '${bundle.arkan.length}',
+            icon: Icons.foundation_rounded,
+            accent: accentColor,
+            onTap: () => _jumpToKey(
+              'salah_arkan',
+              beforeJumpStateChange: () => _arkanExpanded = true,
+            ),
+          ),
+          _SummaryRowEntry(
+            label: hStrings.stepByStepSalahTitle,
+            countText: '${bundle.steps.length}',
+            icon: Icons.format_list_numbered_rounded,
+            accent: AppBranding.accentGold,
+            onTap: () => _jumpToKey(
+              'salah_steps_header',
+              beforeJumpStateChange:
+                  _fardStepsOnly ? () => _fardStepsOnly = false : null,
+            ),
+          ),
+        ];
+
+        final chainNodes = <_ChainNodeEntry>[
+          for (final step in bundle.steps)
+            _ChainNodeEntry(
+              order: step.order,
+              label: _cleanStepShortLabel(step.titleFor(headingLang)),
+              isPrimary: step.isFard,
+              isActive: _activeJumpKey == 'salah_step_${step.order}',
+              onTap: () => _jumpToKey(
+                'salah_step_${step.order}',
+                beforeJumpStateChange: (_fardStepsOnly && !step.isFard)
+                    ? () => _fardStepsOnly = false
+                    : null,
               ),
-              child: Column(
-                children: [
-                  InkWell(
+            ),
+        ];
+
+        return SingleChildScrollView(
+          controller: _scrollController,
+          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Overview Summary Table
+              _IbadahSummaryTable(
+                title: hStrings.summaryTableTitle,
+                rows: summaryRows,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                accentColor: accentColor,
+              ),
+              const SizedBox(height: 12),
+
+              // Ordered Chain Stepper (1 -> 2 -> ... -> 14)
+              _OrderedChainBar(
+                title: hStrings.orderedChainTitle,
+                nodes: chainNodes,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                accentColor: accentColor,
+              ),
+              const SizedBox(height: 14),
+
+              // 1. Shart (Pre-Salah Conditions) Interactive Checklist
+              _highlightBox(
+                keyId: 'salah_shart',
+                accentColor: accentColor,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: palette.cardBg,
                     borderRadius: BorderRadius.circular(18),
-                    onTap: () =>
-                        setState(() => _shartsExpanded = !_shartsExpanded),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.13),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              Icons.checklist_rounded,
-                              size: 19,
-                              color: accentColor,
-                            ),
+                    border: Border.all(color: palette.cardBorder),
+                  ),
+                  child: Column(
+                    children: [
+                      InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () =>
+                            setState(() => _shartsExpanded = !_shartsExpanded),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: accentColor.withValues(alpha: 0.13),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.checklist_rounded,
+                                  size: 19,
+                                  color: accentColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      hStrings.shartChecklistTitle,
+                                      style: const TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    Text(
+                                      '$checkedCount / $totalSharts',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: accentColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (checkedCount > 0)
+                                TextButton(
+                                  onPressed: _resetSharts,
+                                  style: TextButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  child: Text(
+                                    hStrings.resetChecklistLabel,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              Icon(
+                                _shartsExpanded
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  t.shartChecklistTitle,
+                        ),
+                      ),
+                      if (_shartsExpanded) ...[
+                        Divider(height: 1, color: palette.cardBorder),
+                        for (int i = 0; i < bundle.conditions.length; i++)
+                          Builder(
+                            builder: (_) {
+                              final cond = bundle.conditions[i];
+                              final isChecked = _checkedSharts.contains(cond.id);
+                              return CheckboxListTile(
+                                value: isChecked,
+                                activeColor: accentColor,
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                dense: true,
+                                onChanged: (_) => _toggleShart(cond.id),
+                                title: Text(
+                                  cond.titleFor(headingLang),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                    decoration: isChecked
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    color: isChecked
+                                        ? cs.onSurfaceVariant
+                                        : cs.onSurface,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  cond.descFor(headingLang),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // 2. Arkan (14 Obligatory Pillars) Collapsible Card
+              _highlightBox(
+                keyId: 'salah_arkan',
+                accentColor: accentColor,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: palette.cardBg,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.32),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () =>
+                            setState(() => _arkanExpanded = !_arkanExpanded),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: accentColor.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.foundation_rounded,
+                                  size: 19,
+                                  color: accentColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  hStrings.arkanSectionTitle,
                                   style: const TextStyle(
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
-                                Text(
-                                  '$checkedCount / $totalSharts',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: accentColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (checkedCount > 0)
-                            TextButton(
-                              onPressed: _resetSharts,
-                              style: TextButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
                               ),
-                              child: Text(
-                                t.resetChecklistLabel,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          Icon(
-                            _shartsExpanded
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (_shartsExpanded) ...[
-                    Divider(height: 1, color: palette.cardBorder),
-                    for (int i = 0; i < bundle.conditions.length; i++)
-                      Builder(
-                        builder: (_) {
-                          final cond = bundle.conditions[i];
-                          final isChecked = _checkedSharts.contains(cond.id);
-                          return CheckboxListTile(
-                            value: isChecked,
-                            activeColor: accentColor,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            dense: true,
-                            onChanged: (_) => _toggleShart(cond.id),
-                            title: Text(
-                              cond.titleFor(lang),
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                decoration: isChecked
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                                color: isChecked
-                                    ? cs.onSurfaceVariant
-                                    : cs.onSurface,
-                              ),
-                            ),
-                            subtitle: Text(
-                              cond.descFor(lang),
-                              style: TextStyle(
-                                fontSize: 12,
+                              Icon(
+                                _arkanExpanded
+                                    ? Icons.keyboard_arrow_up_rounded
+                                    : Icons.keyboard_arrow_down_rounded,
                                 color: cs.onSurfaceVariant,
                               ),
-                            ),
-                          );
-                        },
+                            ],
+                          ),
+                        ),
                       ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // 2. Arkan (13 Obligatory Pillars) Collapsible Card
-            Container(
-              decoration: BoxDecoration(
-                color: palette.cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: accentColor.withValues(alpha: 0.32),
-                ),
-              ),
-              child: Column(
-                children: [
-                  InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: () =>
-                        setState(() => _arkanExpanded = !_arkanExpanded),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              Icons.foundation_rounded,
-                              size: 19,
-                              color: accentColor,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              t.arkanSectionTitle,
-                              style: const TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            _arkanExpanded
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (_arkanExpanded) ...[
-                    Divider(height: 1, color: palette.cardBorder),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          for (final rukn in bundle.arkan)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 7),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 24,
-                                    height: 24,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: accentColor.withValues(alpha: 0.14),
-                                      borderRadius: BorderRadius.circular(7),
-                                    ),
-                                    child: Text(
-                                      '${rukn.order}',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: accentColor,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text(
-                                        rukn.titleFor(lang),
-                                        style: const TextStyle(
-                                          fontSize: 13.2,
-                                          fontWeight: FontWeight.w600,
+                      if (_arkanExpanded) ...[
+                        Divider(height: 1, color: palette.cardBorder),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            children: [
+                              for (final rukn in bundle.arkan)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 7),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: accentColor
+                                              .withValues(alpha: 0.14),
+                                          borderRadius:
+                                              BorderRadius.circular(7),
+                                        ),
+                                        child: Text(
+                                          '${rukn.order}',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: accentColor,
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 2),
+                                          child: Text(
+                                            rukn.titleFor(headingLang),
+                                            style: const TextStyle(
+                                              fontSize: 13.2,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 3. Step-by-Step Salah Order Header + Filter
-            Row(
-              children: [
-                Expanded(
-                  child: _SectionTitleRow(
-                    icon: Icons.format_list_numbered_rounded,
-                    title: t.stepByStepSalahTitle,
-                    accentColor: accentColor,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _FilterChipButton(
-                  label: '${t.filterAll} (${bundle.steps.length})',
-                  selected: !_fardStepsOnly,
-                  accentColor: accentColor,
-                  cardBg: palette.cardBg,
-                  cardBorder: palette.cardBorder,
-                  onTap: () => setState(() => _fardStepsOnly = false),
-                ),
-                const SizedBox(width: 8),
-                _FilterChipButton(
-                  label:
-                      '${t.fardBadgeLabel} (${bundle.steps.where((s) => s.isFard).length})',
-                  selected: _fardStepsOnly,
-                  accentColor: accentColor,
-                  cardBg: palette.cardBg,
-                  cardBorder: palette.cardBorder,
-                  onTap: () => setState(() => _fardStepsOnly = true),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            for (final step in stepsToShow)
-              IbadahAudioCard(
-                orderBadge: '${step.order}',
-                title: step.titleFor(lang),
-                subtitle: step.postureFor(lang),
-                badgeText:
-                    step.isFard ? t.fardBadgeLabel : t.sunnahBadgeLabel,
-                badgeColor:
-                    step.isFard ? accentColor : AppBranding.accentGold,
-                isHighlighted: step.isFard,
-                arabicText: step.arabic,
-                transliterationMl: step.transliterationMl,
-                meaningText: step.meaningFor(lang),
-                noteText: step.noteFor(lang),
-                audioPath: step.audioPath,
-                strings: t,
-                cardBg: palette.cardBg,
-                cardBorder: palette.cardBorder,
               ),
-          ],
+
+              const SizedBox(height: 16),
+
+              // 3. Step-by-Step Salah Order Header + Filter
+              KeyedSubtree(
+                key: _keyFor('salah_steps_header'),
+                child: _SectionTitleRow(
+                  icon: Icons.format_list_numbered_rounded,
+                  title: hStrings.stepByStepSalahTitle,
+                  accentColor: accentColor,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _FilterChipButton(
+                    label: '${hStrings.filterAll} (${bundle.steps.length})',
+                    selected: !_fardStepsOnly,
+                    accentColor: accentColor,
+                    cardBg: palette.cardBg,
+                    cardBorder: palette.cardBorder,
+                    onTap: () => setState(() => _fardStepsOnly = false),
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChipButton(
+                    label:
+                        '${hStrings.fardBadgeLabel} (${bundle.steps.where((s) => s.isFard).length})',
+                    selected: _fardStepsOnly,
+                    accentColor: accentColor,
+                    cardBg: palette.cardBg,
+                    cardBorder: palette.cardBorder,
+                    onTap: () => setState(() => _fardStepsOnly = true),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              for (final step in stepsToShow)
+                KeyedSubtree(
+                  key: _keyFor('salah_step_${step.order}'),
+                  child: IbadahAudioCard(
+                    orderBadge: '${step.order}',
+                    title: step.titleFor(headingLang),
+                    subtitle: step.postureFor(headingLang),
+                    badgeText: step.isFard
+                        ? hStrings.fardBadgeLabel
+                        : hStrings.sunnahBadgeLabel,
+                    badgeColor:
+                        step.isFard ? accentColor : AppBranding.accentGold,
+                    isHighlighted: step.isFard,
+                    isJumpFocused:
+                        _activeJumpKey == 'salah_step_${step.order}',
+                    arabicText: step.arabic,
+                    transliterationMl: step.transliterationMl,
+                    meaningText: step.meaningFor(lang),
+                    noteText: step.noteFor(lang),
+                    audioPath: step.audioPath,
+                    showTransliteration: showTransliteration,
+                    showMeaning: showMeaning,
+                    showNotes: showNotes,
+                    showAudio: showAudio,
+                    strings: t,
+                    cardBg: palette.cardBg,
+                    cardBorder: palette.cardBorder,
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 3: RAWATIB SUNNAH & RECOMMENDED SURAHS
+  // VIEW 3: RAWATIB SUNNAH & RECOMMENDED SURAHS
   // ---------------------------------------------------------------------------
-  Widget _buildRawatibAndSurahsTab(
-    AppStrings t,
-    String lang,
-    ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
-    double hPad,
-    Color accentColor,
-    ColorScheme cs,
-  ) {
+  Widget _buildRawatibAndSurahsView({
+    required AppStrings t,
+    required AppStrings hStrings,
+    required String lang,
+    required String headingLang,
+    required bool showTransliteration,
+    required bool showMeaning,
+    required bool showNotes,
+    required bool showAudio,
+    required ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
+    required double hPad,
+    required Color accentColor,
+    required ColorScheme cs,
+  }) {
     final asyncBundle = ref.watch(ibadahSunnahSurahsProvider);
     return asyncBundle.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -706,293 +1078,425 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
             _rawatibSection == 'all' || _rawatibSection == 'rawatib';
         final showSurahs =
             _rawatibSection == 'all' || _rawatibSection == 'surahs';
+        final totalRawatibRakaat = bundle.rawatib.fold<int>(
+          0,
+          (sum, g) => sum + g.totalRakaat,
+        );
 
-        return ListView(
-          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 28),
-          children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _FilterChipButton(
-                    label: t.filterAll,
-                    selected: _rawatibSection == 'all',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _rawatibSection = 'all'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChipButton(
-                    label: t.rawatibScheduleTitle,
-                    selected: _rawatibSection == 'rawatib',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _rawatibSection = 'rawatib'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChipButton(
-                    label: t.recommendedSurahsTitle,
-                    selected: _rawatibSection == 'surahs',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _rawatibSection = 'surahs'),
-                  ),
-                ],
+        final summaryRows = <_SummaryRowEntry>[
+          _SummaryRowEntry(
+            label: hStrings.rawatibScheduleTitle,
+            countText: '${bundle.rawatib.length} ($totalRawatibRakaat R)',
+            icon: Icons.schedule_rounded,
+            accent: accentColor,
+            onTap: () => _jumpToKey(
+              'rawatib_section',
+              beforeJumpStateChange: _rawatibSection == 'surahs'
+                  ? () => _rawatibSection = 'all'
+                  : null,
+            ),
+          ),
+          _SummaryRowEntry(
+            label: hStrings.recommendedSurahsTitle,
+            countText: '${bundle.recommendedSurahs.length}',
+            icon: Icons.menu_book_rounded,
+            accent: AppBranding.accentGold,
+            onTap: () => _jumpToKey(
+              'surahs_section',
+              beforeJumpStateChange: _rawatibSection == 'rawatib'
+                  ? () => _rawatibSection = 'all'
+                  : null,
+            ),
+          ),
+        ];
+
+        final chainNodes = <_ChainNodeEntry>[
+          for (int i = 0; i < bundle.rawatib.length; i++)
+            _ChainNodeEntry(
+              order: i + 1,
+              label: _cleanStepShortLabel(
+                bundle.rawatib[i].prayerFor(headingLang),
+              ),
+              isPrimary: true,
+              isActive: _activeJumpKey ==
+                  'rawatib_group_${bundle.rawatib[i].prayerId}',
+              onTap: () => _jumpToKey(
+                'rawatib_group_${bundle.rawatib[i].prayerId}',
+                beforeJumpStateChange: _rawatibSection == 'surahs'
+                    ? () => _rawatibSection = 'all'
+                    : null,
               ),
             ),
+          for (int i = 0; i < bundle.recommendedSurahs.length; i++)
+            _ChainNodeEntry(
+              order: bundle.rawatib.length + i + 1,
+              label: _cleanStepShortLabel(
+                bundle.recommendedSurahs[i].occasionFor(headingLang),
+              ),
+              isPrimary: false,
+              isActive: _activeJumpKey == 'surah_group_$i',
+              onTap: () => _jumpToKey(
+                'surah_group_$i',
+                beforeJumpStateChange: _rawatibSection == 'rawatib'
+                    ? () => _rawatibSection = 'all'
+                    : null,
+              ),
+            ),
+        ];
 
-            if (showRawatib) ...[
-              const SizedBox(height: 16),
-              _SectionTitleRow(
-                icon: Icons.schedule_rounded,
-                title: t.rawatibScheduleTitle,
+        return SingleChildScrollView(
+          controller: _scrollController,
+          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _IbadahSummaryTable(
+                title: hStrings.summaryTableTitle,
+                rows: summaryRows,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
                 accentColor: accentColor,
               ),
-              const SizedBox(height: 10),
-              for (final group in bundle.rawatib) ...[
-                Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: palette.cardBg,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: palette.cardBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              group.prayerFor(lang),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: cs.onSurface,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 9,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                            child: Text(
-                              '${group.totalRakaat} Raka\'at',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                                color: accentColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (group.before.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          t.beforePrayerLabel.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.4,
-                            color: accentColor,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        for (final item in group.before)
-                          IbadahAudioCard(
-                            title: item.timingFor(lang),
-                            badgeText: item.isMuakkadah
-                                ? t.muakkadahBadgeLabel
-                                : t.ghairMuakkadahBadgeLabel,
-                            badgeColor: item.isMuakkadah
-                                ? accentColor
-                                : AppBranding.accentGold,
-                            isHighlighted: item.isMuakkadah,
-                            arabicText: item.arabic,
-                            transliterationMl: item.transliterationMl,
-                            meaningText: item.meaningMl,
-                            noteText: item.noteFor(lang),
-                            audioPath: item.audioPath,
-                            strings: t,
-                            cardBg: palette.cardBg,
-                            cardBorder: palette.cardBorder,
-                          ),
-                      ],
-                      if (group.after.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          t.afterPrayerLabel.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.4,
-                            color: AppBranding.accentGold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        for (final item in group.after)
-                          IbadahAudioCard(
-                            title: item.timingFor(lang),
-                            badgeText: item.isMuakkadah
-                                ? t.muakkadahBadgeLabel
-                                : t.ghairMuakkadahBadgeLabel,
-                            badgeColor: item.isMuakkadah
-                                ? accentColor
-                                : AppBranding.accentGold,
-                            isHighlighted: item.isMuakkadah,
-                            arabicText: item.arabic,
-                            transliterationMl: item.transliterationMl,
-                            meaningText: item.meaningMl,
-                            noteText: item.noteFor(lang),
-                            audioPath: item.audioPath,
-                            strings: t,
-                            cardBg: palette.cardBg,
-                            cardBorder: palette.cardBorder,
-                          ),
-                      ],
-                    ],
+              const SizedBox(height: 12),
+              _OrderedChainBar(
+                title: hStrings.orderedChainTitle,
+                nodes: chainNodes,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                accentColor: accentColor,
+              ),
+              const SizedBox(height: 14),
+
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _FilterChipButton(
+                      label: hStrings.filterAll,
+                      selected: _rawatibSection == 'all',
+                      accentColor: accentColor,
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _rawatibSection = 'all'),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label: hStrings.rawatibScheduleTitle,
+                      selected: _rawatibSection == 'rawatib',
+                      accentColor: accentColor,
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _rawatibSection = 'rawatib'),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label: hStrings.recommendedSurahsTitle,
+                      selected: _rawatibSection == 'surahs',
+                      accentColor: accentColor,
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _rawatibSection = 'surahs'),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (showRawatib) ...[
+                const SizedBox(height: 16),
+                KeyedSubtree(
+                  key: _keyFor('rawatib_section'),
+                  child: _SectionTitleRow(
+                    icon: Icons.schedule_rounded,
+                    title: hStrings.rawatibScheduleTitle,
+                    accentColor: accentColor,
                   ),
                 ),
-              ],
-            ],
-
-            if (showSurahs) ...[
-              const SizedBox(height: 8),
-              _SectionTitleRow(
-                icon: Icons.menu_book_rounded,
-                title: t.recommendedSurahsTitle,
-                accentColor: AppBranding.accentGold,
-              ),
-              const SizedBox(height: 10),
-              for (final group in bundle.recommendedSurahs)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: palette.cardBg,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: palette.cardBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        group.occasionFor(lang),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
+                const SizedBox(height: 10),
+                for (final group in bundle.rawatib)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _highlightBox(
+                      keyId: 'rawatib_group_${group.prayerId}',
+                      accentColor: accentColor,
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: palette.cardBg,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: palette.cardBorder),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        group.reasonFor(lang),
-                        style: TextStyle(
-                          fontSize: 12.8,
-                          height: 1.45,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final surah in group.surahs)
-                            Material(
-                              color: accentColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: widget.onOpenSurah == null
-                                    ? null
-                                    : () => widget.onOpenSurah!(
-                                        surah.surahNumber),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 11,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: accentColor.withValues(alpha: 0.28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    group.prayerFor(headingLang),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: cs.onSurface,
                                     ),
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        '${surah.surahNumber}. ${surah.nameFor(lang)}',
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: cs.onSurface,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        surah.nameAr,
-                                        style: GoogleFonts.amiri(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                          color: accentColor,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '· ${surah.tagFor(lang)}',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: cs.onSurfaceVariant,
-                                        ),
-                                      ),
-                                      if (widget.onOpenSurah != null) ...[
-                                        const SizedBox(width: 5),
-                                        Icon(
-                                          Icons.open_in_new_rounded,
-                                          size: 13.5,
-                                          color: accentColor,
-                                        ),
-                                      ],
-                                    ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: accentColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(9),
+                                  ),
+                                  child: Text(
+                                    headingLang == 'ml'
+                                        ? '${group.totalRakaat} റക്അത്ത്'
+                                        : '${group.totalRakaat} Raka\'at',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: accentColor,
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                        ],
+                            if (group.before.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                hStrings.beforePrayerLabel.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                  color: accentColor,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              for (final item in group.before)
+                                IbadahAudioCard(
+                                  title: item.timingFor(headingLang),
+                                  badgeText: item.isMuakkadah
+                                      ? hStrings.muakkadahBadgeLabel
+                                      : hStrings.ghairMuakkadahBadgeLabel,
+                                  badgeColor: item.isMuakkadah
+                                      ? accentColor
+                                      : AppBranding.accentGold,
+                                  isHighlighted: item.isMuakkadah,
+                                  arabicText: item.arabic,
+                                  transliterationMl: item.transliterationMl,
+                                  meaningText: item.meaningMl,
+                                  noteText: item.noteFor(lang),
+                                  audioPath: item.audioPath,
+                                  showTransliteration: showTransliteration,
+                                  showMeaning: showMeaning,
+                                  showNotes: showNotes,
+                                  showAudio: showAudio,
+                                  strings: t,
+                                  cardBg: palette.cardBg,
+                                  cardBorder: palette.cardBorder,
+                                ),
+                            ],
+                            if (group.after.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                hStrings.afterPrayerLabel.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                  color: AppBranding.accentGold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              for (final item in group.after)
+                                IbadahAudioCard(
+                                  title: item.timingFor(headingLang),
+                                  badgeText: item.isMuakkadah
+                                      ? hStrings.muakkadahBadgeLabel
+                                      : hStrings.ghairMuakkadahBadgeLabel,
+                                  badgeColor: item.isMuakkadah
+                                      ? accentColor
+                                      : AppBranding.accentGold,
+                                  isHighlighted: item.isMuakkadah,
+                                  arabicText: item.arabic,
+                                  transliterationMl: item.transliterationMl,
+                                  meaningText: item.meaningMl,
+                                  noteText: item.noteFor(lang),
+                                  audioPath: item.audioPath,
+                                  showTransliteration: showTransliteration,
+                                  showMeaning: showMeaning,
+                                  showNotes: showNotes,
+                                  showAudio: showAudio,
+                                  strings: t,
+                                  cardBg: palette.cardBg,
+                                  cardBorder: palette.cardBorder,
+                                ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
+                  ),
+              ],
+
+              if (showSurahs) ...[
+                const SizedBox(height: 8),
+                KeyedSubtree(
+                  key: _keyFor('surahs_section'),
+                  child: _SectionTitleRow(
+                    icon: Icons.menu_book_rounded,
+                    title: hStrings.recommendedSurahsTitle,
+                    accentColor: AppBranding.accentGold,
                   ),
                 ),
+                const SizedBox(height: 10),
+                for (int i = 0; i < bundle.recommendedSurahs.length; i++)
+                  Builder(
+                    builder: (_) {
+                      final group = bundle.recommendedSurahs[i];
+                      final keyId = 'surah_group_$i';
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _highlightBox(
+                          keyId: keyId,
+                          accentColor: AppBranding.accentGold,
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: palette.cardBg,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: palette.cardBorder),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  group.occasionFor(headingLang),
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                if (showNotes) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    group.reasonFor(lang),
+                                    style: TextStyle(
+                                      fontSize: 12.8,
+                                      height: 1.45,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    for (final surah in group.surahs)
+                                      Material(
+                                        color:
+                                            accentColor.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: InkWell(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          onTap: widget.onOpenSurah == null
+                                              ? null
+                                              : () => widget.onOpenSurah!(
+                                                  surah.surahNumber),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 11,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: accentColor.withValues(
+                                                    alpha: 0.28),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  '${surah.surahNumber}. ${surah.nameFor(headingLang)}',
+                                                  style: TextStyle(
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: cs.onSurface,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  surah.nameAr,
+                                                  style: GoogleFonts.amiri(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: accentColor,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  '· ${surah.tagFor(headingLang)}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: cs.onSurfaceVariant,
+                                                  ),
+                                                ),
+                                                if (widget.onOpenSurah !=
+                                                    null) ...[
+                                                  const SizedBox(width: 5),
+                                                  Icon(
+                                                    Icons.open_in_new_rounded,
+                                                    size: 13.5,
+                                                    color: accentColor,
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ],
-          ],
+          ),
         );
       },
     );
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 4: MAYYITH (FUNERAL PRAYER & PREPARATION GUIDE)
+  // VIEW 4: MAYYITH (FUNERAL PRAYER & PREPARATION GUIDE)
   // ---------------------------------------------------------------------------
-  Widget _buildMayyithTab(
-    AppStrings t,
-    String lang,
-    ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
-    double hPad,
-    Color accentColor,
-    ColorScheme cs,
-  ) {
+  Widget _buildMayyithView({
+    required AppStrings t,
+    required AppStrings hStrings,
+    required String lang,
+    required String headingLang,
+    required bool showTransliteration,
+    required bool showMeaning,
+    required bool showNotes,
+    required bool showAudio,
+    required ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
+    required double hPad,
+    required Color accentColor,
+    required ColorScheme cs,
+  }) {
     final asyncBundle = ref.watch(ibadahMayyithProvider);
     return asyncBundle.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -1010,193 +1514,700 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen>
         final showBurial =
             _mayyithSection == 'all' || _mayyithSection == 'burial';
 
-        return ListView(
-          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 28),
-          children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _FilterChipButton(
-                    label: t.filterAll,
-                    selected: _mayyithSection == 'all',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _mayyithSection = 'all'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChipButton(
-                    label: t.mayyithPrepTitle,
-                    selected: _mayyithSection == 'prep',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _mayyithSection = 'prep'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChipButton(
-                    label: t.niyyahTabLabel,
-                    selected: _mayyithSection == 'niyyah',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _mayyithSection = 'niyyah'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChipButton(
-                    label: t.mayyithTakbirsTitle,
-                    selected: _mayyithSection == 'takbirs',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _mayyithSection = 'takbirs'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChipButton(
-                    label: t.mayyithBurialTitle,
-                    selected: _mayyithSection == 'burial',
-                    accentColor: accentColor,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => setState(() => _mayyithSection = 'burial'),
-                  ),
-                ],
+        final summaryRows = <_SummaryRowEntry>[
+          _SummaryRowEntry(
+            label: hStrings.mayyithPrepTitle,
+            countText: '${bundle.preparationStages.length}',
+            icon: Icons.medical_services_outlined,
+            accent: accentColor,
+            onTap: () => _jumpToKey(
+              'mayyith_prep',
+              beforeJumpStateChange: (_mayyithSection != 'all' &&
+                      _mayyithSection != 'prep')
+                  ? () => _mayyithSection = 'all'
+                  : null,
+            ),
+          ),
+          _SummaryRowEntry(
+            label: hStrings.mayyithNiyyahTitle,
+            countText: '${bundle.niyyah.length}',
+            icon: Icons.record_voice_over_rounded,
+            accent: accentColor,
+            onTap: () => _jumpToKey(
+              'mayyith_niyyah',
+              beforeJumpStateChange: (_mayyithSection != 'all' &&
+                      _mayyithSection != 'niyyah')
+                  ? () => _mayyithSection = 'all'
+                  : null,
+            ),
+          ),
+          _SummaryRowEntry(
+            label: hStrings.mayyithTakbirsTitle,
+            countText: '${bundle.takbirs.length}',
+            icon: Icons.looks_4_rounded,
+            accent: AppBranding.accentGold,
+            onTap: () => _jumpToKey(
+              'mayyith_takbirs',
+              beforeJumpStateChange: (_mayyithSection != 'all' &&
+                      _mayyithSection != 'takbirs')
+                  ? () => _mayyithSection = 'all'
+                  : null,
+            ),
+          ),
+          _SummaryRowEntry(
+            label: hStrings.mayyithBurialTitle,
+            countText: '${bundle.burialAndTalqeen.length}',
+            icon: Icons.volunteer_activism_rounded,
+            accent: accentColor,
+            onTap: () => _jumpToKey(
+              'mayyith_burial',
+              beforeJumpStateChange: (_mayyithSection != 'all' &&
+                      _mayyithSection != 'burial')
+                  ? () => _mayyithSection = 'all'
+                  : null,
+            ),
+          ),
+        ];
+
+        final chainNodes = <_ChainNodeEntry>[];
+        int nodeOrder = 1;
+        for (final stage in bundle.preparationStages) {
+          final id = 'mayyith_prep_${stage.id}';
+          chainNodes.add(
+            _ChainNodeEntry(
+              order: nodeOrder++,
+              label: _cleanStepShortLabel(stage.titleFor(headingLang)),
+              isPrimary: true,
+              isActive: _activeJumpKey == id,
+              onTap: () => _jumpToKey(
+                id,
+                beforeJumpStateChange: (_mayyithSection != 'all' &&
+                        _mayyithSection != 'prep')
+                    ? () => _mayyithSection = 'all'
+                    : null,
               ),
             ),
+          );
+        }
+        if (bundle.niyyah.isNotEmpty) {
+          chainNodes.add(
+            _ChainNodeEntry(
+              order: nodeOrder++,
+              label: hStrings.niyyahTabLabel,
+              isPrimary: true,
+              isActive: _activeJumpKey == 'mayyith_niyyah',
+              onTap: () => _jumpToKey(
+                'mayyith_niyyah',
+                beforeJumpStateChange: (_mayyithSection != 'all' &&
+                        _mayyithSection != 'niyyah')
+                    ? () => _mayyithSection = 'all'
+                    : null,
+              ),
+            ),
+          );
+        }
+        for (final step in bundle.takbirs) {
+          final id = 'mayyith_takbir_${step.takbirNumber}';
+          chainNodes.add(
+            _ChainNodeEntry(
+              order: nodeOrder++,
+              label: _cleanStepShortLabel(step.titleFor(headingLang)),
+              isPrimary: false,
+              isActive: _activeJumpKey == id,
+              onTap: () => _jumpToKey(
+                id,
+                beforeJumpStateChange: (_mayyithSection != 'all' &&
+                        _mayyithSection != 'takbirs')
+                    ? () => _mayyithSection = 'all'
+                    : null,
+              ),
+            ),
+          );
+        }
+        for (final item in bundle.burialAndTalqeen) {
+          final id = 'mayyith_burial_${item.id}';
+          chainNodes.add(
+            _ChainNodeEntry(
+              order: nodeOrder++,
+              label: _cleanStepShortLabel(item.titleFor(headingLang)),
+              isPrimary: true,
+              isActive: _activeJumpKey == id,
+              onTap: () => _jumpToKey(
+                id,
+                beforeJumpStateChange: (_mayyithSection != 'all' &&
+                        _mayyithSection != 'burial')
+                    ? () => _mayyithSection = 'all'
+                    : null,
+              ),
+            ),
+          );
+        }
 
-            if (showPrep) ...[
-              const SizedBox(height: 16),
-              _SectionTitleRow(
-                icon: Icons.medical_services_outlined,
-                title: t.mayyithPrepTitle,
+        return SingleChildScrollView(
+          controller: _scrollController,
+          padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _IbadahSummaryTable(
+                title: hStrings.summaryTableTitle,
+                rows: summaryRows,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
                 accentColor: accentColor,
               ),
-              const SizedBox(height: 10),
-              for (final stage in bundle.preparationStages)
-                IbadahAudioCard(
-                  title: stage.titleFor(lang),
-                  badgeText: 'Shafi\'i',
-                  badgeColor: accentColor,
-                  arabicText: stage.arabic,
-                  transliterationMl: stage.transliterationMl,
-                  meaningText: stage.meaningMl,
-                  audioPath: stage.audioPath,
-                  strings: t,
-                  cardBg: palette.cardBg,
-                  cardBorder: palette.cardBorder,
-                  footerExtra: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final pt in stage.pointsFor(lang))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
+              const SizedBox(height: 12),
+              _OrderedChainBar(
+                title: hStrings.orderedChainTitle,
+                nodes: chainNodes,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                accentColor: accentColor,
+              ),
+              const SizedBox(height: 14),
+
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _FilterChipButton(
+                      label: hStrings.filterAll,
+                      selected: _mayyithSection == 'all',
+                      accentColor: accentColor,
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _mayyithSection = 'all'),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label: hStrings.mayyithPrepTitle,
+                      selected: _mayyithSection == 'prep',
+                      accentColor: accentColor,
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _mayyithSection = 'prep'),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label: hStrings.niyyahTabLabel,
+                      selected: _mayyithSection == 'niyyah',
+                      accentColor: accentColor,
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _mayyithSection = 'niyyah'),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label: hStrings.mayyithTakbirsTitle,
+                      selected: _mayyithSection == 'takbirs',
+                      accentColor: accentColor,
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _mayyithSection = 'takbirs'),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChipButton(
+                      label: hStrings.mayyithBurialTitle,
+                      selected: _mayyithSection == 'burial',
+                      accentColor: accentColor,
+                      cardBg: palette.cardBg,
+                      cardBorder: palette.cardBorder,
+                      onTap: () => setState(() => _mayyithSection = 'burial'),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (showPrep) ...[
+                const SizedBox(height: 16),
+                KeyedSubtree(
+                  key: _keyFor('mayyith_prep'),
+                  child: _SectionTitleRow(
+                    icon: Icons.medical_services_outlined,
+                    title: hStrings.mayyithPrepTitle,
+                    accentColor: accentColor,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                for (int i = 0; i < bundle.preparationStages.length; i++)
+                  Builder(
+                    builder: (_) {
+                      final stage = bundle.preparationStages[i];
+                      final keyId = 'mayyith_prep_${stage.id}';
+                      return KeyedSubtree(
+                        key: _keyFor(keyId),
+                        child: IbadahAudioCard(
+                          orderBadge: '${i + 1}',
+                          title: stage.titleFor(headingLang),
+                          badgeText: headingLang == 'ml' ? 'ശാഫിഈ' : 'Shafi\'i',
+                          badgeColor: accentColor,
+                          isJumpFocused: _activeJumpKey == keyId,
+                          arabicText: stage.arabic,
+                          transliterationMl: stage.transliterationMl,
+                          meaningText: stage.meaningMl,
+                          audioPath: stage.audioPath,
+                          showTransliteration: showTransliteration,
+                          showMeaning: showMeaning,
+                          showNotes: showNotes,
+                          showAudio: showAudio,
+                          strings: t,
+                          cardBg: palette.cardBg,
+                          cardBorder: palette.cardBorder,
+                          footerExtra: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: accentColor,
-                                    shape: BoxShape.circle,
+                              for (final pt in stage.pointsFor(headingLang))
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 6),
+                                        child: Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: BoxDecoration(
+                                            color: accentColor,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 9),
+                                      Expanded(
+                                        child: Text(
+                                          pt,
+                                          style: TextStyle(
+                                            fontSize: 13.2,
+                                            height: 1.5,
+                                            color: cs.onSurface,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: Text(
-                                  pt,
-                                  style: TextStyle(
-                                    fontSize: 13.2,
-                                    height: 1.5,
-                                    color: cs.onSurface,
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
                         ),
-                    ],
+                      );
+                    },
+                  ),
+              ],
+
+              if (showNiyyah) ...[
+                const SizedBox(height: 12),
+                KeyedSubtree(
+                  key: _keyFor('mayyith_niyyah'),
+                  child: _SectionTitleRow(
+                    icon: Icons.record_voice_over_rounded,
+                    title: hStrings.mayyithNiyyahTitle,
+                    accentColor: accentColor,
                   ),
                 ),
-            ],
+                const SizedBox(height: 10),
+                for (int i = 0; i < bundle.niyyah.length; i++)
+                  Builder(
+                    builder: (_) {
+                      final item = bundle.niyyah[i];
+                      final keyId = 'mayyith_niyyah_${item.id}';
+                      return KeyedSubtree(
+                        key: _keyFor(keyId),
+                        child: IbadahAudioCard(
+                          orderBadge: '${i + 1}',
+                          title: item.titleFor(headingLang),
+                          badgeText: hStrings.fardBadgeLabel,
+                          badgeColor: accentColor,
+                          isJumpFocused: _activeJumpKey == keyId,
+                          arabicText: item.arabic,
+                          transliterationMl: item.transliterationMl,
+                          meaningText: item.meaningFor(lang),
+                          audioPath: item.audioPath,
+                          showTransliteration: showTransliteration,
+                          showMeaning: showMeaning,
+                          showNotes: showNotes,
+                          showAudio: showAudio,
+                          strings: t,
+                          cardBg: palette.cardBg,
+                          cardBorder: palette.cardBorder,
+                        ),
+                      );
+                    },
+                  ),
+              ],
 
-            if (showNiyyah) ...[
-              const SizedBox(height: 12),
-              _SectionTitleRow(
-                icon: Icons.record_voice_over_rounded,
-                title: t.mayyithNiyyahTitle,
-                accentColor: accentColor,
-              ),
-              const SizedBox(height: 10),
-              for (final item in bundle.niyyah)
-                IbadahAudioCard(
-                  title: item.titleFor(lang),
-                  badgeText: t.fardBadgeLabel,
-                  badgeColor: accentColor,
-                  arabicText: item.arabic,
-                  transliterationMl: item.transliterationMl,
-                  meaningText: item.meaningFor(lang),
-                  audioPath: item.audioPath,
-                  strings: t,
-                  cardBg: palette.cardBg,
-                  cardBorder: palette.cardBorder,
+              if (showTakbirs) ...[
+                const SizedBox(height: 12),
+                KeyedSubtree(
+                  key: _keyFor('mayyith_takbirs'),
+                  child: _SectionTitleRow(
+                    icon: Icons.looks_4_rounded,
+                    title: hStrings.mayyithTakbirsTitle,
+                    accentColor: AppBranding.accentGold,
+                  ),
                 ),
-            ],
+                const SizedBox(height: 10),
+                for (final step in bundle.takbirs)
+                  Builder(
+                    builder: (_) {
+                      final keyId = 'mayyith_takbir_${step.takbirNumber}';
+                      return KeyedSubtree(
+                        key: _keyFor(keyId),
+                        child: IbadahAudioCard(
+                          orderBadge: '${step.takbirNumber}',
+                          title: step.titleFor(headingLang),
+                          badgeText: headingLang == 'ml'
+                              ? 'തക്ബീർ ${step.takbirNumber}'
+                              : 'Takbir ${step.takbirNumber}',
+                          badgeColor: AppBranding.accentGold,
+                          isHighlighted: true,
+                          isJumpFocused: _activeJumpKey == keyId,
+                          arabicText: step.arabic,
+                          transliterationMl: step.transliterationMl,
+                          meaningText: step.meaningFor(lang),
+                          noteText: step.noteFor(lang),
+                          audioPath: step.audioPath,
+                          showTransliteration: showTransliteration,
+                          showMeaning: showMeaning,
+                          showNotes: showNotes,
+                          showAudio: showAudio,
+                          strings: t,
+                          cardBg: palette.cardBg,
+                          cardBorder: palette.cardBorder,
+                        ),
+                      );
+                    },
+                  ),
+              ],
 
-            if (showTakbirs) ...[
-              const SizedBox(height: 12),
-              _SectionTitleRow(
-                icon: Icons.looks_4_rounded,
-                title: t.mayyithTakbirsTitle,
-                accentColor: AppBranding.accentGold,
-              ),
-              const SizedBox(height: 10),
-              for (final step in bundle.takbirs)
-                IbadahAudioCard(
-                  orderBadge: '${step.takbirNumber}',
-                  title: step.titleFor(lang),
-                  badgeText: 'Takbir ${step.takbirNumber}',
-                  badgeColor: AppBranding.accentGold,
-                  isHighlighted: true,
-                  arabicText: step.arabic,
-                  transliterationMl: step.transliterationMl,
-                  meaningText: step.meaningFor(lang),
-                  noteText: step.noteFor(lang),
-                  audioPath: step.audioPath,
-                  strings: t,
-                  cardBg: palette.cardBg,
-                  cardBorder: palette.cardBorder,
+              if (showBurial) ...[
+                const SizedBox(height: 12),
+                KeyedSubtree(
+                  key: _keyFor('mayyith_burial'),
+                  child: _SectionTitleRow(
+                    icon: Icons.volunteer_activism_rounded,
+                    title: hStrings.mayyithBurialTitle,
+                    accentColor: accentColor,
+                  ),
                 ),
+                const SizedBox(height: 10),
+                for (int i = 0; i < bundle.burialAndTalqeen.length; i++)
+                  Builder(
+                    builder: (_) {
+                      final item = bundle.burialAndTalqeen[i];
+                      final keyId = 'mayyith_burial_${item.id}';
+                      return KeyedSubtree(
+                        key: _keyFor(keyId),
+                        child: IbadahAudioCard(
+                          orderBadge: '${i + 1}',
+                          title: item.titleFor(headingLang),
+                          isJumpFocused: _activeJumpKey == keyId,
+                          arabicText: item.arabic,
+                          transliterationMl: item.transliterationMl,
+                          meaningText: item.meaningMl,
+                          noteText: item.noteFor(lang),
+                          audioPath: item.audioPath,
+                          showTransliteration: showTransliteration,
+                          showMeaning: showMeaning,
+                          showNotes: showNotes,
+                          showAudio: showAudio,
+                          strings: t,
+                          cardBg: palette.cardBg,
+                          cardBorder: palette.cardBorder,
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ],
-
-            if (showBurial) ...[
-              const SizedBox(height: 12),
-              _SectionTitleRow(
-                icon: Icons.volunteer_activism_rounded,
-                title: t.mayyithBurialTitle,
-                accentColor: accentColor,
-              ),
-              const SizedBox(height: 10),
-              for (final item in bundle.burialAndTalqeen)
-                IbadahAudioCard(
-                  title: item.titleFor(lang),
-                  arabicText: item.arabic,
-                  transliterationMl: item.transliterationMl,
-                  meaningText: item.meaningMl,
-                  noteText: item.noteFor(lang),
-                  audioPath: item.audioPath,
-                  strings: t,
-                  cardBg: palette.cardBg,
-                  cardBorder: palette.cardBorder,
-                ),
-            ],
-          ],
+          ),
         );
       },
+    );
+  }
+}
+
+class _SummaryRowEntry {
+  final String label;
+  final String countText;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _SummaryRowEntry({
+    required this.label,
+    required this.countText,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+}
+
+class _IbadahSummaryTable extends StatelessWidget {
+  final String title;
+  final List<_SummaryRowEntry> rows;
+  final Color cardBg;
+  final Color cardBorder;
+  final Color accentColor;
+
+  const _IbadahSummaryTable({
+    required this.title,
+    required this.rows,
+    required this.cardBg,
+    required this.cardBorder,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.09),
+              border: Border(bottom: BorderSide(color: cardBorder)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.table_chart_rounded, size: 16, color: accentColor),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12.2,
+                      fontWeight: FontWeight.w800,
+                      color: accentColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (int i = 0; i < rows.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: cardBorder),
+            InkWell(
+              onTap: rows[i].onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 9,
+                ),
+                child: Row(
+                  children: [
+                    Icon(rows[i].icon, size: 17, color: rows[i].accent),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        rows[i].label,
+                        style: TextStyle(
+                          fontSize: 12.8,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: rows[i].accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        rows[i].countText,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: rows[i].accent,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_downward_rounded,
+                      size: 14,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ChainNodeEntry {
+  final int order;
+  final String label;
+  final bool isPrimary;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ChainNodeEntry({
+    required this.order,
+    required this.label,
+    required this.isPrimary,
+    required this.isActive,
+    required this.onTap,
+  });
+}
+
+class _OrderedChainBar extends StatelessWidget {
+  final String title;
+  final List<_ChainNodeEntry> nodes;
+  final Color cardBg;
+  final Color cardBorder;
+  final Color accentColor;
+
+  const _OrderedChainBar({
+    required this.title,
+    required this.nodes,
+    required this.cardBg,
+    required this.cardBorder,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    if (nodes.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.linear_scale_rounded, size: 16, color: accentColor),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (int i = 0; i < nodes.length; i++) ...[
+                  if (i > 0)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 14,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.65),
+                      ),
+                    ),
+                  Builder(
+                    builder: (_) {
+                      final node = nodes[i];
+                      final nodeAccent = node.isPrimary
+                          ? accentColor
+                          : AppBranding.accentGold;
+                      return Material(
+                        color: node.isActive
+                            ? nodeAccent
+                            : nodeAccent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(11),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(11),
+                          onTap: node.onTap,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(
+                                color: node.isActive
+                                    ? nodeAccent
+                                    : nodeAccent.withValues(alpha: 0.32),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: node.isActive
+                                        ? Colors.white.withValues(alpha: 0.25)
+                                        : nodeAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${node.order}',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  node.label,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: node.isActive
+                                        ? Colors.white
+                                        : cs.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

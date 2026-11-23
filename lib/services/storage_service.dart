@@ -119,6 +119,19 @@ class AppSettings {
   bool? get exportIncludeTranslation => _exportIncludeTranslation;
   List<String>? get exportTranslationCodes => _exportTranslationCodes;
 
+  // Ibadah & Salah Guide display preferences (nullable backing fields for DDC safety)
+  final bool? _ibadahShowTransliteration;
+  final bool? _ibadahShowMeaning;
+  final bool? _ibadahShowNotes;
+  final bool? _ibadahShowAudio;
+  final bool? _ibadahMalayalamHeadings;
+
+  bool get ibadahShowTransliteration => _ibadahShowTransliteration ?? false;
+  bool get ibadahShowMeaning => _ibadahShowMeaning ?? false;
+  bool get ibadahShowNotes => _ibadahShowNotes ?? false;
+  bool get ibadahShowAudio => _ibadahShowAudio ?? false;
+  bool get ibadahMalayalamHeadings => _ibadahMalayalamHeadings ?? true;
+
   PrayerAlarmConfig alarmConfigFor(String prayerKey) =>
       prayerConfigs[prayerKey] ?? PrayerAlarmConfig(prayerKey: prayerKey);
 
@@ -171,6 +184,11 @@ class AppSettings {
     String? exportFormat = 'pdf',
     bool? exportIncludeTranslation,
     List<String>? exportTranslationCodes,
+    bool? ibadahShowTransliteration = false,
+    bool? ibadahShowMeaning = false,
+    bool? ibadahShowNotes = false,
+    bool? ibadahShowAudio = false,
+    bool? ibadahMalayalamHeadings = true,
   })  : _prayerLocationMode = prayerLocationMode,
         _prayerCity = prayerCity,
         _prayerCountry = prayerCountry,
@@ -206,7 +224,12 @@ class AppSettings {
         _exportToAyah = exportToAyah,
         _exportFormat = exportFormat,
         _exportIncludeTranslation = exportIncludeTranslation,
-        _exportTranslationCodes = exportTranslationCodes;
+        _exportTranslationCodes = exportTranslationCodes,
+        _ibadahShowTransliteration = ibadahShowTransliteration,
+        _ibadahShowMeaning = ibadahShowMeaning,
+        _ibadahShowNotes = ibadahShowNotes,
+        _ibadahShowAudio = ibadahShowAudio,
+        _ibadahMalayalamHeadings = ibadahMalayalamHeadings;
 
   int tuneFor(String prayerKey) {
     switch (prayerKey) {
@@ -325,6 +348,11 @@ class AppSettings {
     String? exportFormat,
     bool? exportIncludeTranslation,
     List<String>? exportTranslationCodes,
+    bool? ibadahShowTransliteration,
+    bool? ibadahShowMeaning,
+    bool? ibadahShowNotes,
+    bool? ibadahShowAudio,
+    bool? ibadahMalayalamHeadings,
   }) {
     return AppSettings(
       appLanguage: appLanguage ?? this.appLanguage,
@@ -381,6 +409,13 @@ class AppSettings {
           exportIncludeTranslation ?? this.exportIncludeTranslation,
       exportTranslationCodes:
           exportTranslationCodes ?? this.exportTranslationCodes,
+      ibadahShowTransliteration:
+          ibadahShowTransliteration ?? this.ibadahShowTransliteration,
+      ibadahShowMeaning: ibadahShowMeaning ?? this.ibadahShowMeaning,
+      ibadahShowNotes: ibadahShowNotes ?? this.ibadahShowNotes,
+      ibadahShowAudio: ibadahShowAudio ?? this.ibadahShowAudio,
+      ibadahMalayalamHeadings:
+          ibadahMalayalamHeadings ?? this.ibadahMalayalamHeadings,
     );
   }
 }
@@ -581,6 +616,11 @@ class StorageService {
   static const _exportFormatKey = 'pref_export_format_v1';
   static const _exportIncludeTransKey = 'pref_export_include_trans_v1';
   static const _exportTransCodesKey = 'pref_export_trans_codes_v1';
+  static const _ibadahShowTranslitKey = 'pref_ibadah_show_translit_v1';
+  static const _ibadahShowMeaningKey = 'pref_ibadah_show_meaning_v1';
+  static const _ibadahShowNotesKey = 'pref_ibadah_show_notes_v1';
+  static const _ibadahShowAudioKey = 'pref_ibadah_show_audio_v1';
+  static const _ibadahMlHeadingsKey = 'pref_ibadah_ml_headings_v1';
 
   // Offline API caches
   static const _dailyPrayerCacheKey = 'prayer_daily_cache_v1';
@@ -768,6 +808,14 @@ class StorageService {
       exportFormat: _readTyped<String>(box, _exportFormatKey) ?? 'pdf',
       exportIncludeTranslation: _readTyped<bool>(box, _exportIncludeTransKey),
       exportTranslationCodes: _readStringList(box, _exportTransCodesKey),
+      ibadahShowTransliteration:
+          _readTyped<bool>(box, _ibadahShowTranslitKey) ?? false,
+      ibadahShowMeaning:
+          _readTyped<bool>(box, _ibadahShowMeaningKey) ?? false,
+      ibadahShowNotes: _readTyped<bool>(box, _ibadahShowNotesKey) ?? false,
+      ibadahShowAudio: _readTyped<bool>(box, _ibadahShowAudioKey) ?? false,
+      ibadahMalayalamHeadings:
+          _readTyped<bool>(box, _ibadahMlHeadingsKey) ?? true,
     );
   }
 
@@ -819,6 +867,11 @@ class StorageService {
       _exportFromKey: settings.exportFromAyah,
       _exportToKey: settings.exportToAyah,
       _exportFormatKey: settings.exportFormat,
+      _ibadahShowTranslitKey: settings.ibadahShowTransliteration,
+      _ibadahShowMeaningKey: settings.ibadahShowMeaning,
+      _ibadahShowNotesKey: settings.ibadahShowNotes,
+      _ibadahShowAudioKey: settings.ibadahShowAudio,
+      _ibadahMlHeadingsKey: settings.ibadahMalayalamHeadings,
     });
 
     if (settings.exportIncludeTranslation != null) {
