@@ -52,6 +52,19 @@ class HiveDb {
     }
   }
 
+  Future<void> flushAll() async {
+    try {
+      await ensureInitialized();
+      await Future.wait([
+        appPrefsBox.flush(),
+        quranCacheBox.flush(),
+        islamicCacheBox.flush(),
+        adhkarProgressBox.flush(),
+        tasbihBox.flush(),
+      ]);
+    } catch (_) {}
+  }
+
   Future<void> _migrateLegacySharedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();

@@ -4,7 +4,7 @@
   "outputDirectory": "build/web",
   "headers": [
     {
-      "source": "/(index.html|flutter_bootstrap.js|flutter_service_worker.js|manifest.json|version.json|app_version.json)",
+      "source": "/(index.html|flutter_bootstrap.js|flutter_service_worker.js|manifest.json|version.json)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -13,19 +13,13 @@
       ]
     },
     {
-      "source": "/(assets|icons|canvaskit)/(.*)",
+      "source": "/(icons|assets)/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
         }
       ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ]
 }

@@ -104,8 +104,11 @@ class QuickReaderControls extends ConsumerWidget {
               visualDensity: chipDensity,
               icon: Icon(Icons.remove_rounded, size: compact ? 18 : 22),
               onPressed: () {
-                final next = stepDownAutoScrollSpeed(settings.autoScrollSpeed);
-                notifier.update(settings.copyWith(autoScrollSpeed: next));
+                notifier.updateWith(
+                  (s) => s.copyWith(
+                    autoScrollSpeed: stepDownAutoScrollSpeed(s.autoScrollSpeed),
+                  ),
+                );
               },
             ),
             Expanded(
@@ -115,15 +118,18 @@ class QuickReaderControls extends ConsumerWidget {
                 divisions: 75,
                 value: settings.autoScrollSpeed.clamp(0.25, 4.0),
                 onChanged: (v) =>
-                    notifier.update(settings.copyWith(autoScrollSpeed: v)),
+                    notifier.updateWith((s) => s.copyWith(autoScrollSpeed: v)),
               ),
             ),
             IconButton.filledTonal(
               visualDensity: chipDensity,
               icon: Icon(Icons.add_rounded, size: compact ? 18 : 22),
               onPressed: () {
-                final next = stepUpAutoScrollSpeed(settings.autoScrollSpeed);
-                notifier.update(settings.copyWith(autoScrollSpeed: next));
+                notifier.updateWith(
+                  (s) => s.copyWith(
+                    autoScrollSpeed: stepUpAutoScrollSpeed(s.autoScrollSpeed),
+                  ),
+                );
               },
             ),
           ],
@@ -146,7 +152,7 @@ class QuickReaderControls extends ConsumerWidget {
               ),
               selected: selected,
               onSelected: (_) =>
-                  notifier.update(settings.copyWith(autoScrollSpeed: spd)),
+                  notifier.updateWith((s) => s.copyWith(autoScrollSpeed: spd)),
             );
           }).toList(),
         ),
@@ -182,8 +188,12 @@ class QuickReaderControls extends ConsumerWidget {
               visualDensity: chipDensity,
               icon: Icon(Icons.remove_rounded, size: compact ? 18 : 22),
               onPressed: () {
-                final next = (settings.arabicFontSize - 1.0).clamp(20.0, 50.0);
-                notifier.update(settings.copyWith(arabicFontSize: next));
+                notifier.updateWith(
+                  (s) => s.copyWith(
+                    arabicFontSize:
+                        (s.arabicFontSize - 1.0).clamp(20.0, 50.0),
+                  ),
+                );
               },
             ),
             Expanded(
@@ -193,15 +203,19 @@ class QuickReaderControls extends ConsumerWidget {
                 divisions: 30,
                 value: settings.arabicFontSize.clamp(20.0, 50.0),
                 onChanged: (v) =>
-                    notifier.update(settings.copyWith(arabicFontSize: v)),
+                    notifier.updateWith((s) => s.copyWith(arabicFontSize: v)),
               ),
             ),
             IconButton.filledTonal(
               visualDensity: chipDensity,
               icon: Icon(Icons.add_rounded, size: compact ? 18 : 22),
               onPressed: () {
-                final next = (settings.arabicFontSize + 1.0).clamp(20.0, 50.0);
-                notifier.update(settings.copyWith(arabicFontSize: next));
+                notifier.updateWith(
+                  (s) => s.copyWith(
+                    arabicFontSize:
+                        (s.arabicFontSize + 1.0).clamp(20.0, 50.0),
+                  ),
+                );
               },
             ),
           ],
@@ -238,9 +252,12 @@ class QuickReaderControls extends ConsumerWidget {
               visualDensity: chipDensity,
               icon: Icon(Icons.remove_rounded, size: compact ? 18 : 22),
               onPressed: () {
-                final next =
-                    (settings.translationFontSize - 1.0).clamp(13.0, 24.0);
-                notifier.update(settings.copyWith(translationFontSize: next));
+                notifier.updateWith(
+                  (s) => s.copyWith(
+                    translationFontSize:
+                        (s.translationFontSize - 1.0).clamp(13.0, 24.0),
+                  ),
+                );
               },
             ),
             Expanded(
@@ -249,17 +266,21 @@ class QuickReaderControls extends ConsumerWidget {
                 max: 24,
                 divisions: 11,
                 value: settings.translationFontSize.clamp(13.0, 24.0),
-                onChanged: (v) =>
-                    notifier.update(settings.copyWith(translationFontSize: v)),
+                onChanged: (v) => notifier.updateWith(
+                  (s) => s.copyWith(translationFontSize: v),
+                ),
               ),
             ),
             IconButton.filledTonal(
               visualDensity: chipDensity,
               icon: Icon(Icons.add_rounded, size: compact ? 18 : 22),
               onPressed: () {
-                final next =
-                    (settings.translationFontSize + 1.0).clamp(13.0, 24.0);
-                notifier.update(settings.copyWith(translationFontSize: next));
+                notifier.updateWith(
+                  (s) => s.copyWith(
+                    translationFontSize:
+                        (s.translationFontSize + 1.0).clamp(13.0, 24.0),
+                  ),
+                );
               },
             ),
           ],

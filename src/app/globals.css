@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg-page: #f7faf8;
+  --bg-card: #ffffff;
+  --bg-elevated: #eff6f2;
+  --bg-subtle: #e7f0eb;
+  --border-color: #dde8e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --emerald-primary: #047857;
+  --emerald-dark: #064e3b;
+  --emerald-soft: #ecfdf5;
+  --gold-accent: #d97706;
+  --mushaf-frame: #047857;
+}
+
+html.sepia {
+  --bg-page: #f4ecda;
+  --bg-card: #fbf6e9;
+  --bg-elevated: #efe4cc;
+  --bg-subtle: #e9dcc0;
+  --border-color: #dfd0b2;
+  --text-primary: #2d1e12;
+  --text-secondary: #5c4632;
+  --text-muted: #7a6148;
+  --emerald-primary: #065f46;
+  --emerald-dark: #064e3b;
+  --emerald-soft: #e6ead7;
+  --gold-accent: #b45309;
+  --mushaf-frame: #065f46;
+}
+
+html.dark {
+  --bg-page: #0a0d0c;
+  --bg-card: #141a17;
+  --bg-elevated: #1b2420;
+  --bg-subtle: #1e2924;
+  --border-color: #23302a;
+  --text-primary: #ecfdf5;
+  --text-secondary: #a7beb3;
+  --text-muted: #789085;
+  --emerald-primary: #10b981;
+  --emerald-dark: #047857;
+  --emerald-soft: #0f2920;
+  --gold-accent: #fbbf24;
+  --mushaf-frame: #34d399;
+}
+
+@layer base {
+  html,
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: var(--font-jakarta), var(--font-malayalam), system-ui, -apple-system, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+}
+
+.font-arabic {
+  font-family: var(--font-amiri), var(--font-arabic), "Amiri", "Traditional Arabic", serif;
+}
+
+.font-malayalam {
+  font-family: var(--font-malayalam), var(--font-jakarta), sans-serif;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(4, 120, 87, 0.25);
+  border-radius: 9999px;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(52, 211, 153, 0.25);
+}

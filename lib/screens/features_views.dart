@@ -238,7 +238,8 @@ class PrayerTuneControlList extends ConsumerWidget {
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                 ),
-                onPressed: () => notifier.update(settings.clearTunes()),
+                onPressed: () =>
+                    notifier.updateWith((s) => s.clearTunes()),
                 icon: const Icon(Icons.restart_alt_rounded, size: 16),
                 label: Text(
                   t.resetTune,
@@ -271,7 +272,9 @@ class PrayerTuneControlList extends ConsumerWidget {
                   icon: Icons.remove_rounded,
                   tooltip: '$label -1m',
                   onTap: val > -60
-                      ? () => notifier.update(settings.copyWithTune(key, val - 1))
+                      ? () => notifier.updateWith(
+                            (s) => s.copyWithTune(key, s.tuneFor(key) - 1),
+                          )
                       : null,
                 ),
                 SizedBox(
@@ -291,7 +294,9 @@ class PrayerTuneControlList extends ConsumerWidget {
                   icon: Icons.add_rounded,
                   tooltip: '$label +1m',
                   onTap: val < 60
-                      ? () => notifier.update(settings.copyWithTune(key, val + 1))
+                      ? () => notifier.updateWith(
+                            (s) => s.copyWithTune(key, s.tuneFor(key) + 1),
+                          )
                       : null,
                 ),
               ],
@@ -394,8 +399,8 @@ class PrayerAlarmSoundControls extends ConsumerWidget {
                 if (alarmState.isPreviewingSound) {
                   await alarmNotifier.stopPreviewSound();
                 }
-                await settingsNotifier.update(
-                  settings.copyWith(alarmSoundType: val),
+                await settingsNotifier.updateWith(
+                  (s) => s.copyWith(alarmSoundType: val),
                 );
               },
             ),
@@ -431,8 +436,8 @@ class PrayerAlarmSoundControls extends ConsumerWidget {
           min: 0.1,
           max: 1.0,
           divisions: 9,
-          onChanged: (val) => settingsNotifier.update(
-            settings.copyWith(alarmVolume: val),
+          onChanged: (val) => settingsNotifier.updateWith(
+            (s) => s.copyWith(alarmVolume: val),
           ),
         ),
         SwitchListTile(
@@ -446,8 +451,8 @@ class PrayerAlarmSoundControls extends ConsumerWidget {
             ),
           ),
           value: settings.alarmVibrate,
-          onChanged: (val) => settingsNotifier.update(
-            settings.copyWith(alarmVibrate: val),
+          onChanged: (val) => settingsNotifier.updateWith(
+            (s) => s.copyWith(alarmVibrate: val),
           ),
         ),
         const SizedBox(height: 6),
@@ -631,8 +636,8 @@ class HijriAdjustmentControl extends ConsumerWidget {
               ),
             ],
             selected: {settings.hijriAdjustment},
-            onSelectionChanged: (sel) => notifier.update(
-              settings.copyWith(hijriAdjustment: sel.first),
+            onSelectionChanged: (sel) => notifier.updateWith(
+              (s) => s.copyWith(hijriAdjustment: sel.first),
             ),
           ),
         ),
@@ -960,8 +965,8 @@ class PrayerAutoSilentSection extends ConsumerWidget {
               selected: selected,
               selectedColor: cs.primary,
               showCheckmark: false,
-              onSelected: (_) => settingsNotifier.update(
-                settings.copyWith(autoSilentDurationMinutes: mins),
+              onSelected: (_) => settingsNotifier.updateWith(
+                (s) => s.copyWith(autoSilentDurationMinutes: mins),
               ),
             );
           }).toList(),
@@ -992,12 +997,12 @@ class PrayerAutoSilentSection extends ConsumerWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () {
-                    final nextMap =
-                        Map<String, bool>.from(settings.autoSilentPrayers);
-                    nextMap[key] = !enabled;
-                    settingsNotifier.update(
-                      settings.copyWith(autoSilentPrayers: nextMap),
-                    );
+                    settingsNotifier.updateWith((s) {
+                      final nextMap =
+                          Map<String, bool>.from(s.autoSilentPrayers);
+                      nextMap[key] = !(s.isAutoSilentEnabledFor(key));
+                      return s.copyWith(autoSilentPrayers: nextMap);
+                    });
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -1231,6 +1236,24 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
     PrayerAlarmRef alarmRef = currentCfg.alarmRef;
     int alarmOffset = currentCfg.alarmOffsetMinutes;
 
+    void persistSlotNow({bool enableMasterIfNeeded = false}) {
+      final cfg = PrayerAlarmConfig(
+        prayerKey: slot.prayerKey,
+        enabled: enabled,
+        iqamahGapMinutes: iqamahGap,
+        alarmRef: alarmRef,
+        alarmOffsetMinutes: alarmOffset,
+      );
+      ref.read(settingsProvider.notifier).updateWith(
+            (s) => s.copyWithPrayerAlarmConfig(cfg),
+          );
+      if (enableMasterIfNeeded &&
+          enabled &&
+          !ref.read(settingsProvider).prayerAlarmMasterEnabled) {
+        ref.read(prayerAlarmProvider.notifier).setMasterAlarmEnabled(true);
+      }
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1394,7 +1417,10 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                           icon: Icons.remove_rounded,
                           tooltip: '-1',
                           onTap: iqamahGap > 0
-                              ? () => setSheetState(() => iqamahGap -= 1)
+                              ? () {
+                                  setSheetState(() => iqamahGap -= 1);
+                                  persistSlotNow();
+                                }
                               : null,
                         ),
                         SizedBox(
@@ -1416,7 +1442,10 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                           icon: Icons.add_rounded,
                           tooltip: '+1',
                           onTap: iqamahGap < slot.maxAllowedIqamahGap
-                              ? () => setSheetState(() => iqamahGap += 1)
+                              ? () {
+                                  setSheetState(() => iqamahGap += 1);
+                                  persistSlotNow();
+                                }
                               : null,
                         ),
                       ],
@@ -1432,8 +1461,10 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                         return ChoiceChip(
                           label: Text('+$presetMin${t.minutesUnitShort}'),
                           selected: selected,
-                          onSelected: (_) =>
-                              setSheetState(() => iqamahGap = presetMin),
+                          onSelected: (_) {
+                            setSheetState(() => iqamahGap = presetMin);
+                            persistSlotNow();
+                          },
                         );
                       }).toList(),
                     ),
@@ -1451,7 +1482,10 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                         ),
                       ),
                       value: enabled,
-                      onChanged: (v) => setSheetState(() => enabled = v),
+                      onChanged: (v) {
+                        setSheetState(() => enabled = v);
+                        persistSlotNow(enableMasterIfNeeded: v);
+                      },
                     ),
 
                     if (enabled) ...[
@@ -1501,6 +1535,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                                 );
                               }
                             });
+                            persistSlotNow();
                           },
                         ),
                       ),
@@ -1524,7 +1559,10 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                             onTap: (alarmRef == PrayerAlarmRef.beforeAdhan
                                     ? alarmOffset > 0
                                     : alarmOffset > minIqamahOffset)
-                                ? () => setSheetState(() => alarmOffset -= 1)
+                                ? () {
+                                    setSheetState(() => alarmOffset -= 1);
+                                    persistSlotNow();
+                                  }
                                 : null,
                           ),
                           SizedBox(
@@ -1548,7 +1586,10 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                             onTap: (alarmRef == PrayerAlarmRef.beforeAdhan
                                     ? alarmOffset < 120
                                     : alarmOffset < maxIqamahOffset)
-                                ? () => setSheetState(() => alarmOffset += 1)
+                                ? () {
+                                    setSheetState(() => alarmOffset += 1);
+                                    persistSlotNow();
+                                  }
                                 : null,
                           ),
                         ],
@@ -1592,44 +1633,21 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                       ),
                     ),
 
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: Text(t.cancelLabel),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () async {
-                              final nextCfg = PrayerAlarmConfig(
-                                prayerKey: slot.prayerKey,
-                                enabled: enabled,
-                                iqamahGapMinutes: iqamahGap,
-                                alarmRef: alarmRef,
-                                alarmOffsetMinutes: alarmOffset,
-                              );
-                              final latest = ref.read(settingsProvider);
-                              await ref.read(settingsProvider.notifier).update(
-                                    latest.copyWithPrayerAlarmConfig(nextCfg),
-                                  );
-                              if (enabled && !latest.prayerAlarmMasterEnabled) {
-                                await ref
-                                    .read(prayerAlarmProvider.notifier)
-                                    .setMasterAlarmEnabled(true);
-                              }
-                              if (ctx.mounted) {
-                                Navigator.pop(ctx);
-                              }
-                            },
-                            icon: const Icon(Icons.check_rounded, size: 18),
-                            label: Text(t.applyLabel),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 14),
+                    Text(
+                      t.autoSavedHint,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: cs.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: Text(t.done),
                     ),
                   ],
                 ),
@@ -2121,14 +2139,18 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                             InkWell(
                               borderRadius: BorderRadius.circular(20),
                               onTap: () async {
-                                final updated = settings.copyWithPrayerAlarmConfig(
-                                  cfg.copyWith(enabled: !cfg.enabled),
-                                );
+                                final bool turningOn = !cfg.enabled;
                                 await ref
                                     .read(settingsProvider.notifier)
-                                    .update(updated);
-                                if (!cfg.enabled &&
-                                    !updated.prayerAlarmMasterEnabled) {
+                                    .updateWith(
+                                      (s) => s.copyWithPrayerAlarmConfig(
+                                        cfg.copyWith(enabled: turningOn),
+                                      ),
+                                    );
+                                if (turningOn &&
+                                    !ref
+                                        .read(settingsProvider)
+                                        .prayerAlarmMasterEnabled) {
                                   await ref
                                       .read(prayerAlarmProvider.notifier)
                                       .setMasterAlarmEnabled(true);

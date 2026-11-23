@@ -1,818 +1,479 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' show TextDirection;
 
 class AppStrings {
-  final String lang; // 'en' | 'ml' | 'ar'
-
+  final String lang;
   const AppStrings(this.lang);
 
   bool get isRtl => lang == 'ar';
-  TextDirection get textDirection =>
-      isRtl ? TextDirection.rtl : TextDirection.ltr;
+  TextDirection get textDirection => isRtl ? TextDirection.rtl : TextDirection.ltr;
 
-  String get appTitle => _pick('Al-Quran', 'അൽ-ഖുർആൻ', 'القرآن الكريم');
-  String get surahsTab => _pick('Surahs', 'സൂറത്തുകൾ', 'السور');
-  String get bookmarksTab => _pick('Bookmarks', 'ബുക്ക്‌മാർക്ക്', 'المحفوظات');
-  String get settings => _pick('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
-  String get lastRead => _pick('Last Read', 'അവസാനം വായിച്ചത്', 'آخر قراءة');
-  String get searchHint => _pick(
+  String _p(String en, String ml, String ar) {
+    if (lang == 'ml') return ml;
+    if (lang == 'ar') return ar;
+    return en;
+  }
+
+  // Brand
+  String get appTitle => _p('Ibadia', 'ഇബാദിയ', 'عبادية');
+  String get appTagline => _p(
+        'Quran, Prayer & Daily Adhkar',
+        'ഖുർആൻ, നമസ്കാരം, ദൈനംദിന ദിക്റുകൾ',
+        'القرآن والصلاة والأذكار اليومية',
+      );
+
+  // 3 Primary Bottom Navigation Tabs
+  String get homeTab => _p('Home', 'ഹോം', 'الرئيسية');
+  String get dashboardTab => homeTab;
+  String get quranTab => _p('Quran', 'ഖുർആൻ', 'القرآن');
+  String get featuresTab => _p('Features', 'ഫീച്ചറുകൾ', 'الميزات');
+  String get settingsTab => _p('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
+  String get backToHome => homeTab;
+
+  // Quran Sub-tabs & Standalone Tool Tab Labels
+  String get surahTabLabel => _p('Surah', 'സൂറത്ത്', 'السور');
+  String get juzTabLabel => _p('Juz', 'ജുസ്അ്', 'الأجزاء');
+  String get bookmarksTab => _p('Bookmarks', 'ബുക്ക്‌മാർക്ക്', 'المحفوظات');
+  String get exportTab => _p('Export', 'എക്സ്പോർട്ട്', 'تصدير');
+  String get prayerShortTab => _p('Prayer', 'നിസ്കാരം', 'الصلاة');
+  String get hijriCalendarTab => _p('Hijri', 'ഹിജ്‌രി', 'الهجري');
+  String get adhkarTab => _p('Adhkar', 'ദിക്ർ', 'الأذكار');
+  String get tasbihTab => _p('Tasbih', 'തസ്ബീഹ്', 'تسبيح');
+  String get names99Tab => _p('99 Names', '99 നാമങ്ങൾ', '٩٩ اسماً');
+
+  String get lastRead => _p('Last Read', 'അവസാനം വായിച്ചത്', 'آخر قراءة');
+  String get continueReading => _p('Continue Reading', 'വായന തുടരുക', 'متابعة القراءة');
+  String get searchHint => _p(
         'Search Surah (e.g. Yaseen, Kahf, 36)...',
         'സൂറത്ത് തിരയുക (ഉദാ: Yaseen, Kahf, 36)...',
         'ابحث عن سورة (مثال: يس، الكهف، 36)...',
       );
-  String get ayahsLabel => _pick('Ayahs', 'ആയത്തുകൾ', 'آيات');
-  String get ayahLabel => _pick('Ayah', 'ആയത്ത്', 'آية');
-  String get surahLabel => _pick('Surah', 'സൂറത്ത്', 'سورة');
-  String get pageLabel => _pick('Page', 'പേജ്', 'صفحة');
-  String get juzLabel => _pick('Juz', 'ജുസ്അ്', 'جزء');
-  String get loadError => _pick(
-        'Could not load data.\nPlease check your internet connection.',
-        'ഡാറ്റ ലോഡ് ചെയ്യാനായില്ല.\nഇന്റർനെറ്റ് കണക്ഷൻ പരിശോധിക്കുക.',
-        'تعذر تحميل البيانات.\nيرجى التحقق من اتصال الإنترنت.',
+  String get ayahsLabel => _p('Ayahs', 'ആയത്തുകൾ', 'آيات');
+  String get ayahLabel => _p('Ayah', 'ആയത്ത്', 'آية');
+  String get surahLabel => _p('Surah', 'സൂറത്ത്', 'سورة');
+  String get pageLabel => _p('Page', 'പേജ്', 'صفحة');
+  String get pagesLabel => _p('Pages', 'പേജുകൾ', 'صفحات');
+  String get juzLabel => _p('Juz', 'ജുസ്അ്', 'جزء');
+  String get loadError => _p(
+        'Could not load data. Please check your internet connection.',
+        'ഡാറ്റ ലോഡ് ചെയ്യാനായില്ല. ഇന്റർനെറ്റ് കണക്ഷൻ പരിശോധിക്കുക.',
+        'تعذر تحميل البيانات. يرجى التحقق من اتصال الإنترنت.',
       );
-  String get retry => _pick('Retry', 'വീണ്ടും ശ്രമിക്കുക', 'إعادة المحاولة');
-  String get noBookmarks => _pick(
-        'No bookmarks saved yet.',
-        'ഇതുവരെ ബുക്ക്‌മാർക്കുകൾ ഒന്നും സേവ് ചെയ്തിട്ടില്ല.',
+  String get retry => _p('Retry', 'വീണ്ടും ശ്രമിക്കുക', 'إعادة المحاولة');
+  String get noBookmarks => _p(
+        'No bookmarks saved yet. Tap the bookmark icon on any Ayah or Surah to save it here.',
+        'ഇതുവരെ ബുക്ക്‌മാർക്കുകൾ ഒന്നും സേവ് ചെയ്തിട്ടില്ല. ഏതെങ്കിലും ആയത്തിലോ സൂറത്തിലോ ബുക്ക്‌മാർക്ക് അമർത്തുക.',
         'لا توجد إشارات مرجعية محفوظة بعد.',
       );
-  String get copiedAyah =>
-      _pick('Ayah copied', 'ആയത്ത് കോപ്പി ചെയ്തു', 'تم نسخ الآية');
-  String get bookmarkSaved =>
-      _pick('Bookmark saved', 'ബുക്ക്‌മാർക്ക് സേവ് ചെയ്തു', 'تم حفظ الإشارة');
-  String get bookmarkRemoved => _pick(
-        'Bookmark removed',
-        'ബുക്ക്‌മാർക്ക് നീക്കം ചെയ്തു',
-        'تمت إزالة الإشارة',
-      );
-  String get loadingNextSurah => _pick(
-        'Loading next Surah...',
-        'അടുത്ത സൂറത്ത് ലോഡ് ചെയ്യുന്നു...',
-        'جاري تحميل السورة التالية...',
-      );
-  String get loadingPrevSurah => _pick(
-        'Loading previous Surah...',
-        'മുമ്പത്തെ സൂറത്ത് ലോഡ് ചെയ്യുന്നു...',
-        'جاري تحميل السورة السابقة...',
-      );
+  String get copiedAyah => _p('Ayah copied', 'ആയത്ത് കോപ്പി ചെയ്തു', 'تم نسخ الآية');
+  String get bookmarkSaved => _p('Bookmark saved', 'ബുക്ക്‌മാർക്ക് സേവ് ചെയ്തു', 'تم حفظ الإشارة');
+  String get bookmarkRemoved => _p('Bookmark removed', 'ബുക്ക്‌മാർക്ക് നീക്കം ചെയ്തു', 'تمت إزالة الإشارة');
+  String get loadingNextSurah => _p('Loading next Surah...', 'അടുത്ത സൂറത്ത് ലോഡ് ചെയ്യുന്നു...', 'جاري تحميل السورة التالية...');
+  String get loadingPrevSurah => _p('Loading previous Surah...', 'മുമ്പത്തെ സൂറത്ത് ലോഡ് ചെയ്യുന്നു...', 'جاري تحميل السورة السابقة...');
+  String get loadPrevSurahBtn => _p('Load Previous Surah', 'മുമ്പത്തെ സൂറത്ത് വായിക്കുക', 'تحميل السورة السابقة');
+  String get loadNextSurahBtn => _p('Load Next Surah', 'അടുത്ത സൂറത്ത് വായിക്കുക', 'تحميل السورة التالية');
+  String get commonlyRecited => _p('Commonly Recited', 'പതിവായി ഓതുന്നവ', 'سور مختارة');
+  String get searchSurah => _p('Search Surah', 'സൂറത്ത് തിരയുക', 'ابحث عن سورة');
 
-  // Settings labels
-  String get appLanguage => _pick('App Language', 'ആപ്പ് ഭാഷ', 'لغة التطبيق');
-  String get readingMode =>
-      _pick('Reading Mode', 'വായനാ രീതി (Mode)', 'وضع القراءة');
-  String get modeMushaf =>
-      _pick('Mushaf Page', 'പേജ് വ്യൂ (Mushaf)', 'صفحة مصحف');
-  String get modeVerse =>
-      _pick('Verse List', 'ആയത്ത് ലിസ്റ്റ്', 'قائمة الآيات');
-  String get readingTheme => _pick('Reading Theme', 'വായനാ തീം', 'مظهر القراءة');
-  String get themeLight => _pick('Light', 'ലൈറ്റ്', 'فاتح');
-  String get themeSepia => _pick('Sepia', 'സെപിയ', 'ورقي');
-  String get themeDark => _pick('Dark', 'ഡാർക്ക്', 'داكن');
-  String get showTranslation =>
-      _pick('Show Translation', 'പരിഭാഷ കാണിക്കുക', 'إظهار الترجمة');
-  String get showTranslationDesc => _pick(
+  // Settings
+  String get settings => _p('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
+  String get quranSettingsTitle => _p('Quran Reader Settings', 'ഖുർആൻ റീഡർ സെറ്റിംഗ്സ്', 'إعدادات قراءة القرآن');
+  String get featuresSettingsTitle => _p('Prayer Times, Alarms & Hijri', 'നിസ്കാരം, അലാറം & ഹിജ്‌രി സെറ്റിംഗ്സ്', 'إعدادات الصلاة والمنبهات');
+  String get appLanguage => _p('App Language', 'ആപ്പ് ഭാഷ', 'لغة التطبيق');
+  String get readingMode => _p('Reading Mode', 'വായനാ രീതി', 'وضع القراءة');
+  String get modeMushaf => _p('Mushaf Page', 'പേജ് വ്യൂ (Mushaf)', 'صفحة مصحف');
+  String get modeVerse => _p('Verse List', 'ആയത്ത് ലിസ്റ്റ്', 'قائمة الآيات');
+  String get readingTheme => _p('Reading Theme', 'വായനാ തീം', 'مظهر القراءة');
+  String get themeLight => _p('Light', 'ലൈറ്റ്', 'فاتح');
+  String get themeSepia => _p('Sepia', 'സെപിയ', 'ورقي');
+  String get themeDark => _p('Dark', 'ഡാർക്ക്', 'داكن');
+  String get showTranslation => _p('Show Translation', 'പരിഭാഷ കാണിക്കുക', 'إظهار الترجمة');
+  String get showTranslationDesc => _p(
         'Toggle translations on or off (Quran Arabic always stays visible)',
         'പരിഭാഷ ഓൺ/ഓഫ് ചെയ്യാം (അറബിക് ടെക്സ്റ്റ് എപ്പോഴും ഉണ്ടാകും)',
         'تفعيل أو إيقاف الترجمة (النص العربي للقرآن يظهر دائماً)',
       );
-  String get translationLanguages => _pick(
-        'Translation Languages (Select 1 or more)',
-        'പരിഭാഷാ ഭാഷകൾ (ഒന്നോ അതിലധികമോ തിരഞ്ഞെടുക്കാം)',
-        'لغات الترجمة (اختر لغة أو أكثر)',
-      );
-  String get langEnglish => _pick('English', 'ഇംഗ്ലീഷ് (English)', 'الإنجليزية');
-  String get langMalayalam =>
-      _pick('Malayalam', 'മലയാളം', 'المالايالامية (Malayalam)');
-  String get langArabicTafsir => _pick(
-        'Arabic (Al-Muyassar)',
-        'അറബിക് (തഫ്സീർ അൽ-മുയസ്സർ)',
-        'العربية (التفسير الميسر)',
-      );
-  String get arabicFontSize =>
-      _pick('Arabic Font Size', 'അറബിക് ഫോണ്ട് സൈസ്', 'حجم الخط العربي');
-  String get translationFontSize => _pick(
-        'Translation Font Size',
-        'പരിഭാഷ ഫോണ്ട് സൈസ്',
-        'حجم خط الترجمة',
-      );
-  String get autoScrollSpeed =>
-      _pick('Auto-Scroll Speed', 'ഓട്ടോ-സ്ക്രോൾ വേഗത', 'سرعة التمرير التلقائي');
-  String get autoScrollHint => _pick(
-        'Tap to Play/Pause, Drag anywhere, Long-press to change speed.',
-        'ടാപ്പ് ചെയ്താൽ പ്ലേ/പോസ്, ഡ്രാഗ് ചെയ്ത് എവിടെയും വെക്കാം, ലോങ്ങ് പ്രസ്സ് ചെയ്താൽ സ്പീഡ് മാറ്റാം.',
+  String get translationLanguages => _p('Translation Languages', 'പരിഭാഷാ ഭാഷകൾ', 'لغات الترجمة');
+  String get langEnglish => _p('English', 'ഇംഗ്ലീഷ് (English)', 'الإنجليزية');
+  String get langMalayalam => _p('Malayalam', 'മലയാളം', 'المالايالامية');
+  String get langArabicTafsir => _p('Arabic (Al-Muyassar)', 'അറബിക് (തഫ്സീർ അൽ-മുയസ്സർ)', 'العربية (التفسير الميسر)');
+  String get arabicFontSize => _p('Arabic Font Size', 'അറബിക് ഫോണ്ട് സൈസ്', 'حجم الخط العربي');
+  String get translationFontSize => _p('Translation Font Size', 'പരിഭാഷ ഫോണ്ട് സൈസ്', 'حجم خط الترجمة');
+  String get autoScrollSpeed => _p('Auto-Scroll Speed', 'ഓട്ടോ-സ്ക്രോൾ വേഗത', 'سرعة التمرير التلقائي');
+  String get autoScrollHint => _p(
+        'Tap to Play/Pause, Drag anywhere, Long-press to adjust speed.',
+        'ടാപ്പ് ചെയ്താൽ പ്ലേ/പോസ്, ഡ്രാഗ് ചെയ്താൽ മാറ്റാം, ലോങ്ങ് പ്രസ്സ് ചെയ്താൽ സ്പീഡ് മാറ്റാം.',
         'اضغط للتشغيل/الإيقاف، اسحب لأي مكان، واضغط مطولاً لتغيير السرعة.',
       );
-  String get resetButtonPos => _pick(
-        'Reset Floating Button Position',
-        'ഫ്ലോട്ടിംഗ് ബട്ടൺ പഴയ സ്ഥലത്തേക്ക് മാറ്റുക',
-        'إعادة زر التمرير للموقع الافتراضي',
+  String get floatingControlsTipTitle => _p(
+        'Auto-Scroll & Quick Reader Controls',
+        'ഓട്ടോ-സ്ക്രോൾ & ക്വിക്ക് കൺട്രോളുകൾ',
+        'التمرير التلقائي وأدوات القراءة السريعة',
       );
-  String get pause => _pick('Pause', 'പോസ്', 'إيقاف مؤقت');
-  String get play => _pick('Start', 'തുടങ്ങുക', 'تشغيل');
-  String get done => _pick('Done', 'ശരി', 'تم');
+  String get resetButtonPos => _p('Reset Floating Button Position', 'ഫ്ലോട്ടിംഗ് ബട്ടൺ പഴയ സ്ഥലത്തേക്ക് മാറ്റുക', 'إعادة زر التمرير للموقع الافتراضي');
+  String get pause => _p('Pause', 'പോസ്', 'إيقاف مؤقت');
+  String get play => _p('Start', 'തുടങ്ങുക', 'تشغيل');
+  String get done => _p('Done', 'ശരി', 'تم');
+  String get closeLabel => _p('Close', 'അടയ്ക്കുക', 'إغلاق');
+  String get autoSavedHint => _p('All changes save automatically', 'എല്ലാ മാറ്റങ്ങളും തനിയെ സേവ് ആകുന്നു', 'تُحفظ جميع التغييرات تلقائياً');
+  String get fullSurahBadge => _p('Full Surah', 'പൂർണ്ണ സൂറത്ത്', 'سورة كاملة');
+  String get bookmarkSurah => _p('Bookmark Surah', 'സൂറത്ത് ബുക്ക്‌മാർക്ക് ചെയ്യുക', 'حفظ السورة');
 
-  // Export labels
-  String get exportTab => _pick('Export', 'എക്സ്പോർട്ട്', 'تصدير');
-  String get exportTitle =>
-      _pick('Export Quran', 'ഖുർആൻ എക്സ്പോർട്ട്', 'تصدير القرآن');
-  String get exportScope =>
-      _pick('What to Export', 'എന്താണ് എക്സ്പോർട്ട് ചെയ്യേണ്ടത്', 'نطاق التصدير');
-  String get scopeRange =>
-      _pick('Ayah Range', 'ആയത്ത് റേഞ്ച്', 'نطاق آيات');
-  String get scopeSurah =>
-      _pick('Full Surah', 'പൂർണ്ണ സൂറത്ത്', 'سورة كاملة');
-  String get scopeJuz => _pick('Full Juz', 'പൂർണ്ണ ജുസ്അ്', 'جزء كامل');
-  String get selectSurah =>
-      _pick('Select Surah', 'സൂറത്ത് തിരഞ്ഞെടുക്കുക', 'اختر السورة');
-  String get selectJuz =>
-      _pick('Select Juz', 'ജുസ്അ് തിരഞ്ഞെടുക്കുക', 'اختر الجزء');
-  String get fromAyah =>
-      _pick('From Ayah', 'തുടങ്ങുന്ന ആയത്ത്', 'من الآية');
-  String get toAyah =>
-      _pick('To Ayah', 'അവസാനിക്കുന്ന ആയത്ത്', 'إلى الآية');
-  String get pageSize => _pick('Page Size', 'പേജ് സൈസ്', 'حجم الصفحة');
-  String get sizeAutomatic =>
-      _pick('Automatic', 'ഓട്ടോമാറ്റിക്', 'تلقائي');
-  String get sizeAutomaticDesc => _pick(
-        'Mobile-friendly width with normal readable text',
-        'മൊബൈൽ സ്ക്രീനിന് അനുയോജ്യമായ നോർമൽ ടെക്സ്റ്റ് സൈസ്',
-        'حجم مناسب لشاشة الجوال بخط واضح ومريح',
-      );
-  String get sizeA4 => _pick('A4', 'A4', 'A4');
-  String get exportFormat => _pick('Format', 'ഫോർമാറ്റ്', 'الصيغة');
-  String get formatPdf => _pick('PDF', 'PDF', 'PDF');
-  String get formatImage =>
-      _pick('Image (PNG)', 'ഇമേജ് (PNG)', 'صورة (PNG)');
-  String get includeTranslation =>
-      _pick('Include Translation', 'പരിഭാഷ ഉൾപ്പെടുത്തുക', 'تضمين الترجمة');
-  String get generatePreview =>
-      _pick('Preview & Export', 'പ്രിവ്യൂ കാണുക', 'معاينة وتصدير');
-  String get exportPreview =>
-      _pick('Export Preview', 'എക്സ്പോർട്ട് പ്രിവ്യൂ', 'معاينة التصدير');
-  String get download => _pick('Download', 'ഡൗൺലോഡ്', 'تنزيل');
-  String get share => _pick('Share', 'ഷെയർ', 'مشاركة');
-  String get preparingPages =>
-      _pick('Preparing pages...', 'പേജുകൾ തയ്യാറാക്കുന്നു...', 'جاري تجهيز الصفحات...');
-  String get exportSuccess =>
-      _pick('Saved successfully', 'വിജയകരമായി സേവ് ചെയ്തു', 'تم الحفظ بنجاح');
-  String savedToGallery(int count) => _pick(
-        'Saved $count image(s) to Gallery (Al-Quran)',
-        '$count ഇമേജ് ഗ്യാലറിയിൽ (Al-Quran) സേവ് ചെയ്തു',
-        'تم حفظ $count صورة في المعرض (Al-Quran)',
-      );
-  String get exportError => _pick(
-        'Export failed. Please try again.',
-        'എക്സ്പോർട്ട് ചെയ്യാനായില്ല. വീണ്ടും ശ്രമിക്കുക.',
-        'فشل التصدير. يرجى المحاولة مرة أخرى.',
-      );
-  String get invalidAyahRange => _pick(
-        'Enter a valid Ayah range',
-        'ശരിയായ ആയത്ത് നമ്പറുകൾ നൽകുക',
-        'أدخل نطاق آيات صحيح',
-      );
-  String get pagesLabel => _pick('Pages', 'പേജുകൾ', 'صفحات');
-
-  // Mushaf Header, Whole-Surah Bookmark & Compact Settings Tip
-  String get fullSurahBadge =>
-      _pick('Full Surah', 'പൂർണ്ണ സൂറത്ത്', 'سورة كاملة');
-  String get bookmarkSurah => _pick(
-        'Bookmark Surah',
-        'സൂറത്ത് ബുക്ക്‌മാർക്ക് ചെയ്യുക',
-        'حفظ السورة',
-      );
-  String get floatingControlsTipTitle => _pick(
-        'Speed & Font Size Controls',
-        'സ്പീഡും ഫോണ്ട് സൈസും മാറ്റാൻ',
-        'التحكم بالسرعة وحجم الخط',
-      );
-  String get floatingControlsTipDesc => _pick(
-        'Long-press the floating Play button in the reader to adjust Auto-Scroll Speed and Arabic / Translation font sizes.',
-        'റീഡറിലെ ഫ്ലോട്ടിംഗ് പ്ലേ ബട്ടണിൽ ലോങ്-പ്രസ് ചെയ്താൽ ഓട്ടോ-സ്ക്രോൾ വേഗതയും അറബിക് / പരിഭാഷ ഫോണ്ട് സൈസും എളുപ്പത്തിൽ മാറ്റാം.',
-        'اضغط مطولاً على زر التشغيل العائم أثناء القراءة لتعديل سرعة التمرير التلقائي وحجم الخط العربي والترجمة.',
-      );
-
-  // Home Surah & Juz Tab Redesign
-  String get commonlyRecited => _pick(
-        'Commonly Recited',
-        'പതിവായി ഓതുന്നവ',
-        'سور مختارة',
-      );
-  String get searchSurah => _pick(
-        'Search Surah',
-        'സൂറത്ത് തിരയുക',
-        'ابحث عن سورة',
-      );
-  String get surahTabLabel => _pick('Surah', 'സൂറത്ത്', 'السور');
-  String get juzTabLabel => _pick('Juz', 'ജുസ്അ്', 'الأجزاء');
-
-  // Web PWA Install, Offline Banner & Android APK Download
-  String get installApp => _pick(
-        'Install App',
-        'ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യുക',
-        'تثبيت التطبيق',
-      );
-  String get installAppDesc => _pick(
-        'Add Al-Quran to your home screen for quick offline access',
-        'വേഗത്തിലുള്ള വായനയ്ക്കായി ഫോൺ/കമ്പ്യൂട്ടർ ഹോം സ്ക്രീനിലേക്ക് ചേർക്കുക',
-        'أضف التطبيق إلى الشاشة الرئيسية للوصول السريع بدون إنترنت',
-      );
-  String get installOnIosTitle => _pick(
-        'Install on iPhone / iPad',
-        'iPhone / iPad-ൽ ഇൻസ്റ്റാൾ ചെയ്യാൻ',
-        'التثبيت على iPhone / iPad',
-      );
-  String get installOnIosSteps => _pick(
-        '1. Tap the Share button in Safari.\n2. Scroll down and tap "Add to Home Screen".',
-        '1. Safari ബ്രൗസറിലെ Share ബട്ടൺ ക്ലിക്ക് ചെയ്യുക.\n2. താഴേക്ക് സ്ക്രോൾ ചെയ്ത് "Add to Home Screen" തിരഞ്ഞെടുക്കുക.',
-        '1. اضغط على زر المشاركة في متصفح Safari.\n2. مرر للأسفل واضغط على "إضافة إلى الشاشة الرئيسية".',
-      );
-  String get downloadAndroidApk => _pick(
-        'Download Android APK',
-        'Android APK ഡൗൺലോഡ് ചെയ്യുക',
-        'تحميل تطبيق أندرويد (APK)',
-      );
-  String get downloadAndroidApkDesc => _pick(
-        'Install the native Android package (Al-Quran.apk)',
-        'ആൻഡ്രോയിഡ് ഫോണിനായുള്ള Al-Quran.apk ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യാം',
-        'تثبيت حزمة تطبيق الأندرويد الأصلية (Al-Quran.apk)',
-      );
-  String get apkSetupTitle => _pick(
-        'Android APK Release',
-        'Android APK ഡൗൺലോഡ്',
-        'إصدار تطبيق أندرويد',
-      );
-  String get apkSetupDesc => _pick(
-        'Direct 1-tap APK download turns on automatically once this repository is pushed to GitHub & published on Vercel (GitHub Releases hosts Al-Quran.apk automatically). You can still share the live web app link right now!',
-        'ഈ പ്രോജക്റ്റ് GitHub-ലേക്ക് Push ചെയ്ത് Vercel-ൽ പബ്ലിഷ് ചെയ്യുന്നതോടെ GitHub Releases വഴി Al-Quran.apk ഇവിടെ നിന്ന് നേരിട്ട് 1-ടാപ്പിൽ ഡൗൺലോഡ് ആകും. ഇപ്പോൾ തന്നെ വെബ് ആപ്പ് ലിങ്ക് മറ്റുള്ളവർക്ക് ഷെയർ ചെയ്യാവുന്നതാണ്!',
-        'يتم تفعيل التحميل المباشر تلقائياً بمجرد رفع المشروع على GitHub ونشره على Vercel. يمكنك مشاركة رابط الموقع الآن!',
-      );
-  String get shareApp => _pick(
-        'Share App',
-        'ആപ്പ് ഷെയർ ചെയ്യുക',
-        'مشاركة التطبيق',
-      );
-  String get shareAppCopied => _pick(
-        'App link copied to clipboard',
-        'ആപ്പ് ലിങ്ക് കോപ്പി ചെയ്തു',
-        'تم نسخ رابط التطبيق',
-      );
-  String get offlineBanner => _pick(
-        'Offline Mode — Cached Surahs remain available',
-        'ഓഫ്‌ലൈൻ മോഡ് — സേവ് ചെയ്ത സൂറത്തുകൾ ഇപ്പോഴും വായിക്കാം',
-        'وضع عدم الاتصال — السور المحفوظة متاحة للقراءة',
-      );
-  String get closeLabel => _pick('Close', 'അടയ്ക്കുക', 'إغلاق');
-
-  // App Updates (1-Click Self-Update for Android APK & Web PWA)
-  String get checkForUpdates => _pick(
-        'Check for Updates',
-        'അപ്ഡേറ്റ് പരിശോധിക്കുക',
-        'التحقق من التحديثات',
-      );
-  String get checkingUpdates => _pick(
-        'Checking for updates...',
-        'അപ്ഡേറ്റുകൾ പരിശോധിക്കുന്നു...',
-        'جاري التحقق من التحديثات...',
-      );
-  String get updateAvailableTitle => _pick(
-        'New Update Available',
-        'പുതിയ അപ്ഡേറ്റ് ലഭ്യമാണ്',
-        'يتوفر تحديث جديد',
-      );
-  String updateAvailableDesc(String version, int buildNo) => _pick(
-        'Version $version (Build #$buildNo) is ready. Tap Update Now to jump directly to the latest version while keeping all your bookmarks and settings safe.',
-        'പുതിയ വേർഷൻ $version (Build #$buildNo) ഇപ്പോൾ ലഭ്യമാണ്. "ഇപ്പോൾ അപ്ഡേറ്റ് ചെയ്യുക" ക്ലിക്ക് ചെയ്താൽ നിങ്ങളുടെ ബുക്ക്‌മാർക്കുകളും സെറ്റിംഗ്സും നഷ്ടപ്പെടാതെ ഒറ്റ ക്ലിക്കിൽ ഏറ്റവും പുതിയ വേർഷനിലേക്ക് മാറാം.',
-        'الإصدار الجديد $version (Build #$buildNo) متاح الآن. اضغط على التحديث الآن للانتقال مباشرة إلى أحدث إصدار مع الحفاظ على إشاراتك وإعداداتك.',
-      );
-  String get updateNow => _pick(
-        'Update Now',
-        'ഇപ്പോൾ അപ്ഡേറ്റ് ചെയ്യുക',
-        'التحديث الآن',
-      );
-  String get updateLater => _pick('Later', 'പിന്നീട്', 'لاحقاً');
-  String get updateAvailableBadge =>
-      _pick('Update Ready', 'അപ്ഡേറ്റ് ഉണ്ട്', 'تحديث متاح');
-  String get downloadingUpdate => _pick(
-        'Downloading latest update...',
-        'ഏറ്റവും പുതിയ അപ്ഡേറ്റ് ഡൗൺലോഡ് ചെയ്യുന്നു...',
-        'جاري تنزيل أحدث تحديث...',
-      );
-  String get installingUpdate => _pick(
-        'Opening Android installer...',
-        'ഇൻസ്റ്റാളർ തുറക്കുന്നു...',
-        'جاري فتح مثبت التطبيق...',
-      );
-  String get installDownloadedApk => _pick(
-        'Install Update',
-        'അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്യുക',
-        'تثبيت التحديث',
-      );
-  String get allowInstallPermissionTitle => _pick(
-        'Allow App Installs',
-        'ഇൻസ്റ്റാൾ അനുമതി നൽകുക',
-        'السماح بتثبيت التطبيقات',
-      );
-  String get allowInstallPermissionDesc => _pick(
-        'Enable "Allow from this source" in Android Settings, then come back and tap Install Update.',
-        'തുറന്നുവന്ന ഫോൺ സെറ്റിംഗ്സിൽ "Allow from this source" ഓൺ ആക്കുക. അതിനുശേഷം തിരികെ വന്ന് "അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്യുക" ക്ലിക്ക് ചെയ്യുക.',
-        'فعّل خيار السماح بتثبيت التطبيقات من هذا المصدر في الإعدادات ثم عد واضغط على تثبيت التحديث.',
-      );
-  String get downloadInBrowser => _pick(
-        'Download in Browser',
-        'ബ്രൗസറിൽ ഡൗൺലോഡ് ചെയ്യുക',
-        'التحميل عبر المتصفح',
-      );
-  String get upToDateMessage => _pick(
-        'You are already on the latest version.',
-        'നിങ്ങൾ ഇപ്പോൾ തന്നെ ഏറ്റവും പുതിയ വേർഷൻ ആണ് ഉപയോഗിക്കുന്നത്.',
-        'أنت تستخدم أحدث إصدار بالفعل.',
-      );
-  String get updateCheckUnavailable => _pick(
-        'Could not check for updates right now. Please verify your internet connection.',
-        'ഇപ്പോൾ അപ്ഡേറ്റ് പരിശോധിക്കാനായില്ല. ഇന്റർനെറ്റ് കണക്ഷൻ പരിശോധിക്കുക.',
-        'تعذر التحقق من التحديثات الآن. يرجى التحقق من اتصال الإنترنت.',
-      );
-
-  // Audio Recitation & Reciter Selection
-  String get reciter => _pick('Reciter', 'ഖാരിഅ് (Reciter)', 'القارئ');
-  String get reciterSubtitle => _pick(
-        'Choose your Quran recitation voice',
-        'ഖുർആൻ പാരായണം ചെയ്യുന്ന ഖാരിഇനെ തിരഞ്ഞെടുക്കുക',
-        'اختر صوت قارئ القرآن الكريم',
-      );
-  String get playAyah => _pick('Play Ayah', 'ആയത്ത് കേൾക്കുക', 'تشغيل الآية');
-  String get pauseAyah =>
-      _pick('Pause recitation', 'പാരായണം നിർത്തുക', 'إيقاف مؤقت');
-  String get resumeAyah =>
-      _pick('Resume recitation', 'തുടർന്ന് കേൾക്കുക', 'استئناف التلاوة');
-  String get previousAyah =>
-      _pick('Previous Ayah', 'മുമ്പത്തെ ആയത്ത്', 'الآية السابقة');
-  String get nextAyah =>
-      _pick('Next Ayah', 'അടുത്ത ആയത്ത്', 'الآية التالية');
-  String get closePlayer =>
-      _pick('Close player', 'പ്ലെയർ അടയ്ക്കുക', 'إغلاق المشغل');
-  String get repeatAyah =>
-      _pick('Repeat Ayah', 'ആയത്ത് ആവർത്തിക്കുക', 'تكرار الآية');
-  String get audioLoadError => _pick(
-        'Could not play audio. Tap retry.',
-        'ഓഡിയോ പ്ലേ ചെയ്യാനായില്ല. വീണ്ടും ശ്രമിക്കുക.',
-        'تعذر تشغيل الصوت. اضغط لإعادة المحاولة.',
-      );
-
-  // Main Navigation & Sub-Tabs
-  String get quranTab => _pick('Quran', 'ഖുർആൻ', 'القرآن');
-  String get featuresTab => _pick('Features', 'ഫീച്ചേഴ്സ്', 'الميزات');
-  String get prayerTimesTab =>
-      _pick('Prayer Times', 'നമസ്കാരം', 'أوقات الصلاة');
-  String get hijriCalendarTab =>
-      _pick('Hijri', 'ഹിജ്രി', 'التقويم الهجري');
-
-  // Contextual Settings Titles
-  String get quranSettingsTitle =>
-      _pick('Quran Settings', 'ഖുർആൻ സെറ്റിംഗ്സ്', 'إعدادات القرآن');
-  String get featuresSettingsTitle =>
-      _pick('Features Settings', 'ഫീച്ചേഴ്സ് സെറ്റിംഗ്സ്', 'إعدادات الميزات');
-
-  // Prayer Times & Location
-  String get locationLabel => _pick('Location', 'ലൊക്കേഷൻ', 'الموقع');
-  String get useGps => _pick('Use GPS', 'GPS ഉപയോഗിക്കുക', 'استخدام GPS');
-  String get gpsActiveLabel =>
-      _pick('GPS Location', 'GPS ലൊക്കേഷൻ', 'موقع GPS');
-  String get changeCity =>
-      _pick('Change City', 'നഗരം മാറ്റുക', 'تغيير المدينة');
-  String get cityFieldLabel => _pick('City', 'നഗരം', 'المدينة');
-  String get countryFieldLabel => _pick('Country', 'രാജ്യം', 'الدولة');
-  String get popularCities =>
-      _pick('Quick Cities', 'പ്രധാന നഗരങ്ങൾ', 'مدن سريعة');
-  String get applyLabel => _pick('Apply', 'സെറ്റ് ചെയ്യുക', 'تطبيق');
-  String get cancelLabel => _pick('Cancel', 'റദ്ദാക്കുക', 'إلغاء');
-  String get calculationMethod =>
-      _pick('Calculation Method', 'കാൽക്കുലേഷൻ മെത്തേഡ്', 'طريقة الحساب');
-  String get asrSchool => _pick('Asr Juristic School', 'അസർ മദ്ഹബ്', 'مذهب العصر');
-  String get schoolShafi =>
-      _pick('Shafi / Standard', 'ശാഫിഈ (Standard)', 'الشافعي / الجمهور');
-  String get schoolHanafi => _pick('Hanafi', 'ഹനഫി', 'الحنفي');
-  String get tuneMinutes => _pick(
-        'Masjid Time Tune (Minutes)',
-        'പള്ളി സമയ ക്രമീകരണം (മിനിറ്റ്)',
-        'تعديل الدقائق حسب المسجد',
-      );
-  String get tuneShort => _pick('Tune Times', 'സമയം മാറ്റുക', 'تعديل الوقت');
-  String get resetTune => _pick('Reset Tune', 'റീസെറ്റ്', 'إعادة ضبط');
-  String get nextPrayerLabel =>
-      _pick('Next Prayer', 'അടുത്ത നമസ്കാരം', 'الصلاة القادمة');
-  String get remainingLabel => _pick('in', 'ശേഷം', 'بعد');
-  String get refreshLabel => _pick('Refresh', 'അപ്ഡേറ്റ്', 'تحديث');
-  String get offlineCachedNote =>
-      _pick('Offline cached', 'ഓഫ്‌ലൈൻ ക്യാഷ്', 'محفوظ بدون إنترنت');
-  String get gpsFetching =>
-      _pick('Fetching GPS location...', 'GPS ലൊക്കേഷൻ എടുക്കുന്നു...', 'جاري تحديد الموقع...');
-  String get gpsPermissionError => _pick(
-        'Location permission denied. Showing city timings.',
-        'ലൊക്കേഷൻ അനുമതി ലഭിച്ചില്ല. നഗര സമയം കാണിക്കുന്നു.',
-        'تم رفض إذن الموقع. يتم عرض توقيت المدينة.',
-      );
-  String get gpsServiceDisabled => _pick(
-        'Enable device GPS / Location services to update automatically.',
-        'ഓട്ടോമാറ്റിക് ലൊക്കേഷനായി ഫോണിൽ GPS ഓൺ ചെയ്യുക.',
-        'يرجى تفعيل خدمة الموقع على الجهاز.',
-      );
-
-  // Prayer Names
-  String get fajrName => _pick('Fajr', 'ഫജ്ർ', 'الفجر');
-  String get sunriseName => _pick('Sunrise', 'സൂര്യോദയം', 'الشروق');
-  String get dhuhrName => _pick('Dhuhr', 'ളുഹർ', 'الظهر');
-  String get asrName => _pick('Asr', 'അസർ', 'العصر');
-  String get maghribName => _pick('Maghrib', 'മഗ്‌രിബ്', 'المغرب');
-  String get ishaName => _pick('Isha', 'ഇശാഅ്', 'العشاء');
-
-  // Adhan, Iqamah & Alarm System
-  String get adhanLabel => _pick('Adhan', 'ബാങ്ക്', 'الأذان');
-  String get iqamahLabel => _pick('Iqamah', 'ഇഖാമത്ത്', 'الإقامة');
-  String get alarmLabel => _pick('Alarm', 'അലാറം', 'المنبه');
-  String get prayerAlarmsTitle =>
-      _pick('Prayer Alarms', 'നിസ്കാര അലാറം', 'منبهات الصلاة');
-  String get masterAlarmToggle => _pick(
-        'Enable Prayer Alarms',
-        'നിസ്കാര അലാറം ഓൺ ആക്കുക',
-        'تفعيل منبهات الصلاة',
-      );
-  String get masterAlarmDesc => _pick(
-        'Turn all active prayer reminders on or off together',
-        'അഞ്ച് നേരത്തെ അലാറങ്ങളും ഒരുമിച്ച് ഓൺ/ഓഫ് ചെയ്യാം',
-        'تشغيل أو إيقاف جميع منبهات الصلوات معاً',
-      );
-  String get alarmSoundSettings =>
-      _pick('Alarm Sound & Volume', 'അലാറം സൗണ്ട് ക്രമീകരണം', 'صوت المنبه ومستواه');
-  String get alarmSoundTypeLabel =>
-      _pick('Alarm Sound', 'അലാറം ശബ്ദം', 'صوت التنبيه');
-  String get alarmVolumeLabel =>
-      _pick('Alarm Volume', 'ശബ്ദത്തിന്റെ അളവ്', 'مستوى الصوت');
-  String get alarmVibrateLabel =>
-      _pick('Vibrate with Alarm', 'വൈബ്രേഷൻ', 'الاهتزاز مع المنبه');
-  String get previewSoundLabel =>
-      _pick('Test Sound', 'സൗണ്ട് കേൾക്കുക', 'تجربة الصوت');
-  String get stopSoundLabel => _pick('Stop', 'നിർത്തുക', 'إيقاف');
-  String get iqamahGapLabel => _pick(
-        'Iqamah Delay (after Adhan)',
-        'ഇഖാമത്ത് സമയം (ബാങ്കിന് ശേഷം)',
-        'وقت الإقامة (بعد الأذان)',
-      );
-  String get alarmRefLabel =>
-      _pick('Alarm Timing', 'അലാറം എപ്പോൾ?', 'توقيت المنبه');
-  String get beforeAdhanOption =>
-      _pick('Before Adhan', 'ബാങ്കിന് മുമ്പ്', 'قبل الأذان');
-  String get relativeToIqamahOption =>
-      _pick('Before / After Iqamah', 'ഇഖാമത്തിന് മുമ്പ് / ശേഷം', 'قبل / بعد الإقامة');
-  String get minutesBeforeLabel =>
-      _pick('Minutes before Adhan', 'ബാങ്കിന് എത്ര മിനിറ്റ് മുമ്പ്', 'دقائق قبل الأذان');
-  String get offsetFromIqamahLabel => _pick(
-        'Offset from Iqamah (- before / + after)',
-        'ഇഖാമത്തിൽ നിന്നുള്ള വ്യത്യാസം (- മുമ്പ് / + ശേഷം)',
-        'الفارق عن الإقامة (- قبل / + بعد)',
-      );
-  String get atIqamahTime => _pick('At Iqamah', 'ഇഖാമത്ത് സമയത്ത്', 'عند الإقامة');
-  String safetyBufferNote(String nextName, String limitTime) => _pick(
-        'Safety limit: stays at least 10 min before $nextName ($limitTime)',
-        'സുരക്ഷാ പരിധി: അടുത്ത $nextName ബാങ്കിന് 10 മിനിറ്റ് മുമ്പ് വരെ ($limitTime)',
-        'الحد الآمن: قبل أذان $nextName بـ 10 دقائق على الأقل ($limitTime)',
-      );
-  String get alarmOffLabel => _pick('Off', 'ഓഫ്', 'إيقاف');
-  String get dismissedTodayLabel =>
-      _pick('Off today', 'ഇന്ന് ഓഫ്', 'متوقف اليوم');
-  String get dismissTodayAlarm => _pick(
-        'Dismiss Today\'s Alarm',
-        'ഇന്നത്തെ അലാറം ഓഫ് ചെയ്യുക',
-        'إيقاف منبه اليوم',
-      );
-  String get dismissOnlyNote => _pick(
-        'Turns off this prayer for today only. Tomorrow rings as scheduled.',
-        'ഇന്നത്തെ ഈ നിസ്കാരത്തിന്റെ അലാറം മാത്രം ഓഫാകും. നാളെ വീണ്ടും അടിക്കും.',
-        'يوقف تنبيه هذه الصلاة لليوم فقط، وسيعمل غداً كالمعتاد.',
-      );
-  String get prayerReminderRinging => _pick(
-        'Prayer Reminder',
-        'നിസ്കാര സമയ അറിയിപ്പ്',
-        'تذكير الصلاة',
-      );
-  String get editScheduleLabel =>
-      _pick('Edit Iqamah & Alarm', 'ഇഖാമത്തും അലാറവും മാറ്റുക', 'تعديل الإقامة والمنبه');
-  String get minutesUnitShort => _pick('m', 'മി', 'د');
-
-  // Hijri Calendar
-  String get hijriCalendarTitle =>
-      _pick('Hijri Calendar', 'ഹിജ്രി കലണ്ടർ', 'التقويم الهجري');
-  String get hijriAdjustment => _pick(
-        'Hijri Moon Adjustment',
-        'മാസപ്പിറവി മാറ്റം (-1 / 0 / +1)',
-        'تعديل التاريخ الهجري',
-      );
-  String get todayLabel => _pick('Today', 'ഇന്ന്', 'اليوم');
-  String get selectedDayLabel =>
-      _pick('Selected Date', 'തിരഞ്ഞെടുത്ത തീയതി', 'التاريخ المحدد');
-  String get dayMinusOne => _pick('-1 Day', '-1 ദിവസം', '-1 يوم');
-  String get dayZero => _pick('0 (Default)', '0 (സാധാരണ)', '0 (افتراضي)');
-  String get dayPlusOne => _pick('+1 Day', '+1 ദിവസം', '+1 يوم');
-
-  // Features Sub-Tabs (Short 1-word labels for clean 4-tab bar)
-  String get prayerShortTab => _pick('Prayer', 'നമസ്കാരം', 'الصلاة');
-  String get adhkarTab => _pick('Adhkar', 'ദിക്ർ', 'الأذكار');
-  String get tasbihTab => _pick('Counter', 'കൗണ്ടർ', 'العدّاد');
-
-  // Offline Daily Duas & Adhkar (Hisnul Muslim)
-  String get morningAdhkar => _pick('Morning', 'രാവിലെ', 'الصباح');
-  String get eveningAdhkar => _pick('Evening', 'വൈകിട്ട്', 'المساء');
-  String get afterSalahAdhkar =>
-      _pick('After Salah', 'നിസ്കാര ശേഷം', 'بعد الصلاة');
-  String get dailyDuasCategory =>
-      _pick('Daily Duas', 'നിത്യ ദുആകൾ', 'أدعية يومية');
-  String get allAdhkarLabel => _pick('All', 'എല്ലാം', 'الكل');
-  String get favoritesOnlyLabel => _pick('Favorites', 'പ്രിയപ്പെട്ടവ', 'المفضلة');
-  String get resetTodayProgress =>
-      _pick('Reset Progress', 'റീസെറ്റ്', 'إعادة التصفير');
-  String get completedLabel => _pick('Completed', 'പൂർത്തിയായി', 'مكتمل');
-  String get hisnulMuslimNote => _pick(
-        'Offline Hisnul Muslim & Prophetic Adhkar — Tap card to count',
-        'ഓഫ്‌ലൈൻ ഹിസ്നുൽ മുസ്‌ലിം ദിക്റുകളും ദുആകളും — എണ്ണാൻ കാർഡിൽ ടാപ്പ് ചെയ്യുക',
-        'حصن المسلم وأذكار يومية بدون إنترنت — اضغط على البطاقة للعد',
-      );
-  String get noFavoriteAdhkar => _pick(
-        'No favorite Adhkar saved yet. Tap the star icon on any Dhikr to save it here.',
-        'പ്രിയപ്പെട്ട ദിക്റുകൾ ഒന്നും സേവ് ചെയ്തിട്ടില്ല. നക്ഷത്ര ഐക്കണിൽ ടാപ്പ് ചെയ്ത് സേവ് ചെയ്യാം.',
-        'لا توجد أذكار مفضلة بعد. اضغط على أيقونة النجمة لحفظها هنا.',
-      );
-
-  // Digital Counter (Tasbih)
-  String get tasbihTitle =>
-      _pick('Counter', 'കൗണ്ടർ', 'العدّاد');
-  String get tapToCount =>
-      _pick('Tap circle to count', 'എണ്ണാൻ ടാപ്പ് ചെയ്യുക', 'اضغط هنا للتسبيح');
-  String get tapAnywhereLabel =>
-      _pick('Tap Anywhere', 'എവിടെയും ടാപ്പ്', 'الضغط بأي مكان');
-  String get tapAnywhereHint => _pick(
-        'Tap anywhere in this zone to count',
-        'ഈ ഭാഗത്ത് എവിടെ തൊട്ടാലും എണ്ണും',
-        'اضغط في أي مكان هنا للعد',
-      );
-  String get targetLabel => _pick('Target', 'ലക്ഷ്യം', 'الهدف');
-  String get unlimitedLabel => _pick('Free', 'അൺലിമിറ്റഡ്', 'مفتوح');
-  String get todayTotalLabel => _pick('Today', 'ഇന്ന്', 'اليوم');
-  String get lifetimeTotalLabel => _pick('Total', 'ആകെ', 'الإجمالي');
-  String get addCustomDhikr =>
-      _pick('Add Custom Dhikr', 'പുതിയ ദിക്ർ ചേർക്കുക', 'إضافة ذكر مخصص');
-  String get customDhikrArabic =>
-      _pick('Arabic Text (optional)', 'അറബിക് ടെക്സ്റ്റ് (നിർബന്ധമില്ല)', 'النص العربي (اختياري)');
-  String get customDhikrName =>
-      _pick('Dhikr Title / Meaning', 'ദിക്ർ പേര് / അർത്ഥം', 'اسم الذكر / المعنى');
-  String get vibrateOnTapLabel =>
-      _pick('Haptic Vibration', 'ടാപ്പ് വൈബ്രേഷൻ', 'الاهتزاز عند الضغط');
-  String get resetCycleLabel => _pick('Reset', 'റീസെറ്റ്', 'تصفير');
-  String get deleteCustomLabel =>
-      _pick('Remove Custom Dhikr', 'നീക്കം ചെയ്യുക', 'حذف الذكر');
-
-  // Weekly Surah Al-Kahf Reminder
-  String get kahfReminderTitle => _pick(
-        'Surah Al-Kahf Weekly Reminder',
-        'സൂറത്തുൽ കഹ്ഫ് ഓർമ്മപ്പെടുത്തൽ',
-        'تذكير سورة الكهف الأسبوعي',
-      );
-  String get kahfReminderDesc => _pick(
-        'Notifies every Thursday evening and Friday morning. Tap the notification to open Surah Al-Kahf directly.',
-        'എല്ലാ വ്യാഴാഴ്ച വൈകുന്നേരവും വെള്ളിയാഴ്ച രാവിലെയും ഓർമ്മിപ്പിക്കും. നോട്ടിഫിക്കേഷനിൽ ടാപ്പ് ചെയ്താൽ നേരിട്ട് സൂറത്തുൽ കഹ്ഫ് തുറക്കാം.',
-        'ينبّهك كل مساء خميس وصباح جمعة. اضغط على الإشعار لفتح سورة الكهف مباشرة.',
-      );
-  String get kahfThuLabel =>
-      _pick('Thursday Evening', 'വ്യാഴാഴ്ച രാത്രി', 'مساء الخميس');
-  String get kahfFriLabel =>
-      _pick('Friday Morning', 'വെള്ളിയാഴ്ച രാവിലെ', 'صباح الجمعة');
-  String get kahfNotifTitle => _pick(
-        'Surah Al-Kahf Reminder',
-        'സൂറത്തുൽ കഹ്ഫ് ഓതാൻ സമയമായി',
-        'تذكير قراءة سورة الكهف',
-      );
-  String get kahfNotifBody => _pick(
-        'Illuminate your Friday with Surah Al-Kahf. Tap to open Surah 18 directly.',
-        'വെള്ളിയാഴ്ചയുടെ പ്രകാശത്തിനായി സൂറത്തുൽ കഹ്ഫ് പാരായണം ചെയ്യുക. തുറക്കാൻ ടാപ്പ് ചെയ്യുക.',
-        'نورٌ بين الجمعتين — اضغط لفتح سورة الكهف مباشرة.',
-      );
-  String get kahfOpenSurahBtn => _pick(
-        'Read Surah Al-Kahf',
-        'സൂറത്തുൽ കഹ്ഫ് ഓതുക',
-        'اقرأ سورة الكهف',
-      );
-  String get kahfBannerTitle => _pick(
-        'Jumu\'ah Reminder — Surah Al-Kahf',
-        'ജുമുഅ ഓർമ്മപ്പെടുത്തൽ — സൂറത്തുൽ കഹ്ഫ്',
-        'تذكير الجمعة — سورة الكهف',
-      );
-  String get kahfBannerDesc => _pick(
-        'Tap to open Surah Al-Kahf (Surah 18) directly',
-        'സൂറത്തുൽ കഹ്ഫ് (18) നേരിട്ട് തുറന്ന് പാരായണം ചെയ്യാം',
-        'اضغط لفتح سورة الكهف (18) مباشرة',
-      );
-  String get testKahfReminder => _pick(
-        'Test Reminder Notification',
-        'ടെസ്റ്റ് നോട്ടിഫിക്കേഷൻ കാണുക',
-        'تجربة الإشعار',
-      );
-  String get changeTimeLabel =>
-      _pick('Change Time', 'സമയം മാറ്റുക', 'تغيير الوقت');
-  String get kahfTestWebFeedback => _pick(
-        'Surah Al-Kahf reminder active! On Android APK it sends a scheduled notification tapping straight to Surah 18.',
-        'സൂറത്തുൽ കഹ്ഫ് റിമൈൻഡർ സജ്ജമാണ്! Android ആപ്പിൽ വ്യാഴം/വെള്ളി ദിവസങ്ങളിൽ നേരിട്ട് നോട്ടിഫിക്കേഷൻ ലഭിക്കും.',
-        'التذكير مفعّل! على تطبيق أندرويد يصلك إشعار مجدول يفتح السورة مباشرة.',
-      );
-
-  // Android Home Screen Widget Info
-  String get homeWidgetTitle => _pick(
-        'Home Screen Widget',
-        'ഹോം സ്ക്രീൻ വിഡ്ജറ്റ്',
-        'أداة الشاشة الرئيسية',
-      );
-  String get homeWidgetDesc => _pick(
-        'Long-press your Android home screen -> Widgets -> "Al-Quran Prayer Times" to view next prayer & Hijri date live without opening the app.',
-        'ആപ്പ് തുറക്കാതെ തന്നെ അടുത്ത നിസ്കാര സമയവും ഹിജ്‌രി തീയതിയും കാണാൻ ഫോൺ ഹോം സ്ക്രീനിൽ ലോങ്-പ്രസ് ചെയ്ത് Widgets -> "Al-Quran Prayer Times" ചേർക്കുക.',
-        'اضغط مطولاً على شاشة هاتفك -> التطبيقات المصغرة -> "Al-Quran Prayer Times" لمتابعة الصلاة القادمة والتاريخ الهجري مباشرة.',
-      );
-
-  // Dashboard & Navigation
-  String get dashboardTab => _pick('Dashboard', 'ഡാഷ്‌ബോർഡ്', 'الرئيسية');
-  String get dashboardTitle => _pick('Dashboard', 'ഡാഷ്‌ബോർഡ്', 'لوحة التحكم');
-  String get dashboardSearchHint => _pick(
-        'Search Surah, features, 99 Names, or Adhkar...',
-        'സൂറത്ത്, ഫീച്ചറുകൾ, 99 നാമങ്ങൾ, ദിക്ർ തിരയുക...',
+  // Home Feature Grid & Actions
+  String get dashboardSearchHint => _p(
+        'Search Surah, Prayer, 99 Names, Adhkar, Export...',
+        'സൂറത്ത്, നമസ്കാരം, 99 നാമങ്ങൾ, ദിക്ർ, എക്സ്പോർട്ട് തിരയുക...',
         'ابحث عن سورة أو ميزة أو اسم أو ذكر...',
       );
-  String get recentActivityTitle =>
-      _pick('Recent Activity', 'സമീപകാല പ്രവർത്തനങ്ങൾ', 'النشاطات الأخيرة');
-  String get recentActivityEmpty => _pick(
-        'Your last 7 actions will appear here for quick access.',
-        'നിങ്ങൾ അവസാനം ചെയ്ത 7 പ്രവർത്തനങ്ങൾ വേഗത്തിൽ തുറക്കാൻ ഇവിടെ കാണാം.',
-        'ستظهر آخر 7 نشاطات قمت بها هنا للوصول السريع.',
+  String get recentActivityTitle => _p('Recent Activity', 'സമീപകാല പ്രവർത്തനങ്ങൾ', 'النشاطات الأخيرة');
+  String get recentActivityEmpty => _p(
+        'Your recently opened Surahs, 99 Names, Adhkar and tools appear here automatically.',
+        'നിങ്ങൾ തുറക്കുന്ന സൂറത്തുകളും ഫീച്ചറുകളും ഇവിടെ കാണാം.',
+        'ستظهر السور والميزات التي تفتحها مؤخراً هنا تلقائياً.',
       );
-  String get clearHistoryLabel => _pick('Clear', 'മായ്ക്കുക', 'مسح');
-  String get quickActionsTitle =>
-      _pick('All Features & Tools', 'പ്രധാന വിഭാഗങ്ങൾ', 'جميع الأدوات');
-  String get noSearchResults => _pick(
+  String get clearHistoryLabel => _p('Clear', 'മായ്ക്കുക', 'مسح');
+  String get quickActionsTitle => _p('Features & Tools', 'ഫീച്ചറുകളും ടൂളുകളും', 'الأدوات والميزات');
+  String get categoriesTitle => _p('Islamic Sections', 'ഇസ്‌ലാമിക വിഭാഗങ്ങൾ', 'الأقسام الإسلامية');
+  String get noSearchResults => _p(
         'No matching Surah, tool, Name, or Dhikr found.',
         'യോജിച്ച സൂറത്തോ ഫീച്ചറോ നാമമോ കണ്ടെത്താനായില്ല.',
         'لم يتم العثور على نتائج مطابقة.',
       );
+  String get actionReadQuran => _p('Read Quran', 'ഖുർആൻ വായന', 'قراءة القرآن');
+  String get actionJuz => _p('Juz Index', 'ജുസ്അ്', 'الأجزاء');
+  String get actionBookmarks => _p('Bookmarks', 'ബുക്ക്‌മാർക്ക്', 'المحفوظات');
+  String get actionPrayer => _p('Prayer Times', 'നിസ്കാര സമയം', 'أوقات الصلاة');
+  String get actionHijri => _p('Hijri Calendar', 'ഹിജ്‌രി കലണ്ടർ', 'التقويم الهجري');
+  String get actionAutoSilent => _p('Auto-Silent DND', 'ഓട്ടോ സൈലന്റ്', 'الصامت التلقائي');
+  String get actionAdhkar => _p('Adhkar & Duas', 'ദിക്ർ & ദുആ', 'الأذكار اليومية');
+  String get actionCounter => _p('Tasbih Counter', 'തസ്ബീഹ് കൗണ്ടർ', 'العدّاد');
+  String get actionNames99 => _p('99 Names', '99 നാമങ്ങൾ', 'أسماء الله');
+  String get actionTajweed => _p('Tajweed Guide', 'തജ്‌വീദ് നിയമം', 'أحكام التجويد');
+  String get actionExport => _p('Export PDF / PNG', 'എക്സ്പോർട്ട് PDF / PNG', 'تصدير PDF');
+  String get actionSettings => _p('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
 
-  // 12 Dashboard Grid Titles
-  String get actionReadQuran => _pick('Read Quran', 'ഖുർആൻ വായന', 'قراءة القرآن');
-  String get actionJuz => _pick('Juz Index', 'ജുസ്അ്', 'الأجزاء');
-  String get actionBookmarks => _pick('Bookmarks', 'ബുക്ക്‌മാർക്ക്', 'المحفوظات');
-  String get actionPrayer => _pick('Prayer Times', 'നിസ്കാര സമയം', 'أوقات الصلاة');
-  String get actionHijri => _pick('Hijri Calendar', 'ഹിജ്‌രി കലണ്ടർ', 'التقويم الهجري');
-  String get actionAutoSilent => _pick('Auto-Silent', 'ഓട്ടോ സൈലന്റ്', 'الصامت التلقائي');
-  String get actionAdhkar => _pick('Daily Adhkar', 'ദിക്ർ & ദുആ', 'الأذكار اليومية');
-  String get actionCounter => _pick('Counter', 'കൗണ്ടർ', 'العدّاد');
-  String get actionNames99 => _pick('99 Names', '99 നാമങ്ങൾ', 'أسماء الله');
-  String get actionTajweed => _pick('Tajweed Guide', 'തജ്‌വീദ് നിയമം', 'أحكام التجويد');
-  String get actionExport => _pick('Export PDF', 'എക്സ്പോർട്ട്', 'تصدير PDF');
-  String get actionSettings => _pick('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
+  // Daily Spotlight Cards on Home
+  String get dailyNameTitle => _p('Name of Allah', 'അല്ലാഹുവിന്റെ നാമം', 'من أسماء الله الحسنى');
+  String get dailyTajweedTitle => _p('Tajweed Rule Highlight', 'ഇന്നത്തെ തജ്‌വീദ് നിയമം', 'قاعدة تجويد اليوم');
+  String get viewMeaningBtn => _p('View Meaning', 'അർത്ഥം കാണുക', 'عرض المعنى');
+  String get exploreRuleBtn => _p('Explore Rules', 'നിയമങ്ങൾ കാണുക', 'استعراض القواعد');
 
-  // Tajweed Color Coding
-  String get tajweedGuideTitle =>
-      _pick('Tajweed Color Guide', 'തജ്‌വീദ് കളർ ഗൈഡ്', 'دليل ألوان التجويد');
-  String get tajweedLegendShort => _pick('Color Key', 'കളർ ഗൈഡ്', 'الألوان');
-  String get tajweedTapHint => _pick(
-        'Tajweed colors active · Tap any colored word to see its rule',
-        'തജ്‌വീദ് നിറങ്ങൾ സജീവം · നിയമം കാണാൻ നിറമുള്ള ഭാഗത്ത് ടാപ്പ് ചെയ്യുക',
-        'ألوان التجويد مفعّلة · اضغط على أي كلمة ملونة لعرض الحكم',
-      );
-  String get tajweedRuleHeader =>
-      _pick('Tajweed Rule', 'തജ്‌വീദ് നിയമം', 'حكم التجويد');
-  String get tajweedExamplesLabel =>
-      _pick('Examples', 'ഉദാഹരണങ്ങൾ', 'أمثلة');
-  String get tajweedFullGuideBtn => _pick(
-        'Open Full Tajweed Color Guide',
-        'മുഴുവൻ തജ്‌വീദ് കളർ ഗൈഡും കാണുക',
-        'عرض دليل ألوان التجويد الكامل',
-      );
-
-  // 99 Names of Allah (Asmaul Husna)
-  String get names99Tab => _pick('99 Names', 'നാമങ്ങൾ', 'الأسماء');
-  String get names99Title => _pick(
-        '99 Names of Allah (Asmaul Husna)',
-        'അല്ലാഹുവിന്റെ 99 നാമങ്ങൾ (അസ്മാഉൽ ഹുസ്ന)',
-        'أسماء الله الحسنى (99 اسماً)',
-      );
-  String get names99SearchHint => _pick(
-        'Search by number, Arabic, English, or Malayalam...',
-        'നമ്പർ, അറബിക്, ഇംഗ്ലീഷ് അല്ലെങ്കിൽ മലയാളം വഴി തിരയുക...',
+  // 99 Names Dual View
+  String get names99Title => _p('99 Names of Allah', 'അല്ലാഹുവിന്റെ 99 നാമങ്ങൾ', 'أسماء الله الحسنى');
+  String get names99Subtitle => _p('Asmaul Husna', 'അസ്മാഉൽ ഹുസ്ന', '٩٩ اسماً');
+  String get names99GridMode => _p('Arabic Grid', 'അറബിക് ഗ്രിഡ്', 'جدول عربي');
+  String get names99ListMode => _p('Detailed List', 'വിശദമായ ലിസ്റ്റ്', 'قائمة مع المعاني');
+  String get names99SearchHint => _p(
+        'Search number, Arabic, English, or Malayalam...',
+        'നമ്പർ, അറബിക്, ഇംഗ്ലീഷ്, മലയാളം തിരയുക...',
         'ابحث بالرقم أو الاسم أو المعنى...',
       );
-  String get meaningEnglishLabel =>
-      _pick('English Meaning', 'ഇംഗ്ലീഷ് അർത്ഥം', 'المعنى بالإنجليزية');
-  String get meaningMalayalamLabel =>
-      _pick('Malayalam Meaning', 'മലയാളം അർത്ഥം', 'المعنى بالمالايالامية');
-  String get reflectionLabel =>
-      _pick('Reflection', 'ആശയം / വിവരണം', 'التدبر والتأمل');
-  String get copiedNameNotice =>
-      _pick('Copied to clipboard', 'കോപ്പി ചെയ്തു', 'تم النسخ');
+  String get names99Studied => _p('Studied', 'പഠിച്ചത്', 'تمت دراسته');
+  String get names99MarkStudied => _p('Mark as Studied', 'പഠിച്ചതായി അടയാളപ്പെടുത്തുക', 'تحديد كمدروس');
+  String get names99GridHint => _p(
+        'Tap any Arabic name to view transliteration, meanings & reflection',
+        'അർത്ഥവും വിശദീകരണവും കാണാൻ ഏതെങ്കിലും നാമത്തിൽ ടാപ്പ് ചെയ്യുക',
+        'اضغط على أي اسم لعرض معانيه وتفاصيله',
+      );
+  String get meaningEnglishLabel => _p('English Meaning', 'ഇംഗ്ലീഷ് അർത്ഥം', 'المعنى بالإنجليزية');
+  String get meaningMalayalamLabel => _p('Malayalam Meaning', 'മലയാളം അർത്ഥം', 'المعنى بالمالايالامية');
+  String get meaningArabicLabel => _p('Arabic Explanation', 'അറബിക് വിശദീകരണം', 'الشرح بالعربية');
+  String get reflectionLabel => _p('Reflection', 'ആശയം / വിവരണം', 'التدبر والتأمل');
+  String get copiedNameNotice => _p('Copied to clipboard', 'കോപ്പി ചെയ്തു', 'تم النسخ');
+  String get previousLabel => _p('Previous', 'മുമ്പത്തേത്', 'السابق');
+  String get nextLabel => _p('Next', 'അടുത്തത്', 'التالي');
 
-  // Auto-Silent (DND) during Prayer
-  String get autoSilentTitle => _pick(
-        'Auto-Silent (DND) during Prayer',
-        'നിസ്കാര സമയത്ത് ഓട്ടോ സൈലന്റ് (DND)',
-        'الوضع الصامت التلقائي وقت الصلاة',
+  // Tajweed Guide & Legends
+  String get tajweedGuideTitle => _p('Tajweed Color Guide', 'തജ്‌വീദ് കളർ ഗൈഡ്', 'دليل ألوان التجويد');
+  String get tajweedColorCoding => _p('Tajweed Color Coding', 'തജ്‌വീദ് കളർ കോഡിംഗ്', 'ألوان التجويد');
+  String get tajweedRuleHeader => _p('Tajweed Rules', 'തജ്‌വീദ് നിയമങ്ങൾ', 'أحكام التجويد');
+  String get tajweedExamplesLabel => _p('Examples from Quran', 'ഖുർആനിലെ ഉദാഹരണങ്ങൾ', 'أمثلة من القرآن');
+  String get tajweedFullGuideBtn => _p('Open Full Tajweed Guide', 'പൂർണ്ണ തജ്‌വീദ് ഗൈഡ് തുറക്കുക', 'فتح دليل التجويد الكامل');
+  String get tajweedLegendShort => _p('Tajweed Colors', 'തജ്‌വീദ് നിറങ്ങൾ', 'ألوان التجويد');
+  String get tajweedTapHint => _p('Tap rule for details', 'വിവരങ്ങൾക്ക് ടാപ്പ് ചെയ്യുക', 'اضغط للتفاصيل');
+
+  // Audio Recitation
+  String get reciter => _p('Reciter', 'ഖാരിഅ് (Reciter)', 'القارئ');
+  String get playAyah => _p('Play Ayah', 'ആയത്ത് കേൾക്കുക', 'تشغيل الآية');
+  String get pauseAyah => _p('Pause recitation', 'പാരായണം നിർത്തുക', 'إيقاف مؤقت');
+  String get resumeAyah => _p('Resume recitation', 'തുടർന്ന് കേൾക്കുക', 'استئناف التلاوة');
+  String get previousAyah => _p('Previous Ayah', 'മുമ്പത്തെ ആയത്ത്', 'الآية السابقة');
+  String get nextAyah => _p('Next Ayah', 'അടുത്ത ആയത്ത്', 'الآية التالية');
+  String get closePlayer => _p('Close player', 'പ്ലെയർ അടയ്ക്കുക', 'إغلاق المشغل');
+  String get repeatAyah => _p('Repeat Ayah', 'ആയത്ത് ആവർത്തിക്കുക', 'تكرار الآية');
+  String get audioLoadError => _p('Could not play audio. Try again.', 'ഓഡിയോ പ്ലേ ചെയ്യാനായില്ല.', 'تعذر تشغيل الصوت.');
+
+  // Export
+  String get exportTitle => _p('Export Quran (PDF & PNG)', 'ഖുർആൻ എക്സ്പോർട്ട് (PDF / PNG)', 'تصدير القرآن');
+  String get exportScope => _p('What to Export', 'എന്താണ് എക്സ്പോർട്ട് ചെയ്യേണ്ടത്', 'نطاق التصدير');
+  String get scopeRange => _p('Ayah Range', 'ആയത്ത് റേഞ്ച്', 'نطاق آيات');
+  String get scopeSurah => _p('Full Surah', 'പൂർണ്ണ സൂറത്ത്', 'سورة كاملة');
+  String get scopeJuz => _p('Full Juz', 'പൂർണ്ണ ജുസ്അ്', 'جزء كامل');
+  String get selectSurah => _p('Select Surah', 'സൂറത്ത് തിരഞ്ഞെടുക്കുക', 'اختر السورة');
+  String get selectJuz => _p('Select Juz', 'ജുസ്അ് തിരഞ്ഞെടുക്കുക', 'اختر الجزء');
+  String get fromAyah => _p('From Ayah', 'തുടങ്ങുന്ന ആയത്ത്', 'من الآية');
+  String get toAyah => _p('To Ayah', 'അവസാനിക്കുന്ന ആയത്ത്', 'إلى الآية');
+  String get pageSize => _p('Page Size', 'പേജ് സൈസ്', 'حجم الصفحة');
+  String get sizeAutomatic => _p('Mobile Card', 'മൊബൈൽ കാർഡ്', 'بطاقة جوال');
+  String get sizeA4 => _p('A4 Print', 'A4 പ്രിന്റ്', 'A4 للطباعة');
+  String get exportFormat => _p('Format', 'ഫോർമാറ്റ്', 'الصيغة');
+  String get formatPdf => _p('PDF Document', 'PDF ഡോക്യുമെന്റ്', 'ملف PDF');
+  String get formatImage => _p('Image (PNG)', 'ഇമേജ് (PNG)', 'صورة PNG');
+  String get includeTranslation => _p('Include Translation', 'പരിഭാഷ ഉൾപ്പെടുത്തുക', 'تضمين الترجمة');
+  String get generatePreview => _p('Preview & Export', 'പ്രിവ്യൂ കാണുക', 'معاينة وتصدير');
+  String get exportPreview => _p('Export Preview', 'എക്സ്പോർട്ട് പ്രിവ്യൂ', 'معاينة التصدير');
+  String get preparingPages => _p('Preparing pages...', 'പേജുകൾ തയ്യാറാക്കുന്നു...', 'جاري تجهيز الصفحات...');
+  String get download => _p('Download', 'ഡൗൺലോഡ്', 'تنزيل');
+  String get share => _p('Share', 'ഷെയർ', 'مشاركة');
+  String get exportSuccess => _p('Export ready and downloaded', 'വിജയകരമായി സേവ് ചെയ്തു', 'تم التصدير بنجاح');
+  String get savedToGallery => _p('Saved to device gallery', 'ഗാലറിയിലേക്ക് സേവ് ചെയ്തു', 'تم الحفظ في المعرض');
+  String get exportError => _p('Export failed. Please try again.', 'എക്സ്പോർട്ട് പരാജയപ്പെട്ടു. വീണ്ടും ശ്രമിക്കുക.', 'فشل التصدير. حاول مرة أخرى.');
+  String get invalidAyahRange => _p('Enter a valid Ayah range', 'ശരിയായ ആയത്ത് നമ്പറുകൾ നൽകുക', 'أدخل نطاق آيات صحيح');
+
+  // Prayer Times, Hijri & DND
+  String get locationLabel => _p('Location', 'ലൊക്കേഷൻ', 'الموقع');
+  String get useGps => _p('Use GPS', 'GPS ഉപയോഗിക്കുക', 'استخدام GPS');
+  String get gpsFetching => _p('Fetching GPS location...', 'GPS എടുക്കുന്നു...', 'جاري تحديد الموقع...');
+  String get gpsPermissionError => _p(
+        'Location permission denied. Enable location access or select a city.',
+        'ലൊക്കേഷൻ അനുമതി ലഭിച്ചില്ല. സിറ്റി തിരഞ്ഞെടുക്കുകയോ അനുമതി നൽകുകയോ ചെയ്യുക.',
+        'تم رفض إذن الموقع. يرجى التفعيل أو اختيار المدينة.',
       );
-  String get autoSilentDesc => _pick(
-        'Automatically switches phone to Do Not Disturb from Iqamah time and restores previous sound after the selected duration.',
-        'ഇഖാമത്ത് സമയത്ത് ഫോൺ തനിയെ സൈലന്റ് (DND) മോഡിലാക്കുകയും, നിശ്ചിത മിനിറ്റിന് ശേഷം പഴയപടിയാക്കുകയും ചെയ്യും.',
-        'يحول الهاتف إلى وضع عدم الإزعاج تلقائياً عند الإقامة ويعيد الصوت كما كان بعد انتهاء المدة.',
+  String get gpsServiceDisabled => _p(
+        'Location service (GPS) is turned off on this device.',
+        'ഫോണിൽ GPS / ലൊക്കേഷൻ ഓഫ് ആണ്.',
+        'خدمة الموقع متوقفة في الجهاز.',
       );
-  String get autoSilentDurationLabel =>
-      _pick('Silent Duration from Iqamah', 'ഇഖാമത്ത് മുതൽ സൈലന്റ് സമയം', 'مدة الصامت من الإقامة');
-  String get dndPermissionGranted => _pick(
-        'Do Not Disturb access granted',
-        'DND അനുമതി നൽകിയിട്ടുണ്ട്',
-        'تم منح صلاحية عدم الإزعاج',
+  String get changeCity => _p('Change City', 'നഗരം മാറ്റുക', 'تغيير المدينة');
+  String get cityFieldLabel => _p('City', 'നഗരം', 'المدينة');
+  String get countryFieldLabel => _p('Country', 'രാജ്യം', 'الدولة');
+  String get popularCities => _p('Quick Cities', 'പ്രധാന നഗരങ്ങൾ', 'مدن سريعة');
+  String get applyLabel => _p('Apply', 'സെറ്റ് ചെയ്യുക', 'تطبيق');
+  String get cancelLabel => _p('Cancel', 'റദ്ദാക്കുക', 'إلغاء');
+  String get calculationMethod => _p('Calculation Method', 'കാൽക്കുലേഷൻ മെത്തേഡ്', 'طريقة الحساب');
+  String get asrSchool => _p('Asr Juristic School', 'അസർ മദ്ഹബ്', 'مذهب العصر');
+  String get schoolShafi => _p('Shafi / Standard', 'ശാഫിഈ (Standard)', 'الشافعي / الجمهور');
+  String get schoolHanafi => _p('Hanafi', 'ഹനഫി', 'الحنفي');
+  String get tuneMinutes => _p('Masjid Time Tune (Minutes)', 'പള്ളി സമയ ക്രമീകരണം (മിനിറ്റ്)', 'تعديل الدقائق حسب المسجد');
+  String get resetTune => _p('Reset Tune', 'റീസെറ്റ്', 'إعادة ضبط');
+  String get nextPrayerLabel => _p('Next Prayer', 'അടുത്ത നമസ്കാരം', 'الصلاة القادمة');
+  String get remainingLabel => _p('in', 'ശേഷം', 'بعد');
+  String get refreshLabel => _p('Refresh', 'അപ്ഡേറ്റ്', 'تحديث');
+  String get todayLabel => _p('Today', 'ഇന്ന്', 'اليوم');
+  String get offlineCachedNote => _p('Offline cached', 'ഓഫ്‌ലൈൻ ക്യാഷ്', 'محفوظ بدون إنترنت');
+  String get fajrName => _p('Fajr', 'ഫജ്ർ', 'الفجر');
+  String get sunriseName => _p('Sunrise', 'സൂര്യോദയം', 'الشروق');
+  String get dhuhrName => _p('Dhuhr', 'ളുഹർ', 'الظهر');
+  String get asrName => _p('Asr', 'അസർ', 'العصر');
+  String get maghribName => _p('Maghrib', 'മഗ്‌രിബ്', 'المغرب');
+  String get ishaName => _p('Isha', 'ഇശാഅ്', 'العشاء');
+  String get adhanLabel => _p('Adhan', 'ബാങ്ക്', 'الأذان');
+  String get iqamahLabel => _p('Iqamah', 'ഇഖാമത്ത്', 'الإقامة');
+  String get alarmLabel => _p('Alarm', 'അലാറം', 'المنبه');
+  String get alarmOffLabel => _p('Alarm Off', 'അലാറം ഓഫ്', 'المنبه متوقف');
+  String get editScheduleLabel => _p('Edit Iqamah & Alarm', 'ഇഖാമത്തും അലാറവും ക്രമീകരിക്കുക', 'تعديل الإقامة والمنبه');
+  String get prayerAlarmsTitle => _p('Prayer Alarms & Auto-Silent', 'നിസ്കാര അലാറവും ഓട്ടോ സൈലന്റും', 'منبهات الصلاة والصامت التلقائي');
+  String get masterAlarmToggle => _p('Enable Prayer Alarms', 'നിസ്കാര അലാറം ഓൺ ആക്കുക', 'تفعيل منبهات الصلاة');
+  String get masterAlarmDesc => _p(
+        'Trigger Adhan or alert sound reliably even when phone is locked',
+        'ഫോൺ ലോക്ക് ആയാലും ബാങ്കും അലാറവും കൃത്യസമയത്ത് പ്രവർത്തിക്കും',
+        'تشغيل الأذان أو المنبه بدقة حتى عند قفل الهاتف',
       );
-  String get dndPermissionNeeded => _pick(
-        'DND Policy Access required to silence phone',
-        'ഫോൺ സൈലന്റ് ആക്കാൻ DND അനുമതി ആവശ്യമാണ്',
-        'مطلوب صلاحية عدم الإزعاج لتفعيل الصامت',
+  String get prayerReminderRinging => _p('Prayer Time Reminder', 'നിസ്കാര സമയ ഓർമ്മപ്പെടുത്തൽ', 'تذكير وقت الصلاة');
+  String get alarmSoundSettings => _p('Alarm Sound & Volume', 'അലാറം സൗണ്ട് ക്രമീകരണം', 'صوت المنبه ومستواه');
+  String get alarmSoundTypeLabel => _p('Alarm Sound', 'അലാറം ശബ്ദം', 'نغمة المنبه');
+  String get alarmVibrateLabel => _p('Vibrate with Alarm', 'അലാറത്തിനൊപ്പം വൈബ്രേഷൻ', 'الاهتزاز مع المنبه');
+  String get alarmVolumeLabel => _p('Alarm Volume', 'ശബ്ദത്തിന്റെ അളവ്', 'مستوى الصوت');
+  String get previewSoundLabel => _p('Test Sound', 'സൗണ്ട് കേൾക്കുക', 'تجربة الصوت');
+  String get stopSoundLabel => _p('Stop', 'നിർത്തുക', 'إيقاف');
+  String get iqamahGapLabel => _p('Iqamah Delay (min after Adhan)', 'ഇഖാമത്ത് സമയം (ബാങ്കിന് ശേഷം മിനിറ്റ്)', 'وقت الإقامة (دقائق بعد الأذان)');
+  String get alarmRefLabel => _p('Alarm Timing', 'അലാറം എപ്പോൾ?', 'توقيت المنبه');
+  String get beforeAdhanOption => _p('Before Adhan', 'ബാങ്കിന് മുമ്പ്', 'قبل الأذان');
+  String get relativeToIqamahOption => _p('Before / After Iqamah', 'ഇഖാമത്തിന് മുമ്പ് / ശേഷം', 'قبل / بعد الإقامة');
+  String get atIqamahTime => _p('Exactly at Iqamah', 'ഇഖാമത്ത് സമയത്ത് തന്നെ', 'عند وقت الإقامة تماماً');
+  String get minutesBeforeLabel => _p('Minutes before Adhan', 'ബാങ്കിന് എത്ര മിനിറ്റ് മുമ്പ്', 'دقائق قبل الأذان');
+  String get offsetFromIqamahLabel => _p('Offset from Iqamah (min)', 'ഇഖാമത്തിൽ നിന്നുള്ള വ്യത്യാസം (മിനിറ്റ്)', 'الفرق عن الإقامة (دقائق)');
+  String get minutesUnitShort => _p('min', 'മിനിറ്റ്', 'د');
+  String safetyBufferNote(String nextBoundary, String limitTime) => _p(
+        'Clamped before $nextBoundary ($limitTime) to keep prayer windows clean.',
+        'അടുത്ത സമയം ($nextBoundary - $limitTime) കവിയാത്ത രീതിയിൽ ക്രമീകരിച്ചിരിക്കുന്നു.',
+        'مقيد قبل $nextBoundary ($limitTime) للحفاظ على أوقات الصلوات.',
       );
-  String get grantDndPermissionBtn =>
-      _pick('Grant DND Access', 'അനുമതി നൽകുക', 'منح الصلاحية');
-  String get dndActiveNowBanner => _pick(
-        'Prayer Auto-Silent is currently active',
-        'നിസ്കാര ഓട്ടോ-സൈലന്റ് ഇപ്പോൾ സജീവമാണ്',
-        'وضع الصامت للصلاة مفعّل الآن',
+  String get dismissTodayAlarm => _p("Dismiss Today's Alarm", 'ഇന്നത്തെ അലാറം ഓഫ് ചെയ്യുക', 'إيقاف منبه اليوم');
+  String get dismissedTodayLabel => _p('Off today', 'ഇന്ന് ഓഫ്', 'متوقف اليوم');
+  String get dismissOnlyNote => _p(
+        'Mutes today only — tomorrow’s schedule stays active automatically.',
+        'ഇന്നത്തേക്ക് മാത്രം ഓഫ് ആകും — നാളെ തനിയെ പ്രവർത്തിക്കും.',
+        'يتوقف لليوم فقط — ويعود تلقائياً غداً.',
       );
-  String get restoreSoundNowBtn =>
-      _pick('Restore Sound Now', 'സൗണ്ട് പഴയപടിയാക്കുക', 'إعادة الصوت الآن');
-  String get autoSilentWebNote => _pick(
-        'Your Auto-Silent preference (15 min default from Iqamah) is saved. System DND executes natively on the Android app.',
-        'നിങ്ങളുടെ ഓട്ടോ-സൈലന്റ് സെറ്റിംഗ് സേവ് ചെയ്തിട്ടുണ്ട്. യഥാർത്ഥ ഫോൺ DND Android ആപ്പിലാണ് പ്രവർത്തിക്കുക.',
-        'تم حفظ إعداد الصامت التلقائي. يعمل الوضع الصامت للنظام على تطبيق أندرويد.',
+  String get autoSilentTitle => _p('Auto-Silent (DND) during Prayer', 'നിസ്കാര സമയത്ത് ഓട്ടോ സൈലന്റ് (DND)', 'الوضع الصامت التلقائي وقت الصلاة');
+  String get autoSilentDesc => _p(
+        'Switches phone to Do Not Disturb from Iqamah time and restores previous sound cleanly after the selected duration.',
+        'ഇഖാമത്ത് സമയത്ത് ഫോൺ തനിയെ സൈലന്റ് (DND) ആകുകയും നിശ്ചിത സമയത്തിന് ശേഷം പഴയപടിയാക്കുകയും ചെയ്യും.',
+        'يحول الهاتف إلى وضع عدم الإزعاج تلقائياً عند الإقامة ويعيد الصوت تلقائياً بعد انتهاء المدة.',
       );
-  String get autoSilentPrayersLabel => _pick(
-        'Prayers for Auto-Silent',
-        'ഓട്ടോ-സൈലന്റ് വേണ്ട നമസ്കാരങ്ങൾ',
-        'الصلوات المفعّلة للصامت',
+  String get autoSilentDurationLabel => _p('Silent Duration from Iqamah', 'സൈലന്റ് സമയം (മിനിറ്റ്)', 'مدة الصامت من الإقامة');
+  String get dndPermissionGranted => _p('Do Not Disturb policy active', 'DND അനുമതി സജ്ജമാണ്', 'صلاحية عدم الإزعاج مفعّلة');
+  String get dndPermissionNeeded => _p('Allow DND Policy Access on Android', 'ഫോണിൽ DND അനുമതി നൽകുക', 'مطلوب صلاحية عدم الإزعاج');
+  String get exactAlarmNeeded => _p('Allow Exact Alarms on Android', 'കൃത്യ സമയ അലാറത്തിന് അനുമതി നൽകുക', 'مطلوب صلاحية المنبه الدقيق');
+  String get grantDndPermissionBtn => _p('Grant DND Access', 'അനുമതി നൽകുക', 'منح الصلاحية');
+  String get grantExactAlarmBtn => _p('Allow Exact Alarms', 'അനുമതി നൽകുക', 'تفعيل الدقة');
+  String get restoreSoundNowBtn => _p('Restore Sound Now', 'സൗണ്ട് പഴയപടിയാക്കുക', 'إعادة الصوت الآن');
+  String get dndActiveNowBanner => _p('Auto-Silent DND Active Right Now', 'ഇപ്പോൾ ഓട്ടോ സൈലന്റ് (DND) ഓൺ ആണ്', 'الوضع الصامت مفعّل الآن');
+  String get dndActiveBanner => dndActiveNowBanner;
+  String get autoSilentWebNote => _p(
+        'Auto-Silent preference syncs immediately to Android APK native alarms & DND engine.',
+        'ഈ സെറ്റിംഗ്സ് തനിയെ സേവ് ആകുകയും Android APK DND എഞ്ചിനിലേക്ക് സിങ്ക് ചെയ്യുകയും ചെയ്യുന്നു.',
+        'تُحفظ الإعدادات تلقائياً وتُزامن مع محرك DND في تطبيق أندرويد.',
       );
-  String get exactAlarmNeeded => _pick(
-        'Allow "Alarms & reminders" for exact Auto-Silent timing',
-        'കൃത്യസമയത്ത് സൈലന്റ് ആകാൻ Alarms & reminders അനുമതി നൽകുക',
-        'اسمح بصلاحية المنبهات والتذكيرات لتفعيل الصامت في وقته',
-      );
-  String get grantExactAlarmBtn => _pick(
-        'Allow Exact Time',
-        'അനുമതി നൽകുക',
-        'السماح بالوقت الدقيق',
-      );
-  String get silentWindowPrefix =>
-      _pick('Silent', 'സൈലന്റ്', 'صامت');
-  String get dailyNameTitle => _pick(
-        'Name of the Day · Asmaul Husna',
-        'ഇന്നത്തെ നാമം · അസ്മാഉൽ ഹുസ്ന',
-        'اسم اليوم من الأسماء الحسنى',
-      );
-  String get dailyTajweedTitle => _pick(
-        'Daily Tajweed Rule',
-        'ഇന്നത്തെ തജ്‌വീദ് നിയമം',
-        'حكم التجويد اليومي',
-      );
-  String get categoriesTitle => _pick(
-        'Categories',
-        'മറ്റ് വിഭാഗങ്ങൾ',
-        'التصنيفات والأقسام',
-      );
-  String get viewMeaningBtn => _pick(
-        'View Details',
-        'വിവരണം കാണുക',
-        'عرض التفاصيل',
-      );
-  String get exploreRuleBtn => _pick(
-        'Explore Rule',
-        'നിയമം കാണുക',
-        'عرض الحكم',
-      );
-  String get ruleLanguageLabel => _pick(
-        'Explanation Language',
-        'വിശദീകരണ ഭാഷ',
-        'لغة الشرح',
+  String get autoSilentPrayersLabel => _p('Prayers for Auto-Silent', 'ഓട്ടോ-സൈലന്റ് വേണ്ട നമസ്കാരങ്ങൾ', 'الصلوات المفعّلة للصامت');
+  String get hijriCalendarTitle => _p('Hijri Calendar', 'ഹിജ്രി കലണ്ടർ', 'التقويم الهجري');
+  String get hijriAdjustment => _p('Moon Adjustment (-1 / 0 / +1)', 'മാസപ്പിറവി മാറ്റം (-1 / 0 / +1)', 'تعديل الهلال');
+  String get dayMinusOne => _p('-1 Day', '-1 ദിവസം', '-1 يوم');
+  String get dayZero => _p('Default (0)', 'സാധാരണ (0)', 'افتراضي (0)');
+  String get dayPlusOne => _p('+1 Day', '+1 ദിവസം', '+1 يوم');
+
+  // Home Widget Promo Card
+  String get homeWidgetTitle => _p('Android Home Screen Widget', 'ഹോം സ്ക്രീൻ വിജറ്റ് (Widget)', 'أداة الشاشة الرئيسية');
+  String get homeWidgetDesc => _p(
+        'Add Ibadia Prayer Times & Hijri Date directly to your Android home screen.',
+        'നിസ്കാര സമയവും ഹിജ്‌രി തീയതിയും ഫോണിന്റെ ഹോം സ്ക്രീനിൽ ചേർക്കാം.',
+        'أضف أوقات الصلاة والتاريخ الهجري إلى شاشة هاتفك الرئيسية.',
       );
 
-  String revelationLabel(String raw) {
-    final lower = raw.toLowerCase();
-    if (lower.contains('mecc') || lower.contains('makk')) {
-      return _pick('Meccan', 'മക്കി', 'مكية');
+  // Adhkar & Tasbih
+  String get morningAdhkar => _p('Morning', 'രാവിലെ', 'الصباح');
+  String get eveningAdhkar => _p('Evening', 'വൈകിട്ട്', 'المساء');
+  String get afterSalahAdhkar => _p('After Salah', 'നിസ്കാര ശേഷം', 'بعد الصلاة');
+  String get dailyDuasCategory => _p('Daily Duas', 'നിത്യ ദുആകൾ', 'أدعية يومية');
+  String get allAdhkarLabel => _p('All', 'എല്ലാം', 'الكل');
+  String get favoritesOnlyLabel => _p('Favorites', 'പ്രിയപ്പെട്ടവ', 'المفضلة');
+  String get resetTodayProgress => _p('Reset Progress', 'റീസെറ്റ്', 'إعادة التصفير');
+  String get completedLabel => _p('Completed', 'പൂർത്തിയായി', 'مكتمل');
+  String get hisnulMuslimNote => _p(
+        'Offline Hisnul Muslim & Prophetic Adhkar — Tap card to count',
+        'ഓഫ്‌ലൈൻ ഹിസ്നുൽ മുസ്‌ലിം ദിക്റുകളും ദുആകളും — എണ്ണാൻ ടാപ്പ് ചെയ്യുക',
+        'حصن المسلم وأذكار يومية بدون إنترنت',
+      );
+  String get tasbihTitle => _p('Digital Tasbih Counter', 'തസ്ബീഹ് കൗണ്ടർ', 'المسبحة الرقمية');
+  String get tapToCount => _p('Tap circle to count', 'എണ്ണാൻ ടാപ്പ് ചെയ്യുക', 'اضغط للعد');
+  String get tapAnywhereLabel => _p('Tap Anywhere Zone', 'എവിടെയും ടാപ്പ് മോഡ്', 'منطقة الضغط الواسعة');
+  String get tapAnywhereHint => _p(
+        'Tap anywhere on the counter screen without looking',
+        'സ്ക്രീനിൽ നോക്കാതെ എവിടെയും ടാപ്പ് ചെയ്ത് എണ്ണാം',
+        'اضغط في أي مكان على الشاشة للعد',
+      );
+  String get targetLabel => _p('Target', 'ലക്ഷ്യം', 'الهدف');
+  String get unlimitedLabel => _p('Free', 'അൺലിമിറ്റഡ്', 'مفتوح');
+  String get todayTotalLabel => _p('Today', 'ഇന്ന്', 'اليوم');
+  String get lifetimeTotalLabel => _p('Total', 'ആകെ', 'الإجمالي');
+  String get addCustomDhikr => _p('Add Custom Dhikr', 'പുതിയ ദിക്ർ ചേർക്കുക', 'إضافة ذكر مخصص');
+  String get customDhikrName => _p('Dhikr Name / Transliteration', 'ദിക്ർ പേര്', 'اسم الذكر');
+  String get customDhikrArabic => _p('Arabic Text (optional)', 'അറബിക് ടെക്സ്റ്റ് (നിർബന്ധമില്ല)', 'النص العربي (اختياري)');
+  String get deleteCustomLabel => _p('Delete', 'ഒഴിവാക്കുക', 'حذف');
+  String get vibrateOnTapLabel => _p('Haptic Vibration', 'വൈബ്രേഷൻ', 'الاهتزاز');
+  String get resetCycleLabel => _p('Reset Cycle', 'റീസെറ്റ്', 'تصفير');
+
+  // Kahf & PWA/Updater
+  String get kahfReminderTitle => _p('Surah Al-Kahf Weekly Reminder', 'സൂറത്തുൽ കഹ്ഫ് ഓർമ്മപ്പെടുത്തൽ', 'تذكير سورة الكهف');
+  String get kahfReminderDesc => _p(
+        'Weekly Thursday night & Friday morning gentle reminder to read Surah Al-Kahf.',
+        'വ്യാഴാഴ്ച രാത്രിയും വെള്ളിയാഴ്ച രാവിലെയും സൂറത്തുൽ കഹ്ഫ് ഓർമ്മപ്പെടുത്തൽ.',
+        'تذكير أسبوعي لقراءة سورة الكهف ليلة وصباح الجمعة.',
+      );
+  String get kahfThuLabel => _p('Thursday Evening', 'വ്യാഴാഴ്ച രാത്രി', 'مساء الخميس');
+  String get kahfFriLabel => _p('Friday Morning', 'വെള്ളിയാഴ്ച രാവിലെ', 'صباح الجمعة');
+  String get kahfBannerTitle => _p("Jumu'ah — Surah Al-Kahf", 'ജുമുഅ — സൂറത്തുൽ കഹ്ഫ്', 'تذكير الجمعة — سورة الكهف');
+  String get kahfBannerDesc => _p(
+        'Illuminate the space between two Fridays by reciting Surah Al-Kahf.',
+        'രണ്ട് ജുമുഅകൾക്കിടയിൽ പ്രകാശം ലഭിക്കാൻ സൂറത്തുൽ കഹ്ഫ് പാരായണം ചെയ്യുക.',
+        'اقرأ سورة الكهف ليضيء لك ما بين الجمعتين.',
+      );
+  String get kahfOpenSurahBtn => _p('Read Surah Al-Kahf', 'സൂറത്തുൽ കഹ്ഫ് ഓതുക', 'اقرأ سورة الكهف');
+  String get testKahfReminder => _p('Test Reminder', 'ടെസ്റ്റ് നോട്ടിഫിക്കേഷൻ', 'تجربة التذكير');
+  String get kahfTestWebFeedback => _p(
+        'Surah Al-Kahf reminder preview is active.',
+        'സൂറത്തുൽ കഹ്ഫ് ഓർമ്മപ്പെടുത്തൽ സജ്ജമാണ്.',
+        'تذكير سورة الكهف جاهز.',
+      );
+  String get kahfNotifTitle => _p('Ibadia • Surah Al-Kahf', 'ഇബാദിയ • സൂറത്തുൽ കഹ്ഫ്', 'عبادية • سورة الكهف');
+  String get kahfNotifBody => _p(
+        "It's blessed Jumu'ah time — take a few minutes to recite Surah Al-Kahf.",
+        'അനുഗ്രഹീതമായ ജുമുഅ സമയമാണ് — സൂറത്തുൽ കഹ്ഫ് പാരായണം ചെയ്യുക.',
+        'وقت الجمعة المبارك — اقرأ سورة الكهف.',
+      );
+
+  // PWA & Android Update Dialog
+  String get installApp => _p('Install Ibadia App', 'ഇബാദിയ ഇൻസ്റ്റാൾ ചെയ്യുക', 'تثبيت تطبيق عبادية');
+  String get downloadAndroidApk => _p('Download Android APK', 'Android APK ഡൗൺലോഡ്', 'تحميل تطبيق أندرويد');
+  String get checkForUpdates => _p('Check for App Updates', 'പുതിയ അപ്ഡേറ്റ് പരിശോധിക്കുക', 'التحقق من التحديثات');
+  String get shareApp => _p('Share App', 'ആപ്പ് ഷെയർ ചെയ്യുക', 'مشاركة التطبيق');
+  String get shareAppCopied => _p('App link copied to clipboard', 'ആപ്പ് ലിങ്ക് കോപ്പി ചെയ്തു', 'تم نسخ رابط التطبيق');
+  String get offlineBanner => _p(
+        'Offline Mode — Cached Surahs & Adhkar remain available',
+        'ഓഫ്‌ലൈൻ മോഡ് — സേവ് ചെയ്തവ ഇപ്പോഴും ലഭ്യമാണ്',
+        'وضع عدم الاتصال — المحتوى المحفوظ متاح',
+      );
+  String get updateAvailableTitle => _p('App Update Available', 'പുതിയ അപ്ഡേറ്റ് ലഭ്യമാണ്', 'يتوفر تحديث جديد');
+  String updateAvailableDesc(String version, int build) => _p(
+        'Ibadia v$version (Build #$build) is ready with improvements and fixes.',
+        'ഇബാദിയ v$version (#$build) അപ്ഡേറ്റ് ഇപ്പോൾ ഡൗൺലോഡ് ചെയ്യാം.',
+        'يتوفر تحديث عبادية v$version (البناء #$build).',
+      );
+  String get updateNow => _p('Update Now', 'അപ്ഡേറ്റ് ചെയ്യുക', 'تحديث الآن');
+  String get updateLater => _p('Later', 'പിന്നീട്', 'لاحقاً');
+  String get updateAvailableBadge => _p('Update Ready', 'പുതിയ അപ്ഡേറ്റ്', 'تحديث');
+  String get checkingUpdates => _p('Checking for updates...', 'അപ്ഡേറ്റ് പരിശോധിക്കുന്നു...', 'جاري التحقق...');
+  String get upToDateMessage => _p('You are using the latest Ibadia version.', 'ഏറ്റവും പുതിയ പതിപ്പാണ് ഉപയോഗിക്കുന്നത്.', 'أنت تستخدم أحدث إصدار من عبادية.');
+  String get updateCheckUnavailable => _p(
+        'Unable to reach update server right now.',
+        'അപ്ഡേറ്റ് പരിശോധിക്കാനായില്ല. ഇന്റർനെറ്റ് പരിശോധിക്കുക.',
+        'تعذر الوصول لخادم التحديثات.',
+      );
+  String get downloadingUpdate => _p('Downloading update...', 'ഡൗൺലോഡ് ചെയ്യുന്നു...', 'جاري التنزيل...');
+  String get installingUpdate => _p('Opening installer...', 'ഇൻസ്റ്റാളർ തുറക്കുന്നു...', 'جاري فتح المثبّت...');
+  String get allowInstallPermissionTitle => _p('Allow App Installation', 'ഇൻസ്റ്റാൾ അനുമതി നൽകുക', 'السماح بتثبيت التطبيقات');
+  String get allowInstallPermissionDesc => _p(
+        'Allow Ibadia to install APK updates from unknown sources in Android Settings.',
+        'അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്യാൻ Android സെറ്റിംഗ്സിൽ അനുമതി നൽകുക.',
+        'اسمح لتطبيق عبادية بتثبيت التحديثات من إعدادات أندرويد.',
+      );
+  String get installDownloadedApk => _p('Install Update Now', 'ഇൻസ്റ്റാൾ ചെയ്യുക', 'تثبيت الآن');
+  String get downloadInBrowser => _p('Download via Browser', 'ബ്രൗസർ വഴി ഡൗൺലോഡ്', 'تنزيل عبر المتصفح');
+  String get installOnIosTitle => _p('Install on iPhone / iPad', 'iPhone / iPad-ൽ ഇൻസ്റ്റാൾ ചെയ്യുക', 'التثبيت على iOS');
+  String get installOnIosSteps => _p(
+        'Tap the Share icon at the bottom of Safari, then select "Add to Home Screen".',
+        'Safari-യുടെ താഴെയുള്ള Share ബട്ടണിൽ അമർത്തി "Add to Home Screen" തിരഞ്ഞെടുക്കുക.',
+        'اضغط على زر المشاركة في Safari ثم اختر "إضافة إلى الشاشة الرئيسية".',
+      );
+  String get apkSetupTitle => _p('Android APK Download', 'Android APK ഡൗൺലോഡ്', 'تحميل ملف APK');
+  String get apkSetupDesc => _p(
+        'Download Ibadia APK directly for native Prayer Alarms & Auto-Silent DND.',
+        'നിസ്കാര അലാറവും ഓട്ടോ-സൈലന്റും ലഭിക്കാൻ Ibadia APK ഡൗൺലോഡ് ചെയ്യുക.',
+        'حمّل تطبيق عبادية APK للحصول على منبهات الصلاة والصامت التلقائي.',
+      );
+
+  String prayerName(String key) {
+    switch (key) {
+      case 'fajr':
+        return fajrName;
+      case 'sunrise':
+        return sunriseName;
+      case 'dhuhr':
+        return dhuhrName;
+      case 'asr':
+        return asrName;
+      case 'maghrib':
+        return maghribName;
+      default:
+        return ishaName;
     }
-    return _pick('Medinan', 'മദനി', 'مدنية');
   }
 
-  String _pick(String en, String ml, String ar) {
-    switch (lang) {
-      case 'ml':
-        return ml;
-      case 'ar':
-        return ar;
-      default:
-        return en;
+  String revelationLabel(String raw) {
+    final l = raw.toLowerCase();
+    if (l.contains('mecc') || l.contains('makk')) {
+      return _p('Meccan', 'മക്കി', 'مكية');
     }
+    return _p('Medinan', 'മദനി', 'مدنية');
   }
 }

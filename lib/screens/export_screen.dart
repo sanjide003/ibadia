@@ -13,7 +13,8 @@ import '../services/export_service.dart';
 import '../services/storage_service.dart';
 
 class ExportScreen extends ConsumerStatefulWidget {
-  const ExportScreen({super.key});
+  final bool showHeader;
+  const ExportScreen({super.key, this.showHeader = true});
 
   @override
   ConsumerState<ExportScreen> createState() => _ExportScreenState();
@@ -36,17 +37,81 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final loaded = await ref.read(settingsProvider.notifier).ensureLoaded();
+      if (!mounted) return;
+      setState(() {
+        _syncedSettingsOnce = false;
+        _syncDefaultsFromSettings(loaded);
+      });
+    });
+  }
+
+  @override
   void dispose() {
     _fromController.dispose();
     _toController.dispose();
     super.dispose();
   }
 
+  ExportScope _parseScope(String raw) {
+    switch (raw) {
+      case 'surah':
+        return ExportScope.surah;
+      case 'juz':
+        return ExportScope.juz;
+      default:
+        return ExportScope.range;
+    }
+  }
+
+  String _scopeKey(ExportScope scope) {
+    switch (scope) {
+      case ExportScope.surah:
+        return 'surah';
+      case ExportScope.juz:
+        return 'juz';
+      case ExportScope.range:
+        return 'range';
+    }
+  }
+
+  void _persistExportSettings() {
+    final fromVal = int.tryParse(_fromController.text.trim());
+    final toVal = int.tryParse(_toController.text.trim());
+    ref.read(settingsProvider.notifier).updateWith(
+          (s) => s.copyWith(
+            exportScope: _scopeKey(_scope),
+            exportSurahNo: _selectedSurah,
+            exportJuzNo: _selectedJuz,
+            exportFromAyah: fromVal != null && fromVal > 0 ? fromVal : null,
+            exportToAyah: toVal != null && toVal > 0 ? toVal : null,
+            exportFormat: _format == ExportFormat.image ? 'image' : 'pdf',
+            exportIncludeTranslation: _includeTranslation,
+            exportTranslationCodes: List<String>.from(_selectedTranslations),
+          ),
+        );
+  }
+
   void _syncDefaultsFromSettings(AppSettings settings) {
     if (_syncedSettingsOnce) return;
     _syncedSettingsOnce = true;
-    _includeTranslation = settings.showTranslation;
-    if (settings.selectedTranslations.isNotEmpty) {
+    _scope = _parseScope(settings.exportScope);
+    _selectedSurah = settings.exportSurahNo;
+    _selectedJuz = settings.exportJuzNo;
+    _fromController.text = '${settings.exportFromAyah}';
+    _toController.text = '${settings.exportToAyah}';
+    _format = settings.exportFormat == 'image'
+        ? ExportFormat.image
+        : ExportFormat.pdf;
+    _includeTranslation =
+        settings.exportIncludeTranslation ?? settings.showTranslation;
+    final savedCodes = settings.exportTranslationCodes;
+    if (savedCodes != null && savedCodes.isNotEmpty) {
+      _selectedTranslations = List<String>.from(savedCodes);
+    } else if (settings.selectedTranslations.isNotEmpty) {
       _selectedTranslations = List<String>.from(settings.selectedTranslations);
     }
   }
@@ -61,6 +126,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         _selectedTranslations.add(code);
       }
     });
+    _persistExportSettings();
   }
 
   void _onSurahChanged(int? surahNo, List<SurahSummary> surahs) {
@@ -75,6 +141,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       _toController.text = '${match.numberOfAyahs}';
       _errorMessage = null;
     });
+    _persistExportSettings();
   }
 
   Future<void> _openSurahSearchSheet(
@@ -274,21 +341,23 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         return ListView(
           padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
           children: [
-            // Title header
-            Row(
-              children: [
-                Icon(Icons.picture_as_pdf_rounded, color: cs.primary),
-                const SizedBox(width: 10),
-                Text(
-                  t.exportTitle,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
+            if (widget.showHeader) ...[
+              // Title header
+              Row(
+                children: [
+                  Icon(Icons.picture_as_pdf_rounded, color: cs.primary),
+                  const SizedBox(width: 10),
+                  Text(
+                    t.exportTitle,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // 1. Scope selector card
             Card(
@@ -347,6 +416,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                             _scope = sel.first;
                             _errorMessage = null;
                           });
+                          _persistExportSettings();
                         },
                       ),
                     ),
@@ -384,6 +454,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                                   _selectedJuz = val;
                                   _errorMessage = null;
                                 });
+                                _persistExportSettings();
                               }
                             },
                           ),
@@ -442,6 +513,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                                   if (_errorMessage != null) {
                                     setState(() => _errorMessage = null);
                                   }
+                                  _persistExportSettings();
                                 },
                               ),
                             ),
@@ -465,6 +537,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                                   if (_errorMessage != null) {
                                     setState(() => _errorMessage = null);
                                   }
+                                  _persistExportSettings();
                                 },
                               ),
                             ),
@@ -515,7 +588,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     value: _includeTranslation,
-                    onChanged: (v) => setState(() => _includeTranslation = v),
+                    onChanged: (v) {
+                      setState(() => _includeTranslation = v);
+                      _persistExportSettings();
+                    },
                   ),
                   if (_includeTranslation) ...[
                     const Divider(height: 1),
@@ -591,8 +667,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                           ),
                         ],
                         selected: {_format},
-                        onSelectionChanged: (sel) =>
-                            setState(() => _format = sel.first),
+                        onSelectionChanged: (sel) {
+                          setState(() => _format = sel.first);
+                          _persistExportSettings();
+                        },
                       ),
                     ),
                   ],

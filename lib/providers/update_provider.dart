@@ -243,7 +243,7 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
 
   /// Executes 1-click update:
   /// - Web/PWA: clears service worker caches and reloads the newest deploy.
-  /// - Android APK: downloads `latest/Al-Quran.apk` with live progress, then
+  /// - Android APK: downloads `latest/Ibadia.apk` with live progress, then
   ///   launches Android's PackageInstaller (handling unknown-app permission cleanly).
   Future<void> performOneClickUpdate() async {
     if (kIsWeb) {

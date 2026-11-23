@@ -1,4 +1,4 @@
-name: Build Quran Android APK
+name: Build Ibadia Android APK
 
 on:
   push:
@@ -199,9 +199,9 @@ jobs:
           WEB_APP_URL: ${{ vars.WEB_APP_URL }}
         run: |
           BUILD_NUMBER=$((1000 + ${{ github.run_number }}))
-          APK_LINK="https://github.com/${{ github.repository }}/releases/download/latest/Al-Quran.apk"
+          APK_LINK="https://github.com/${{ github.repository }}/releases/download/latest/Ibadia.apk"
           MANIFEST_LINK="https://github.com/${{ github.repository }}/releases/download/latest/version.json"
-          SHARE_WEB_URL="${WEB_APP_URL:-https://a1-quran.vercel.app}"
+          SHARE_WEB_URL="${WEB_APP_URL:-https://ibadia.vercel.app}"
           BUILD_SUCCESS=0
           for attempt in 1 2 3; do
             echo "APK build attempt ${attempt}/3..."
@@ -222,7 +222,7 @@ jobs:
             echo "ERROR: flutter build apk failed after 3 attempts."
             exit 1
           fi
-          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Al-Quran.apk
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/Ibadia.apk
 
           APP_VERSION=$(grep -E '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
           cat > build/app/outputs/flutter-apk/version.json <<EOF
@@ -239,7 +239,7 @@ jobs:
         run: |
           AAPT_BIN=$(find "${ANDROID_HOME}/build-tools" -maxdepth 2 -name "aapt" | sort -V | tail -n 1)
           echo "Using aapt: ${AAPT_BIN}"
-          BADGING=$("${AAPT_BIN}" dump badging build/app/outputs/flutter-apk/Al-Quran.apk)
+          BADGING=$("${AAPT_BIN}" dump badging build/app/outputs/flutter-apk/Ibadia.apk)
           echo "${BADGING}" | head -n 30
           echo "${BADGING}" | grep -q "launchable-activity:" || {
             echo "ERROR: APK does not contain a launchable-activity!"
@@ -252,19 +252,19 @@ jobs:
         run: |
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest \
-              build/app/outputs/flutter-apk/Al-Quran.apk \
+              build/app/outputs/flutter-apk/Ibadia.apk \
               build/app/outputs/flutter-apk/version.json \
               --clobber
           else
             gh release create latest \
-              build/app/outputs/flutter-apk/Al-Quran.apk \
+              build/app/outputs/flutter-apk/Ibadia.apk \
               build/app/outputs/flutter-apk/version.json \
-              --title "Al-Quran Latest Android APK" \
-              --notes "Latest automated Android release build (Al-Quran.apk)."
+              --title "Ibadia Latest Android APK" \
+              --notes "Latest automated Android release build (Ibadia.apk)."
           fi
 
       - name: Upload Single Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: Al-Quran-APK
-          path: build/app/outputs/flutter-apk/Al-Quran.apk
+          name: Ibadia-APK
+          path: build/app/outputs/flutter-apk/Ibadia.apk

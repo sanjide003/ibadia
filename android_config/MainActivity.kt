@@ -69,7 +69,13 @@ class MainActivity : FlutterActivity() {
         }
         PrayerAlarmController.ensureNotificationChannel(this)
         PrayerAlarmController.ensureKahfNotificationChannel(this)
+        PrayerAlarmController.reconcileActiveDndState(applicationContext)
         pendingLaunchAction = extractLaunchAction(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        PrayerAlarmController.reconcileActiveDndState(applicationContext)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -382,11 +388,12 @@ class MainActivity : FlutterActivity() {
                 }
 
                 "restoreNormalRingerNow" -> {
-                    PrayerAlarmController.restoreSavedDndFilter(applicationContext)
+                    PrayerAlarmController.restoreAndSuppressCurrentWindow(applicationContext)
                     result.success(true)
                 }
 
                 "getAutoSilentStatus" -> {
+                    PrayerAlarmController.reconcileActiveDndState(applicationContext)
                     result.success(PrayerAlarmController.isDndSessionActive(applicationContext))
                 }
 
@@ -459,6 +466,8 @@ object PrayerAlarmController {
     private const val KEY_DND_ENABLED = "dnd_auto_enabled"
     private const val KEY_DND_WINDOWS_JSON = "dnd_windows_json"
     private const val KEY_DND_ACTIVE = "dnd_session_active"
+    private const val KEY_DND_ACTIVE_END_MS = "dnd_session_active_end_ms"
+    private const val KEY_DND_SUPPRESSED_END_MS = "dnd_suppressed_end_ms"
     private const val KEY_DND_PREV_FILTER = "dnd_prev_filter"
     private const val KEY_DND_PREV_RINGER = "dnd_prev_ringer"
     private val DND_START_CODES = mapOf(
@@ -1077,6 +1086,8 @@ object PrayerAlarmController {
         windows: List<Map<String, Any?>>
     ) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val wasEnabled = prefs.getBoolean(KEY_DND_ENABLED, false)
+        val prevJson = prefs.getString(KEY_DND_WINDOWS_JSON, null)
         val arr = JSONArray()
         for (w in windows) {
             val obj = JSONObject()
@@ -1089,20 +1100,59 @@ object PrayerAlarmController {
             obj.put("restoreBtn", w["restoreBtn"] ?: "Restore Sound")
             arr.put(obj)
         }
-        prefs.edit()
+        val nextJson = arr.toString()
+        val editor = prefs.edit()
             .putBoolean(KEY_DND_ENABLED, enabled)
-            .putString(KEY_DND_WINDOWS_JSON, arr.toString())
-            .commit()
+            .putString(KEY_DND_WINDOWS_JSON, nextJson)
+        if ((enabled && !wasEnabled) || (prevJson != null && prevJson != nextJson)) {
+            editor.remove(KEY_DND_SUPPRESSED_END_MS)
+        }
+        editor.commit()
         if (!enabled && isDndSessionActive(context)) {
             restoreSavedDndFilter(context)
         }
         rescheduleStoredDndWindows(context)
     }
 
-    private fun scheduleExactAlarm(alarmManager: AlarmManager, triggerAt: Long, pi: PendingIntent) {
+    private fun scheduleExactAlarm(
+        context: Context,
+        alarmManager: AlarmManager,
+        triggerAt: Long,
+        pi: PendingIntent,
+        useAlarmClockFallback: Boolean = false,
+        preferAlarmClock: Boolean = false,
+        showReqCode: Int = 9601
+    ) {
+        fun buildShowIntent(): PendingIntent {
+            val launchIntent = Intent(context, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra("openPrayerTab", true)
+            }
+            return PendingIntent.getActivity(
+                context,
+                showReqCode,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+
         try {
+            if (preferAlarmClock && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                alarmManager.setAlarmClock(
+                    AlarmManager.AlarmClockInfo(triggerAt, buildShowIntent()),
+                    pi
+                )
+                return
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                if (useAlarmClockFallback) {
+                    alarmManager.setAlarmClock(
+                        AlarmManager.AlarmClockInfo(triggerAt, buildShowIntent()),
+                        pi
+                    )
+                } else {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                }
                 return
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -1112,12 +1162,68 @@ object PrayerAlarmController {
             }
         } catch (_: SecurityException) {
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if ((useAlarmClockFallback || preferAlarmClock) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    alarmManager.setAlarmClock(
+                        AlarmManager.AlarmClockInfo(triggerAt, buildShowIntent()),
+                        pi
+                    )
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
                 } else {
                     alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
                 }
             } catch (_: Exception) {}
+        }
+    }
+
+    fun reconcileActiveDndState(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_DND_ACTIVE, false)) return
+
+        val now = System.currentTimeMillis()
+        val enabled = prefs.getBoolean(KEY_DND_ENABLED, false)
+        if (!enabled) {
+            restoreSavedDndFilter(context)
+            return
+        }
+
+        val activeEndMs = prefs.getLong(KEY_DND_ACTIVE_END_MS, 0L)
+        if (activeEndMs > 0L && now >= activeEndMs - 500L) {
+            restoreSavedDndFilter(context)
+            rescheduleStoredDndWindows(context)
+            return
+        }
+
+        val raw = prefs.getString(KEY_DND_WINDOWS_JSON, null)
+        if (raw.isNullOrBlank()) {
+            restoreSavedDndFilter(context)
+            return
+        }
+        val arr = try {
+            JSONArray(raw)
+        } catch (_: Exception) {
+            restoreSavedDndFilter(context)
+            return
+        }
+
+        val dayMs = 24L * 60L * 60L * 1000L
+        var insideAnyWindow = false
+        for (i in 0 until arr.length()) {
+            val obj = arr.optJSONObject(i) ?: continue
+            var startMs = obj.optLong("startMillis", 0L)
+            var endMs = obj.optLong("endMillis", 0L)
+            if (startMs <= 0L || endMs <= startMs) continue
+            while (endMs <= now) {
+                startMs += dayMs
+                endMs += dayMs
+            }
+            if (startMs <= now + 1500L && now < endMs) {
+                insideAnyWindow = true
+                break
+            }
+        }
+        if (!insideAnyWindow) {
+            restoreSavedDndFilter(context)
         }
     }
 
@@ -1144,8 +1250,19 @@ object PrayerAlarmController {
             alarmManager.cancel(pi)
         }
 
-        if (!prefs.getBoolean(KEY_DND_ENABLED, false)) return
-        val raw = prefs.getString(KEY_DND_WINDOWS_JSON, null) ?: return
+        if (!prefs.getBoolean(KEY_DND_ENABLED, false)) {
+            if (prefs.getBoolean(KEY_DND_ACTIVE, false)) {
+                restoreSavedDndFilter(context)
+            }
+            return
+        }
+        val raw = prefs.getString(KEY_DND_WINDOWS_JSON, null)
+        if (raw.isNullOrBlank()) {
+            if (prefs.getBoolean(KEY_DND_ACTIVE, false)) {
+                restoreSavedDndFilter(context)
+            }
+            return
+        }
         val arr = try {
             JSONArray(raw)
         } catch (_: Exception) {
@@ -1154,6 +1271,11 @@ object PrayerAlarmController {
 
         val now = System.currentTimeMillis()
         val dayMs = 24L * 60L * 60L * 1000L
+        val suppressedEndMs = prefs.getLong(KEY_DND_SUPPRESSED_END_MS, 0L)
+        if (suppressedEndMs > 0L && now > suppressedEndMs + 10_000L) {
+            prefs.edit().remove(KEY_DND_SUPPRESSED_END_MS).apply()
+        }
+        var anyInsideNow = false
 
         for (i in 0 until arr.length()) {
             val obj = arr.optJSONObject(i) ?: continue
@@ -1165,27 +1287,31 @@ object PrayerAlarmController {
             var endMs = obj.optLong("endMillis", 0L)
             if (startMs <= 0L || endMs <= startMs) continue
 
-            // Roll past fully-expired windows (+24h) while preserving currently active windows
-            while (endMs <= now + 1000L) {
+            // Roll past fully-expired or already-ended/suppressed windows (+24h)
+            while (endMs <= now + 5000L || (suppressedEndMs > 0L && endMs <= suppressedEndMs + 5000L)) {
                 startMs += dayMs
                 endMs += dayMs
             }
 
-            val title = obj.optString("notifTitle", "Prayer Auto-Silent Active")
+            val title = obj.optString("notifTitle", "Ibadia Auto-Silent Active")
             val restoreBtn = obj.optString("restoreBtn", "Restore Sound")
             val durMin = obj.optInt("durationMinutes", 15)
 
             // If we are currently inside an active prayer Silent window, activate immediately
-            // and schedule its End alarm + tomorrow's Start alarm.
-            val isCurrentlyInsideWindow = startMs <= now + 1500L && now < endMs
+            // and schedule its Doze-exempt End alarm + tomorrow's Start alarm.
+            val isCurrentlyInsideWindow = startMs <= now + 5000L && now < endMs
             if (isCurrentlyInsideWindow) {
+                anyInsideNow = true
                 if (!prefs.getBoolean(KEY_DND_ACTIVE, false)) {
                     activateSilentSessionNow(
                         context = context,
                         title = title,
                         restoreBtn = restoreBtn,
-                        durMin = durMin
+                        durMin = durMin,
+                        endMillis = endMs
                     )
+                } else {
+                    prefs.edit().putLong(KEY_DND_ACTIVE_END_MS, endMs).apply()
                 }
                 startMs += dayMs
             }
@@ -1195,6 +1321,7 @@ object PrayerAlarmController {
                 putExtra("notifTitle", title)
                 putExtra("restoreBtn", restoreBtn)
                 putExtra("durationMinutes", durMin)
+                putExtra("endMillis", if (isCurrentlyInsideWindow) endMs + dayMs else endMs)
             }
             val startPi = PendingIntent.getBroadcast(
                 context,
@@ -1205,6 +1332,7 @@ object PrayerAlarmController {
 
             val endIntent = Intent(context, PrayerDndEndReceiver::class.java).apply {
                 putExtra("prayerKey", prayerKey)
+                putExtra("endMillis", endMs)
             }
             val endPi = PendingIntent.getBroadcast(
                 context,
@@ -1213,8 +1341,32 @@ object PrayerAlarmController {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            scheduleExactAlarm(alarmManager, startMs, startPi)
-            scheduleExactAlarm(alarmManager, endMs, endPi)
+            scheduleExactAlarm(
+                context = context,
+                alarmManager = alarmManager,
+                triggerAt = startMs,
+                pi = startPi,
+                useAlarmClockFallback = false,
+                preferAlarmClock = false,
+                showReqCode = 9600 + startCode
+            )
+            // Use Doze-exempt setAlarmClock when DND is active (and as fallback) so DND always turns OFF on time
+            scheduleExactAlarm(
+                context = context,
+                alarmManager = alarmManager,
+                triggerAt = endMs,
+                pi = endPi,
+                useAlarmClockFallback = true,
+                preferAlarmClock = isCurrentlyInsideWindow,
+                showReqCode = 9600 + endCode
+            )
+        }
+
+        if (!anyInsideNow && prefs.getBoolean(KEY_DND_ACTIVE, false)) {
+            val activeEndMs = prefs.getLong(KEY_DND_ACTIVE_END_MS, 0L)
+            if (activeEndMs <= 0L || now >= activeEndMs - 500L) {
+                restoreSavedDndFilter(context)
+            }
         }
     }
 
@@ -1223,7 +1375,8 @@ object PrayerAlarmController {
         context: Context,
         title: String,
         restoreBtn: String,
-        durMin: Int
+        durMin: Int,
+        endMillis: Long = System.currentTimeMillis() + durMin * 60_000L
     ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -1236,7 +1389,10 @@ object PrayerAlarmController {
                 .putInt(KEY_DND_PREV_FILTER, nm.currentInterruptionFilter)
                 .putInt(KEY_DND_PREV_RINGER, am.ringerMode)
                 .putBoolean(KEY_DND_ACTIVE, true)
+                .putLong(KEY_DND_ACTIVE_END_MS, endMillis)
                 .commit()
+        } else {
+            prefs.edit().putLong(KEY_DND_ACTIVE_END_MS, endMillis).commit()
         }
 
         // Apply Silent Mode: silence calls/messages/notifications via INTERRUPTION_FILTER_ALARMS
@@ -1274,22 +1430,78 @@ object PrayerAlarmController {
 
     fun handleDndStartFired(context: Context, intent: Intent) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        var wl: PowerManager.WakeLock? = null
         try {
             val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-            val wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "quranapp:dnd_start")
+            wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ibadia:dnd_start")
             wl.acquire(10_000L)
         } catch (_: Exception) {}
 
-        val title = intent.getStringExtra("notifTitle") ?: "Prayer Auto-Silent Active"
-        val restoreBtn = intent.getStringExtra("restoreBtn") ?: "Restore Sound"
-        val durMin = intent.getIntExtra("durationMinutes", 15)
+        try {
+            val title = intent.getStringExtra("notifTitle") ?: "Ibadia Auto-Silent Active"
+            val restoreBtn = intent.getStringExtra("restoreBtn") ?: "Restore Sound"
+            val durMin = intent.getIntExtra("durationMinutes", 15)
+            val now = System.currentTimeMillis()
+            val endMillis = intent.getLongExtra(
+                "endMillis",
+                now + durMin * 60_000L
+            )
 
-        activateSilentSessionNow(
-            context = context,
-            title = title,
-            restoreBtn = restoreBtn,
-            durMin = durMin
-        )
+            if (now >= endMillis - 1000L) {
+                if (isDndSessionActive(context)) {
+                    restoreSavedDndFilter(context)
+                }
+                rescheduleStoredDndWindows(context)
+                return
+            }
+
+            activateSilentSessionNow(
+                context = context,
+                title = title,
+                restoreBtn = restoreBtn,
+                durMin = durMin,
+                endMillis = endMillis
+            )
+            rescheduleStoredDndWindows(context)
+        } finally {
+            try {
+                if (wl?.isHeld == true) wl.release()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun handleDndEndFired(context: Context, intent: Intent? = null) {
+        var wl: PowerManager.WakeLock? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ibadia:dnd_end")
+                wl.acquire(10_000L)
+            } catch (_: Exception) {}
+        }
+
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val activeEndMs = prefs.getLong(KEY_DND_ACTIVE_END_MS, 0L)
+            val intentEndMs = intent?.getLongExtra("endMillis", 0L) ?: 0L
+            val suppressUntil = maxOf(activeEndMs, intentEndMs, System.currentTimeMillis() + 15_000L)
+            prefs.edit().putLong(KEY_DND_SUPPRESSED_END_MS, suppressUntil).commit()
+
+            restoreSavedDndFilter(context)
+            rescheduleStoredDndWindows(context)
+        } finally {
+            try {
+                if (wl?.isHeld == true) wl.release()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun restoreAndSuppressCurrentWindow(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val activeEndMs = prefs.getLong(KEY_DND_ACTIVE_END_MS, 0L)
+        val suppressUntil = maxOf(activeEndMs, System.currentTimeMillis() + 15_000L)
+        prefs.edit().putLong(KEY_DND_SUPPRESSED_END_MS, suppressUntil).commit()
+        restoreSavedDndFilter(context)
         rescheduleStoredDndWindows(context)
     }
 
@@ -1298,16 +1510,57 @@ object PrayerAlarmController {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && nm.isNotificationPolicyAccessGranted) {
-            val prevFilter = prefs.getInt(KEY_DND_PREV_FILTER, NotificationManager.INTERRUPTION_FILTER_ALL)
-            val prevRinger = prefs.getInt(KEY_DND_PREV_RINGER, AudioManager.RINGER_MODE_NORMAL)
+            val rawPrevFilter = prefs.getInt(KEY_DND_PREV_FILTER, NotificationManager.INTERRUPTION_FILTER_ALL)
+            val targetFilter = if (
+                rawPrevFilter == NotificationManager.INTERRUPTION_FILTER_ALL ||
+                rawPrevFilter == NotificationManager.INTERRUPTION_FILTER_PRIORITY
+            ) {
+                rawPrevFilter
+            } else {
+                NotificationManager.INTERRUPTION_FILTER_ALL
+            }
+            val rawPrevRinger = prefs.getInt(KEY_DND_PREV_RINGER, AudioManager.RINGER_MODE_NORMAL)
+            val targetRinger = if (
+                rawPrevRinger == AudioManager.RINGER_MODE_NORMAL ||
+                rawPrevRinger == AudioManager.RINGER_MODE_VIBRATE
+            ) {
+                rawPrevRinger
+            } else if (targetFilter == NotificationManager.INTERRUPTION_FILTER_ALL) {
+                AudioManager.RINGER_MODE_NORMAL
+            } else {
+                rawPrevRinger
+            }
+
+            // 1) Exit DND interruption filter first
             try {
-                nm.setInterruptionFilter(prevFilter)
+                nm.setInterruptionFilter(targetFilter)
             } catch (_: Exception) {}
+            // 2) Restore ringer mode when not re-triggering RINGER_MODE_SILENT DND lock
             try {
-                am.ringerMode = prevRinger
+                if (am.ringerMode != targetRinger) {
+                    am.ringerMode = targetRinger
+                }
+            } catch (_: Exception) {}
+            // 3) Re-assert targetFilter & ringer if OEM ZenModeHelper toggled DND when changing ringerMode
+            try {
+                if (targetFilter == NotificationManager.INTERRUPTION_FILTER_ALL &&
+                    nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+                ) {
+                    nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                }
+                if (targetFilter == NotificationManager.INTERRUPTION_FILTER_ALL &&
+                    am.ringerMode == AudioManager.RINGER_MODE_SILENT
+                ) {
+                    am.ringerMode = AudioManager.RINGER_MODE_NORMAL
+                }
             } catch (_: Exception) {}
         }
-        prefs.edit().putBoolean(KEY_DND_ACTIVE, false).commit()
+        prefs.edit()
+            .putBoolean(KEY_DND_ACTIVE, false)
+            .remove(KEY_DND_ACTIVE_END_MS)
+            .remove(KEY_DND_PREV_FILTER)
+            .remove(KEY_DND_PREV_RINGER)
+            .commit()
         nm.cancel(DND_NOTIFICATION_ID)
     }
 }
@@ -1347,9 +1600,7 @@ class PrayerDndEndReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pendingResult = goAsync()
         try {
-            val appCtx = context.applicationContext
-            PrayerAlarmController.restoreSavedDndFilter(appCtx)
-            PrayerAlarmController.rescheduleStoredDndWindows(appCtx)
+            PrayerAlarmController.handleDndEndFired(context.applicationContext, intent)
         } finally {
             pendingResult.finish()
         }
@@ -1358,13 +1609,14 @@ class PrayerDndEndReceiver : BroadcastReceiver() {
 
 class PrayerDndRestoreReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        PrayerAlarmController.restoreSavedDndFilter(context.applicationContext)
+        PrayerAlarmController.restoreAndSuppressCurrentWindow(context.applicationContext)
     }
 }
 
 class PrayerBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val appCtx = context.applicationContext
+        PrayerAlarmController.reconcileActiveDndState(appCtx)
         PrayerAlarmController.rescheduleStoredAlarms(appCtx)
         PrayerAlarmController.rescheduleKahfFromPrefs(appCtx)
         PrayerAlarmController.rescheduleStoredDndWindows(appCtx)
@@ -1379,7 +1631,7 @@ class PrayerHomeWidgetProvider : AppWidgetProvider() {
     ) {
         val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
         val location = prefs.getString("widget_location", "Kochi, India") ?: "Kochi, India"
-        val hijri = prefs.getString("widget_hijri_date", "Al-Quran") ?: "Al-Quran"
+        val hijri = prefs.getString("widget_hijri_date", "Ibadia") ?: "Ibadia"
         val nextLabel = prefs.getString("widget_next_label", "Next Prayer") ?: "Next Prayer"
         val prayerName = prefs.getString("widget_prayer_name", "Fajr") ?: "Fajr"
         val adhanTime = prefs.getString("widget_adhan_time", "--:--") ?: "--:--"

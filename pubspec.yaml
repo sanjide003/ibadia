@@ -1,44 +1,55 @@
 name: quran_malayalam_app
-description: Fast offline-cached Flutter Quran Android app with Mushaf Page View, Verse View, bi-directional continuous Surah scroll, flicker-free header, and draggable long-press speed auto-scroll.
+description: "Ibadia — Fast offline-cached Quran, Prayer Times, Auto-Silent DND, Hijri Calendar, Adhkar, Tasbih, 99 Names, and PDF/PNG Export."
 publish_to: 'none'
-version: 4.0.0+4
+version: 5.0.0+5
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: ^3.5.0
 
 dependencies:
   flutter:
     sdk: flutter
-  file_saver: ^0.2.14
-  flutter_riverpod: ^2.5.1
-  gal: ^2.3.0
-  google_fonts: ^6.2.1
-  http: ^1.2.2
-  pdf: ^3.11.1
-  share_plus: ^10.1.4
-  shared_preferences: ^2.3.2
-  audioplayers: ^6.8.1
-  geolocator: ^14.0.2
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
   hive_ce: ^2.24.0
   hive_ce_flutter: ^2.6.0
+  shared_preferences: ^2.5.6
+  dio: ^5.11.1
+  http: ^1.6.0
+  audioplayers: ^6.8.1
+  geolocator: ^14.0.2
+  pdf: ^3.13.1
+  file_saver: ^0.2.14
+  gal: ^2.3.3
+  share_plus: ^10.1.4
+  path_provider: ^2.1.6
+  package_info_plus: ^9.0.1
   home_widget: ^0.10.0
+  google_fonts: ^6.3.3
+  intl: ^0.20.3
+  web: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  flutter_launcher_icons: ^0.14.3
-
-flutter_launcher_icons:
-  android: true
-  ios: false
-  image_path: "assets/branding/app_logo.png"
-  adaptive_icon_background: "#045A3D"
-  adaptive_icon_foreground: "assets/branding/app_logo_foreground.png"
-  min_sdk_android: 21
-  web:
-    generate: false
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/branding/
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/branding/app_logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#045A3D"
+  adaptive_icon_foreground: "assets/branding/app_logo_foreground.png"
+  web:
+    generate: true
+    image_path: "assets/branding/app_logo.png"
+    background_color: "#047857"
+    theme_color: "#047857"

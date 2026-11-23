@@ -17,6 +17,9 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   final StorageService _storage;
   Future<void>? _initFutureBacking;
   Future<void> get _initFuture => _initFutureBacking ??= _init();
+  Future<void>? _writeChainBacking;
+  Future<void> get _writeChain => _writeChainBacking ??= Future<void>.value();
+  set _writeChain(Future<void> v) => _writeChainBacking = v;
   bool? _hasExplicitWriteBacking;
   bool get _hasExplicitWrite => _hasExplicitWriteBacking ?? false;
   set _hasExplicitWrite(bool v) => _hasExplicitWriteBacking = v;
@@ -37,22 +40,32 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     return state;
   }
 
-  Future<void> update(AppSettings next) async {
-    _hasExplicitWrite = true;
-    state = next;
-    await _storage.saveSettings(next);
+  Future<void> updateWith(AppSettings Function(AppSettings current) updater) {
+    final op = _writeChain.then((_) async {
+      await _initFuture;
+      _hasExplicitWrite = true;
+      final next = updater(state);
+      state = next;
+      await _storage.saveSettings(next);
+    });
+    _writeChain = op.catchError((_) {});
+    return op;
   }
 
-  Future<void> toggleTranslationLang(String code) async {
-    final current = List<String>.from(state.selectedTranslations);
-    if (current.contains(code)) {
-      if (current.length > 1) {
-        current.remove(code);
+  Future<void> update(AppSettings next) => updateWith((_) => next);
+
+  Future<void> toggleTranslationLang(String code) {
+    return updateWith((currentState) {
+      final current = List<String>.from(currentState.selectedTranslations);
+      if (current.contains(code)) {
+        if (current.length > 1) {
+          current.remove(code);
+        }
+      } else {
+        current.add(code);
       }
-    } else {
-      current.add(code);
-    }
-    await update(state.copyWith(selectedTranslations: current));
+      return currentState.copyWith(selectedTranslations: current);
+    });
   }
 }
 
@@ -68,24 +81,34 @@ final stringsProvider = Provider<AppStrings>((ref) {
 
 class BookmarksNotifier extends StateNotifier<List<String>> {
   final StorageService _storage;
+  Future<void>? _initFutureBacking;
+  Future<void> get _initFuture => _initFutureBacking ??= _init();
+  Future<void>? _writeChainBacking;
+  Future<void> get _writeChain => _writeChainBacking ??= Future<void>.value();
+  set _writeChain(Future<void> v) => _writeChainBacking = v;
 
   BookmarksNotifier(this._storage) : super(const []) {
-    _init();
+    _initFuture;
   }
 
   Future<void> _init() async {
     state = await _storage.loadBookmarks();
   }
 
-  Future<void> toggle(String ayahKey) async {
-    final updated = List<String>.from(state);
-    if (updated.contains(ayahKey)) {
-      updated.remove(ayahKey);
-    } else {
-      updated.insert(0, ayahKey);
-    }
-    state = updated;
-    await _storage.saveBookmarks(updated);
+  Future<void> toggle(String ayahKey) {
+    final op = _writeChain.then((_) async {
+      await _initFuture;
+      final updated = List<String>.from(state);
+      if (updated.contains(ayahKey)) {
+        updated.remove(ayahKey);
+      } else {
+        updated.insert(0, ayahKey);
+      }
+      state = updated;
+      await _storage.saveBookmarks(updated);
+    });
+    _writeChain = op.catchError((_) {});
+    return op;
   }
 }
 
@@ -98,6 +121,9 @@ class LastReadNotifier extends StateNotifier<LastReadPosition?> {
   final StorageService _storage;
   Future<void>? _initFutureBacking;
   Future<void> get _initFuture => _initFutureBacking ??= _init();
+  Future<void>? _writeChainBacking;
+  Future<void> get _writeChain => _writeChainBacking ??= Future<void>.value();
+  set _writeChain(Future<void> v) => _writeChainBacking = v;
   bool? _hasExplicitWriteBacking;
   bool get _hasExplicitWrite => _hasExplicitWriteBacking ?? false;
   set _hasExplicitWrite(bool v) => _hasExplicitWriteBacking = v;
@@ -118,10 +144,15 @@ class LastReadNotifier extends StateNotifier<LastReadPosition?> {
     return state;
   }
 
-  Future<void> setPosition(LastReadPosition pos) async {
-    _hasExplicitWrite = true;
-    state = pos;
-    await _storage.saveLastRead(pos);
+  Future<void> setPosition(LastReadPosition pos) {
+    final op = _writeChain.then((_) async {
+      await _initFuture;
+      _hasExplicitWrite = true;
+      state = pos;
+      await _storage.saveLastRead(pos);
+    });
+    _writeChain = op.catchError((_) {});
+    return op;
   }
 }
 

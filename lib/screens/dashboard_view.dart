@@ -63,6 +63,7 @@ class _DashboardQuickAction {
 
 class DashboardView extends ConsumerStatefulWidget {
   final void Function(int tabIndex, {int? subTab}) onNavigateTab;
+  final Future<void> Function(String featureId) onOpenFeature;
   final void Function(
     int surahNo, {
     int? ayahNo,
@@ -73,6 +74,7 @@ class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({
     super.key,
     required this.onNavigateTab,
+    required this.onOpenFeature,
     required this.onOpenSurah,
   });
 
@@ -187,19 +189,19 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         }
         break;
       case RecentActivityType.prayer:
-        widget.onNavigateTab(2, subTab: 0);
+        widget.onOpenFeature('prayer_times');
         break;
       case RecentActivityType.hijri:
-        widget.onNavigateTab(2, subTab: 1);
+        widget.onOpenFeature('hijri_calendar');
         break;
       case RecentActivityType.adhkar:
-        widget.onNavigateTab(2, subTab: 2);
+        widget.onOpenFeature('adhkar');
         break;
       case RecentActivityType.counter:
-        widget.onNavigateTab(2, subTab: 3);
+        widget.onOpenFeature('tasbih');
         break;
       case RecentActivityType.asmaulHusna:
-        widget.onNavigateTab(2, subTab: 4);
+        widget.onOpenFeature('names_99');
         if (entry.asmaIndex != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
@@ -219,10 +221,10 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         showAutoSilentSheet(context, t);
         break;
       case RecentActivityType.exportPdf:
-        widget.onNavigateTab(1, subTab: 3);
+        widget.onOpenFeature('export');
         break;
       case RecentActivityType.settings:
-        widget.onNavigateTab(3);
+        widget.onNavigateTab(2);
         break;
     }
   }
@@ -506,7 +508,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                           subtitleAr: d.reference,
                                           featureSubTab: 2,
                                         );
-                                        widget.onNavigateTab(2, subTab: 2);
+                                        widget.onOpenFeature('adhkar');
                                       },
                                     )),
                               ],
@@ -575,7 +577,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             subtitleAr: settings.displayLocationLabel,
             featureSubTab: 0,
           );
-          widget.onNavigateTab(2, subTab: 0);
+          widget.onOpenFeature('prayer_times');
         },
       ),
       _DashboardQuickAction(
@@ -601,7 +603,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             subtitleAr: 'التاريخ الهجري',
             featureSubTab: 1,
           );
-          widget.onNavigateTab(2, subTab: 1);
+          widget.onOpenFeature('hijri_calendar');
         },
       ),
       _DashboardQuickAction(
@@ -627,7 +629,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             subtitleAr: 'أذكار الصباح والمساء',
             featureSubTab: 2,
           );
-          widget.onNavigateTab(2, subTab: 2);
+          widget.onOpenFeature('adhkar');
         },
       ),
       _DashboardQuickAction(
@@ -653,7 +655,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             subtitleAr: 'تسبيح',
             featureSubTab: 3,
           );
-          widget.onNavigateTab(2, subTab: 3);
+          widget.onOpenFeature('tasbih');
         },
       ),
       _DashboardQuickAction(
@@ -722,7 +724,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             subtitleAr: 'قائمة الحفظ',
             quranSubTab: 2,
           );
-          widget.onNavigateTab(1, subTab: 2);
+          widget.onOpenFeature('bookmarks');
         },
       ),
       _DashboardQuickAction(
@@ -748,7 +750,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             subtitleAr: '99 اسماً',
             featureSubTab: 4,
           );
-          widget.onNavigateTab(2, subTab: 4);
+          widget.onOpenFeature('names_99');
         },
       ),
       _DashboardQuickAction(
@@ -787,7 +789,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             subtitleAr: 'تصدير السور',
             quranSubTab: 3,
           );
-          widget.onNavigateTab(1, subTab: 3);
+          widget.onOpenFeature('export');
         },
       ),
       _DashboardQuickAction(
@@ -812,7 +814,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             subtitleMl: 'ആപ്പ് ക്രമീകരണങ്ങൾ',
             subtitleAr: 'تفضيلات التطبيق',
           );
-          widget.onNavigateTab(3);
+          widget.onNavigateTab(2);
         },
       ),
     ];
@@ -862,7 +864,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                   child: _DashboardFloatingPrayerCard(
                     cardBg: palette.cardBg,
                     cardBorder: palette.cardBorder,
-                    onOpenPrayerTab: () => widget.onNavigateTab(2, subTab: 0),
+                    onOpenPrayerTab: () => widget.onOpenFeature('prayer_times'),
                     onOpenAutoSilent: () => _openAutoSilent(t),
                   ),
                 ),

@@ -66,7 +66,7 @@ class QuranSettingsSection extends ConsumerWidget {
             ],
             selected: {settings.readingMode},
             onSelectionChanged: (s) =>
-                notifier.update(settings.copyWith(readingMode: s.first)),
+                notifier.updateWith((cur) => cur.copyWith(readingMode: s.first)),
           ),
         ),
 
@@ -110,7 +110,7 @@ class QuranSettingsSection extends ConsumerWidget {
             ],
             selected: {settings.themeMode},
             onSelectionChanged: (s) =>
-                notifier.update(settings.copyWith(themeMode: s.first)),
+                notifier.updateWith((cur) => cur.copyWith(themeMode: s.first)),
           ),
         ),
 
@@ -145,7 +145,7 @@ class QuranSettingsSection extends ConsumerWidget {
             ],
             selected: {settings.appLanguage},
             onSelectionChanged: (s) =>
-                notifier.update(settings.copyWith(appLanguage: s.first)),
+                notifier.updateWith((cur) => cur.copyWith(appLanguage: s.first)),
           ),
         ),
 
@@ -204,7 +204,7 @@ class QuranSettingsSection extends ConsumerWidget {
               }).toList(),
               onChanged: (val) {
                 if (val == null) return;
-                notifier.update(settings.copyWith(reciterId: val));
+                notifier.updateWith((cur) => cur.copyWith(reciterId: val));
                 ref.read(quranAudioProvider.notifier).onReciterChanged(val);
               },
             ),
@@ -229,8 +229,9 @@ class QuranSettingsSection extends ConsumerWidget {
             style: const TextStyle(fontSize: 12),
           ),
           value: settings.showTranslation,
-          onChanged: (val) =>
-              notifier.update(settings.copyWith(showTranslation: val)),
+          onChanged: (val) => notifier.updateWith(
+            (cur) => cur.copyWith(showTranslation: val),
+          ),
         ),
         if (settings.showTranslation) ...[
           const SizedBox(height: 6),
@@ -269,7 +270,7 @@ class QuranSettingsSection extends ConsumerWidget {
               style: const TextStyle(fontSize: 13),
             ),
             onPressed: () {
-              notifier.update(settings.copyWith(clearFabPos: true));
+              notifier.updateWith((cur) => cur.copyWith(clearFabPos: true));
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(t.done),
@@ -454,7 +455,7 @@ class FeaturesSettingsSection extends ConsumerWidget {
               }).toList(),
               onChanged: (val) {
                 if (val == null) return;
-                notifier.update(settings.copyWith(prayerMethod: val));
+                notifier.updateWith((cur) => cur.copyWith(prayerMethod: val));
               },
             ),
           ),
@@ -497,7 +498,7 @@ class FeaturesSettingsSection extends ConsumerWidget {
             ],
             selected: {settings.prayerSchool},
             onSelectionChanged: (s) =>
-                notifier.update(settings.copyWith(prayerSchool: s.first)),
+                notifier.updateWith((cur) => cur.copyWith(prayerSchool: s.first)),
           ),
         ),
 
@@ -564,8 +565,9 @@ class FeaturesSettingsSection extends ConsumerWidget {
           enabled: settings.kahfThursdayEnabled,
           hour: settings.kahfThuHour,
           minute: settings.kahfThuMinute,
-          onToggle: (v) =>
-              notifier.update(settings.copyWith(kahfThursdayEnabled: v)),
+          onToggle: (v) => notifier.updateWith(
+            (cur) => cur.copyWith(kahfThursdayEnabled: v),
+          ),
           onPickTime: () async {
             final picked = await showTimePicker(
               context: context,
@@ -575,8 +577,8 @@ class FeaturesSettingsSection extends ConsumerWidget {
               ),
             );
             if (picked != null) {
-              await notifier.update(
-                settings.copyWith(
+              await notifier.updateWith(
+                (cur) => cur.copyWith(
                   kahfThuHour: picked.hour,
                   kahfThuMinute: picked.minute,
                 ),
@@ -589,8 +591,9 @@ class FeaturesSettingsSection extends ConsumerWidget {
           enabled: settings.kahfFridayEnabled,
           hour: settings.kahfFriHour,
           minute: settings.kahfFriMinute,
-          onToggle: (v) =>
-              notifier.update(settings.copyWith(kahfFridayEnabled: v)),
+          onToggle: (v) => notifier.updateWith(
+            (cur) => cur.copyWith(kahfFridayEnabled: v),
+          ),
           onPickTime: () async {
             final picked = await showTimePicker(
               context: context,
@@ -600,8 +603,8 @@ class FeaturesSettingsSection extends ConsumerWidget {
               ),
             );
             if (picked != null) {
-              await notifier.update(
-                settings.copyWith(
+              await notifier.updateWith(
+                (cur) => cur.copyWith(
                   kahfFriHour: picked.hour,
                   kahfFriMinute: picked.minute,
                 ),

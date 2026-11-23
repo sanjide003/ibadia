@@ -12,10 +12,13 @@ import '../models/surah_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
+import '../services/hive_db.dart';
 import '../services/prayer_alarm_bridge.dart';
 import '../services/storage_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/web_pwa_widgets.dart';
+import 'adhkar_tasbih_views.dart';
+import 'asmaul_husna_view.dart';
 import 'dashboard_view.dart';
 import 'export_screen.dart';
 import 'features_views.dart';
@@ -32,9 +35,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   TabController? _quranTabCtrl;
-  TabController? _featuresTabCtrl;
   TabController get _quranTabController => _ensureQuranTabController();
-  TabController get _featuresTabController => _ensureFeaturesTabController();
   ScrollController? _surahScrollCtrl;
   ScrollController? _juzScrollCtrl;
   ScrollController? _bookmarksScrollCtrl;
@@ -46,7 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   ScrollController get _bookmarksScrollController => _bookmarksScrollCtrl ??=
       ScrollController()..addListener(_onHomeListScrolled);
 
-  int _tabIndex = 0;
+  int _tabIndex = 0; // 0: Home, 1: Quran, 2: Settings
   bool _shownStartupUpdatePrompt = false;
   bool? _hasRestoredStartupStateBacking;
   bool get _hasRestoredStartupState => _hasRestoredStartupStateBacking ?? false;
@@ -76,27 +77,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return ctrl;
   }
 
-  TabController _ensureFeaturesTabController() {
-    final existing = _featuresTabCtrl;
-    if (existing != null && existing.length == 5) {
-      return existing;
-    }
-    if (existing != null) {
-      existing.removeListener(_onFeaturesSubTabChanged);
-      existing.dispose();
-    }
-    final ctrl = TabController(length: 5, vsync: this);
-    ctrl.addListener(_onFeaturesSubTabChanged);
-    _featuresTabCtrl = ctrl;
-    return ctrl;
-  }
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _ensureQuranTabController();
-    _ensureFeaturesTabController();
     // Initialize lazy scroll controllers
     _surahScrollController;
     _juzScrollController;
@@ -108,11 +93,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
     PrayerAlarmBridge.instance.setOnOpenPrayerTabHandler(() {
       if (!mounted) return;
-      setState(() => _tabIndex = 2);
-      if (_featuresTabController.index != 0) {
-        _featuresTabController.animateTo(0);
-      }
+      setState(() => _tabIndex = 0);
       _persistHomeState(forceHomeActive: true);
+      _openStandaloneFeature('prayer_times');
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -127,7 +110,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void reassemble() {
     super.reassemble();
     _ensureQuranTabController();
-    _ensureFeaturesTabController();
   }
 
   @override
@@ -138,8 +120,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _homeScrollDebounce?.cancel();
     _quranTabCtrl?.removeListener(_onQuranSubTabChanged);
     _quranTabCtrl?.dispose();
-    _featuresTabCtrl?.removeListener(_onFeaturesSubTabChanged);
-    _featuresTabCtrl?.dispose();
     _surahScrollCtrl?.removeListener(_onHomeListScrolled);
     _juzScrollCtrl?.removeListener(_onHomeListScrolled);
     _bookmarksScrollCtrl?.removeListener(_onHomeListScrolled);
@@ -154,12 +134,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (state == AppLifecycleState.resumed) {
       ref.read(prayerAlarmProvider.notifier).syncWithNative();
     }
-    if (!_isReaderOpen &&
-        (state == AppLifecycleState.inactive ||
-            state == AppLifecycleState.paused ||
-            state == AppLifecycleState.hidden ||
-            state == AppLifecycleState.detached)) {
-      _persistHomeState(forceHomeActive: true);
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      if (!_isReaderOpen) {
+        _persistHomeState(forceHomeActive: true);
+      }
+      HiveDb.instance.flushAll();
     }
   }
 
@@ -174,11 +156,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
   }
 
-  void _onFeaturesSubTabChanged() {
-    if (_featuresTabController.indexIsChanging) return;
-    _persistHomeState(forceHomeActive: !_isReaderOpen);
-  }
-
   void _onHomeListScrolled() {
     _homeScrollDebounce?.cancel();
     _homeScrollDebounce = Timer(const Duration(milliseconds: 250), () {
@@ -191,9 +168,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _persistHomeState({bool forceHomeActive = false}) {
     ref.read(appResumeProvider.notifier).updateHomeTabsAndScroll(
           lastScreen: forceHomeActive ? 'home' : null,
-          homeTabIndex: _tabIndex,
+          homeTabIndex: _tabIndex.clamp(0, 2),
           quranSubTabIndex: _quranTabController.index,
-          featuresSubTabIndex: _featuresTabController.index,
           surahListScrollOffset: _surahScrollController.hasClients
               ? _surahScrollController.offset
               : null,
@@ -239,6 +215,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  Future<void> _openStandaloneFeature(String featureId) async {
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StandaloneFeatureScreen(
+          featureId: featureId,
+          onOpenSurah: (surahNo, {ayahNo}) =>
+              _openSurah(context, surahNo, ayahNo: ayahNo),
+        ),
+      ),
+    );
+  }
+
   Future<void> _restoreAppResumeState() async {
     if (_hasRestoredStartupState) return;
     _hasRestoredStartupState = true;
@@ -248,23 +237,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     await ref.read(settingsProvider.notifier).ensureLoaded();
     if (!mounted) return;
 
-    final restoredTab = resume.homeTabIndex.clamp(0, 3);
+    final restoredTab = resume.homeTabIndex.clamp(0, 2);
     final restoredSubTab = resume.quranSubTabIndex.clamp(0, 3);
-    final restoredFeaturesSubTab = resume.featuresSubTabIndex.clamp(0, 4);
 
     final launchAction =
         await PrayerAlarmBridge.instance.getInitialLaunchAction();
     if (!mounted) return;
 
     setState(() {
-      _tabIndex = (launchAction?.openPrayerTab == true) ? 2 : restoredTab;
+      _tabIndex = (launchAction?.openPrayerTab == true) ? 0 : restoredTab;
       if (_quranTabController.index != restoredSubTab) {
         _quranTabController.index = restoredSubTab;
-      }
-      final targetFeatTab =
-          (launchAction?.openPrayerTab == true) ? 0 : restoredFeaturesSubTab;
-      if (_featuresTabController.index != targetFeatTab) {
-        _featuresTabController.index = targetFeatTab;
       }
       _pendingSurahScrollOffset = resume.surahListScrollOffset;
       _pendingJuzScrollOffset = resume.juzListScrollOffset;
@@ -274,6 +257,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _applyPendingHomeScrollOffsets();
     });
+
+    if (launchAction?.openPrayerTab == true) {
+      await _openStandaloneFeature('prayer_times');
+      return;
+    }
 
     if (launchAction?.openSurah != null && launchAction!.openSurah! > 0) {
       await _openSurah(
@@ -347,26 +335,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ? const Color(0xFF23302A)
         : (isSepia ? const Color(0xFFE7DEC9) : const Color(0xFFE2EBE6));
 
-    final String appBarTitle = _tabIndex == 0
-        ? t.appTitle
-        : (_tabIndex == 1
-            ? t.quranTab
-            : (_tabIndex == 2 ? t.featuresTab : t.settings));
-
     return Directionality(
       textDirection: t.textDirection,
       child: Scaffold(
         backgroundColor: canvasBg,
-        appBar: AppBar(
-          centerTitle: true,
-          backgroundColor: headerBg,
-          foregroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          scrolledUnderElevation: 0,
-          elevation: 0,
-          title: _tabIndex == 0
-              ? Row(
+        appBar: _tabIndex == 1
+            ? null
+            : AppBar(
+                centerTitle: true,
+                backgroundColor: headerBg,
+                foregroundColor: Colors.white,
+                surfaceTintColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                scrolledUnderElevation: 0,
+                elevation: 0,
+                title: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
@@ -387,7 +370,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                     const SizedBox(width: 9),
                     Text(
-                      appBarTitle,
+                      _tabIndex == 0 ? t.appTitle : t.settingsTab,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 20,
@@ -395,123 +378,130 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                     ),
                   ],
-                )
-              : Text(
-                  appBarTitle,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 20,
-                    color: Colors.white,
-                  ),
                 ),
-          actions: _tabIndex == 3
-              ? const []
-              : [
-                  Builder(
-                    builder: (drawerCtx) => IconButton(
-                      tooltip: _tabIndex == 2
-                          ? t.featuresSettingsTitle
-                          : (_tabIndex == 1
-                              ? t.quranSettingsTitle
-                              : t.settings),
-                      icon: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const Icon(Icons.settings_rounded,
-                              color: Colors.white),
-                          if (updateState.updateAvailable)
-                            Positioned(
-                              right: -2,
-                              top: -2,
-                              child: Container(
-                                width: 9,
-                                height: 9,
-                                decoration: BoxDecoration(
-                                  color: AppBranding.accentGold,
-                                  shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: headerBg, width: 1.5),
-                                ),
-                              ),
+                actions: _tabIndex == 2
+                    ? const []
+                    : [
+                        Builder(
+                          builder: (drawerCtx) => IconButton(
+                            tooltip: t.settings,
+                            icon: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                const Icon(Icons.settings_rounded,
+                                    color: Colors.white),
+                                if (updateState.updateAvailable)
+                                  Positioned(
+                                    right: -2,
+                                    top: -2,
+                                    child: Container(
+                                      width: 9,
+                                      height: 9,
+                                      decoration: BoxDecoration(
+                                        color: AppBranding.accentGold,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: headerBg,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
-                      onPressed: () => Scaffold.of(drawerCtx).openEndDrawer(),
-                    ),
-                  ),
-                ],
-          bottom: _tabIndex == 1
-              ? _buildSubTabBar(
-                  controller: _quranTabController,
-                  tabs: [
-                    _HeaderIconTab(
-                      icon: Icons.menu_book_rounded,
-                      label: t.surahTabLabel,
-                    ),
-                    _HeaderIconTab(
-                      icon: Icons.grid_view_rounded,
-                      label: t.juzTabLabel,
-                    ),
-                    _HeaderIconTab(
-                      icon: Icons.bookmark_rounded,
-                      label: t.bookmarksTab,
-                    ),
-                    _HeaderIconTab(
-                      icon: Icons.ios_share_rounded,
-                      label: t.exportTab,
-                    ),
-                  ],
-                )
-              : _tabIndex == 2
-                  ? _buildSubTabBar(
-                      controller: _featuresTabController,
-                      tabs: [
-                        _HeaderIconTab(
-                          icon: Icons.mosque_rounded,
-                          label: t.prayerShortTab,
-                        ),
-                        _HeaderIconTab(
-                          icon: Icons.calendar_month_rounded,
-                          label: t.hijriCalendarTab,
-                        ),
-                        _HeaderIconTab(
-                          icon: Icons.auto_stories_rounded,
-                          label: t.adhkarTab,
-                        ),
-                        _HeaderIconTab(
-                          icon: Icons.touch_app_rounded,
-                          label: t.tasbihTab,
-                        ),
-                        _HeaderIconTab(
-                          icon: Icons.auto_awesome_rounded,
-                          label: t.names99Tab,
+                            onPressed: () =>
+                                Scaffold.of(drawerCtx).openEndDrawer(),
+                          ),
                         ),
                       ],
-                    )
-                  : null,
-        ),
-        endDrawer: _tabIndex == 3
+              ),
+        endDrawer: _tabIndex == 2
             ? null
             : CompactSettingsDrawer(
-                scope: _tabIndex == 2
-                    ? SettingsScope.features
-                    : (_tabIndex == 1
-                        ? SettingsScope.quran
-                        : SettingsScope.all),
+                scope:
+                    _tabIndex == 1 ? SettingsScope.quran : SettingsScope.all,
               ),
         body: Column(
           children: [
+            if (_tabIndex == 1)
+              Container(
+                width: double.infinity,
+                color: headerBg,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuranSubTabBar(
+                            controller: _quranTabController,
+                            tabs: [
+                              _HeaderIconTab(
+                                icon: Icons.menu_book_rounded,
+                                label: t.surahTabLabel,
+                              ),
+                              _HeaderIconTab(
+                                icon: Icons.grid_view_rounded,
+                                label: t.juzTabLabel,
+                              ),
+                              _HeaderIconTab(
+                                icon: Icons.bookmark_rounded,
+                                label: t.bookmarksTab,
+                              ),
+                              _HeaderIconTab(
+                                icon: Icons.ios_share_rounded,
+                                label: t.exportTab,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Builder(
+                          builder: (drawerCtx) => IconButton(
+                            tooltip: t.quranSettingsTitle,
+                            icon: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                const Icon(Icons.settings_rounded,
+                                    color: Colors.white),
+                                if (updateState.updateAvailable)
+                                  Positioned(
+                                    right: -2,
+                                    top: -2,
+                                    child: Container(
+                                      width: 9,
+                                      height: 9,
+                                      decoration: BoxDecoration(
+                                        color: AppBranding.accentGold,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: headerBg,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            onPressed: () =>
+                                Scaffold.of(drawerCtx).openEndDrawer(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             OfflineStatusBanner(strings: t),
             Expanded(
               child: _tabIndex == 0
                   ? DashboardView(
                       onNavigateTab: (tabIdx, {int? subTab}) {
                         setState(() {
-                          _tabIndex = tabIdx.clamp(0, 3);
-                          if (tabIdx == 1 && subTab != null) {
+                          _tabIndex = tabIdx.clamp(0, 2);
+                          if (_tabIndex == 1 && subTab != null) {
                             _quranTabController.index = subTab.clamp(0, 3);
-                          } else if (tabIdx == 2 && subTab != null) {
-                            _featuresTabController.index = subTab.clamp(0, 4);
                           }
                         });
                         _persistHomeState(forceHomeActive: true);
@@ -519,6 +509,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           _applyPendingHomeScrollOffsets();
                         });
                       },
+                      onOpenFeature: _openStandaloneFeature,
                       onOpenSurah: (
                         surahNo, {
                         int? ayahNo,
@@ -606,7 +597,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 ),
 
                                 // 3. Bookmarks Tab View
-                                _BookmarksTab(
+                                BookmarksListView(
                                   scrollController: _bookmarksScrollController,
                                   bookmarks: bookmarks,
                                   surahs: surahsAsync.valueOrNull ?? const [],
@@ -659,18 +650,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               ),
                           ],
                         )
-                      : _tabIndex == 2
-                          ? FeaturesContainerView(
-                              controller: _featuresTabController,
-                              onOpenSurah: (surahNo) =>
-                                  _openSurah(context, surahNo),
-                            )
-                          : const SettingsTabView(),
+                      : const SettingsTabView(),
             ),
           ],
         ),
         bottomNavigationBar: NavigationBar(
-          selectedIndex: _tabIndex,
+          selectedIndex: _tabIndex.clamp(0, 2),
           onDestinationSelected: (i) {
             setState(() => _tabIndex = i);
             _persistHomeState(forceHomeActive: true);
@@ -680,19 +665,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           },
           destinations: [
             NavigationDestination(
-              icon: const Icon(Icons.dashboard_outlined),
-              selectedIcon: const Icon(Icons.dashboard_rounded),
-              label: t.dashboardTab,
+              icon: const Icon(Icons.home_outlined),
+              selectedIcon: const Icon(Icons.home_rounded),
+              label: t.homeTab,
             ),
             NavigationDestination(
               icon: const Icon(Icons.auto_stories_outlined),
               selectedIcon: const Icon(Icons.auto_stories_rounded),
               label: t.quranTab,
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.explore_outlined),
-              selectedIcon: const Icon(Icons.explore_rounded),
-              label: t.featuresTab,
             ),
             NavigationDestination(
               icon: Stack(
@@ -715,7 +695,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ],
               ),
               selectedIcon: const Icon(Icons.settings_rounded),
-              label: t.settings,
+              label: t.settingsTab,
             ),
           ],
         ),
@@ -1405,14 +1385,173 @@ class _RubElHizbPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-class _BookmarksTab extends StatelessWidget {
+class StandaloneFeatureScreen extends ConsumerStatefulWidget {
+  final String featureId;
+  final void Function(int surahNo, {int? ayahNo}) onOpenSurah;
+
+  const StandaloneFeatureScreen({
+    super.key,
+    required this.featureId,
+    required this.onOpenSurah,
+  });
+
+  @override
+  ConsumerState<StandaloneFeatureScreen> createState() =>
+      _StandaloneFeatureScreenState();
+}
+
+class _StandaloneFeatureScreenState
+    extends ConsumerState<StandaloneFeatureScreen> {
+  final ScrollController _bookmarksScrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _bookmarksScrollCtrl.dispose();
+    super.dispose();
+  }
+
+  String _titleFor(AppStrings t) {
+    switch (widget.featureId) {
+      case 'prayer_times':
+        return t.actionPrayer;
+      case 'hijri_calendar':
+        return t.hijriCalendarTitle;
+      case 'adhkar':
+        return t.actionAdhkar;
+      case 'tasbih':
+        return t.tasbihTitle;
+      case 'names_99':
+        return t.names99Title;
+      case 'bookmarks':
+        return t.bookmarksTab;
+      case 'export':
+        return t.exportTitle;
+      default:
+        return t.appTitle;
+    }
+  }
+
+  SettingsScope? _settingsScopeFor() {
+    switch (widget.featureId) {
+      case 'prayer_times':
+      case 'hijri_calendar':
+        return SettingsScope.features;
+      case 'bookmarks':
+      case 'export':
+        return SettingsScope.quran;
+      default:
+        return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ref.watch(stringsProvider);
+    final settings = ref.watch(settingsProvider);
+    final bookmarks = ref.watch(bookmarksProvider);
+    final surahs = ref.watch(surahListProvider).valueOrNull ?? const [];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSepia = settings.themeMode == 'sepia';
+    final Color headerBg =
+        isDark ? AppBranding.darkEmerald : AppBranding.headerEmerald;
+    final Color canvasBg = isDark
+        ? const Color(0xFF0A0D0C)
+        : (isSepia ? const Color(0xFFFBF6E9) : const Color(0xFFF3F6F4));
+    final SettingsScope? scope = _settingsScopeFor();
+
+    Widget body;
+    switch (widget.featureId) {
+      case 'prayer_times':
+        body = PrayerTimesView(
+          onOpenSurah: (surahNo) => widget.onOpenSurah(surahNo),
+        );
+        break;
+      case 'hijri_calendar':
+        body = const HijriCalendarView();
+        break;
+      case 'adhkar':
+        body = const AdhkarDuasView();
+        break;
+      case 'tasbih':
+        body = const DigitalTasbihView();
+        break;
+      case 'names_99':
+        body = const AsmaulHusnaView();
+        break;
+      case 'bookmarks':
+        body = BookmarksListView(
+          scrollController: _bookmarksScrollCtrl,
+          bookmarks: bookmarks,
+          surahs: surahs,
+          strings: t,
+          onOpenSurah: widget.onOpenSurah,
+        );
+        break;
+      case 'export':
+        body = const ExportScreen(showHeader: false);
+        break;
+      default:
+        body = const SizedBox.shrink();
+    }
+
+    return Directionality(
+      textDirection: t.textDirection,
+      child: Scaffold(
+        backgroundColor: canvasBg,
+        appBar: AppBar(
+          backgroundColor: headerBg,
+          foregroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          scrolledUnderElevation: 0,
+          elevation: 0,
+          leading: IconButton(
+            tooltip: t.backToHome,
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Text(
+            _titleFor(t),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 18.5,
+              color: Colors.white,
+            ),
+          ),
+          actions: scope == null
+              ? const []
+              : [
+                  Builder(
+                    builder: (drawerCtx) => IconButton(
+                      tooltip: t.settings,
+                      icon: const Icon(Icons.settings_rounded,
+                          color: Colors.white),
+                      onPressed: () => Scaffold.of(drawerCtx).openEndDrawer(),
+                    ),
+                  ),
+                ],
+        ),
+        endDrawer: scope == null ? null : CompactSettingsDrawer(scope: scope),
+        body: Column(
+          children: [
+            OfflineStatusBanner(strings: t),
+            Expanded(child: body),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class BookmarksListView extends StatelessWidget {
   final ScrollController scrollController;
   final List<String> bookmarks;
   final List<SurahSummary> surahs;
   final AppStrings strings;
   final void Function(int surahNo, {int? ayahNo}) onOpenSurah;
 
-  const _BookmarksTab({
+  const BookmarksListView({
+    super.key,
     required this.scrollController,
     required this.bookmarks,
     required this.surahs,
@@ -1430,7 +1569,15 @@ class _BookmarksTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (bookmarks.isEmpty) {
-      return Center(child: Text(strings.noBookmarks));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            strings.noBookmarks,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
     }
     final cs = Theme.of(context).colorScheme;
     final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
@@ -1523,63 +1670,59 @@ class _BookmarksTab extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => onOpenSurah(
-              surahNo,
-              ayahNo: int.tryParse(ayahNo),
-            ),
-          );
-        },
-      );
+          onTap: () => onOpenSurah(
+            surahNo,
+            ayahNo: int.tryParse(ayahNo),
+          ),
+        );
+      },
+    );
   }
 }
 
-PreferredSizeWidget _buildSubTabBar({
+Widget _buildQuranSubTabBar({
   required TabController controller,
   required List<Widget> tabs,
 }) {
-  return PreferredSize(
-    preferredSize: const Size.fromHeight(54),
-    child: Container(
-      height: 44,
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
-        ),
+  return Container(
+    height: 44,
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.22),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+        color: Colors.white.withValues(alpha: 0.14),
       ),
-      child: TabBar(
-        controller: controller,
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        indicator: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.14),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        labelColor: AppBranding.darkEmerald,
-        unselectedLabelColor: Colors.white.withValues(alpha: 0.90),
-        labelPadding: EdgeInsets.zero,
-        splashBorderRadius: BorderRadius.circular(10),
-        labelStyle: const TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 12.5,
-          letterSpacing: 0.1,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 12.5,
-        ),
-        tabs: tabs,
+    ),
+    child: TabBar(
+      controller: controller,
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: Colors.transparent,
+      indicator: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.14),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      labelColor: AppBranding.darkEmerald,
+      unselectedLabelColor: Colors.white.withValues(alpha: 0.90),
+      labelPadding: EdgeInsets.zero,
+      splashBorderRadius: BorderRadius.circular(10),
+      labelStyle: const TextStyle(
+        fontWeight: FontWeight.w700,
+        fontSize: 12.5,
+        letterSpacing: 0.1,
+      ),
+      unselectedLabelStyle: const TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 12.5,
+      ),
+      tabs: tabs,
     ),
   );
 }

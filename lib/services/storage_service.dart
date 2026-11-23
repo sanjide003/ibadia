@@ -97,6 +97,28 @@ class AppSettings {
   bool isAutoSilentEnabledFor(String prayerKey) =>
       autoSilentPrayers[prayerKey] ?? true;
 
+  // 99 Names & Export persisted preferences (nullable backing fields for DDC safety)
+  final String? _names99ViewMode; // 'grid' | 'list'
+  final String? _exportScope; // 'range' | 'surah' | 'juz'
+  final int? _exportSurahNo;
+  final int? _exportJuzNo;
+  final int? _exportFromAyah;
+  final int? _exportToAyah;
+  final String? _exportFormat; // 'pdf' | 'image'
+  final bool? _exportIncludeTranslation;
+  final List<String>? _exportTranslationCodes;
+
+  String get names99ViewMode => _names99ViewMode == 'list' ? 'list' : 'grid';
+  String get exportScope =>
+      (_exportScope == 'surah' || _exportScope == 'juz') ? _exportScope! : 'range';
+  int get exportSurahNo => (_exportSurahNo ?? 1).clamp(1, 114);
+  int get exportJuzNo => (_exportJuzNo ?? 1).clamp(1, 30);
+  int get exportFromAyah => (_exportFromAyah ?? 1).clamp(1, 286);
+  int get exportToAyah => (_exportToAyah ?? 7).clamp(1, 286);
+  String get exportFormat => _exportFormat == 'image' ? 'image' : 'pdf';
+  bool? get exportIncludeTranslation => _exportIncludeTranslation;
+  List<String>? get exportTranslationCodes => _exportTranslationCodes;
+
   PrayerAlarmConfig alarmConfigFor(String prayerKey) =>
       prayerConfigs[prayerKey] ?? PrayerAlarmConfig(prayerKey: prayerKey);
 
@@ -140,6 +162,15 @@ class AppSettings {
     bool? autoSilentEnabled = false,
     int? autoSilentDurationMinutes = 15,
     Map<String, bool>? autoSilentPrayers,
+    String? names99ViewMode = 'grid',
+    String? exportScope = 'range',
+    int? exportSurahNo = 1,
+    int? exportJuzNo = 1,
+    int? exportFromAyah = 1,
+    int? exportToAyah = 7,
+    String? exportFormat = 'pdf',
+    bool? exportIncludeTranslation,
+    List<String>? exportTranslationCodes,
   })  : _prayerLocationMode = prayerLocationMode,
         _prayerCity = prayerCity,
         _prayerCountry = prayerCountry,
@@ -166,7 +197,16 @@ class AppSettings {
         _kahfFriMinute = kahfFriMinute,
         _autoSilentEnabled = autoSilentEnabled,
         _autoSilentDurationMinutes = autoSilentDurationMinutes,
-        _autoSilentPrayers = autoSilentPrayers;
+        _autoSilentPrayers = autoSilentPrayers,
+        _names99ViewMode = names99ViewMode,
+        _exportScope = exportScope,
+        _exportSurahNo = exportSurahNo,
+        _exportJuzNo = exportJuzNo,
+        _exportFromAyah = exportFromAyah,
+        _exportToAyah = exportToAyah,
+        _exportFormat = exportFormat,
+        _exportIncludeTranslation = exportIncludeTranslation,
+        _exportTranslationCodes = exportTranslationCodes;
 
   int tuneFor(String prayerKey) {
     switch (prayerKey) {
@@ -276,6 +316,15 @@ class AppSettings {
     bool? autoSilentEnabled,
     int? autoSilentDurationMinutes,
     Map<String, bool>? autoSilentPrayers,
+    String? names99ViewMode,
+    String? exportScope,
+    int? exportSurahNo,
+    int? exportJuzNo,
+    int? exportFromAyah,
+    int? exportToAyah,
+    String? exportFormat,
+    bool? exportIncludeTranslation,
+    List<String>? exportTranslationCodes,
   }) {
     return AppSettings(
       appLanguage: appLanguage ?? this.appLanguage,
@@ -321,6 +370,17 @@ class AppSettings {
       autoSilentDurationMinutes:
           autoSilentDurationMinutes ?? this.autoSilentDurationMinutes,
       autoSilentPrayers: autoSilentPrayers ?? this.autoSilentPrayers,
+      names99ViewMode: names99ViewMode ?? this.names99ViewMode,
+      exportScope: exportScope ?? this.exportScope,
+      exportSurahNo: exportSurahNo ?? this.exportSurahNo,
+      exportJuzNo: exportJuzNo ?? this.exportJuzNo,
+      exportFromAyah: exportFromAyah ?? this.exportFromAyah,
+      exportToAyah: exportToAyah ?? this.exportToAyah,
+      exportFormat: exportFormat ?? this.exportFormat,
+      exportIncludeTranslation:
+          exportIncludeTranslation ?? this.exportIncludeTranslation,
+      exportTranslationCodes:
+          exportTranslationCodes ?? this.exportTranslationCodes,
     );
   }
 }
@@ -368,9 +428,9 @@ class LastReadPosition {
 
 class AppResumeState {
   final String lastScreen; // 'home' | 'reader'
-  final int homeTabIndex; // 0: Quran, 1: Features, 2: Settings
+  final int homeTabIndex; // 0: Home, 1: Quran, 2: Settings
   final int quranSubTabIndex; // 0: Surah, 1: Juz, 2: Bookmarks, 3: Export
-  final int? _featuresSubTabIndex; // 0: Prayer, 1: Hijri, 2: Adhkar, 3: Tasbih
+  final int? _featuresSubTabIndex; // Standalone feature history index if needed
   int get featuresSubTabIndex => _featuresSubTabIndex ?? 0;
   final double surahListScrollOffset;
   final double juzListScrollOffset;
@@ -512,6 +572,15 @@ class StorageService {
   static const _autoSilentDurationKey = 'pref_auto_silent_duration_v1';
   static const _autoSilentPrayersKey = 'pref_auto_silent_prayers_v1';
   static const _recentActivityKey = 'user_recent_activity_v1';
+  static const _names99ViewModeKey = 'pref_names99_view_mode_v1';
+  static const _exportScopeKey = 'pref_export_scope_v1';
+  static const _exportSurahKey = 'pref_export_surah_v1';
+  static const _exportJuzKey = 'pref_export_juz_v1';
+  static const _exportFromKey = 'pref_export_from_v1';
+  static const _exportToKey = 'pref_export_to_v1';
+  static const _exportFormatKey = 'pref_export_format_v1';
+  static const _exportIncludeTransKey = 'pref_export_include_trans_v1';
+  static const _exportTransCodesKey = 'pref_export_trans_codes_v1';
 
   // Offline API caches
   static const _dailyPrayerCacheKey = 'prayer_daily_cache_v1';
@@ -689,6 +758,15 @@ class StorageService {
       autoSilentDurationMinutes:
           (_readInt(box, _autoSilentDurationKey) ?? 15).clamp(5, 60),
       autoSilentPrayers: autoSilentPrayersMap,
+      names99ViewMode: _readTyped<String>(box, _names99ViewModeKey) ?? 'grid',
+      exportScope: _readTyped<String>(box, _exportScopeKey) ?? 'range',
+      exportSurahNo: (_readInt(box, _exportSurahKey) ?? 1).clamp(1, 114),
+      exportJuzNo: (_readInt(box, _exportJuzKey) ?? 1).clamp(1, 30),
+      exportFromAyah: (_readInt(box, _exportFromKey) ?? 1).clamp(1, 286),
+      exportToAyah: (_readInt(box, _exportToKey) ?? 7).clamp(1, 286),
+      exportFormat: _readTyped<String>(box, _exportFormatKey) ?? 'pdf',
+      exportIncludeTranslation: _readTyped<bool>(box, _exportIncludeTransKey),
+      exportTranslationCodes: _readStringList(box, _exportTransCodesKey),
     );
   }
 
@@ -733,7 +811,21 @@ class StorageService {
       _autoSilentEnabledKey: settings.autoSilentEnabled,
       _autoSilentDurationKey: settings.autoSilentDurationMinutes,
       _autoSilentPrayersKey: jsonEncode(settings.autoSilentPrayers),
+      _names99ViewModeKey: settings.names99ViewMode,
+      _exportScopeKey: settings.exportScope,
+      _exportSurahKey: settings.exportSurahNo,
+      _exportJuzKey: settings.exportJuzNo,
+      _exportFromKey: settings.exportFromAyah,
+      _exportToKey: settings.exportToAyah,
+      _exportFormatKey: settings.exportFormat,
     });
+
+    if (settings.exportIncludeTranslation != null) {
+      await box.put(_exportIncludeTransKey, settings.exportIncludeTranslation!);
+    }
+    if (settings.exportTranslationCodes != null) {
+      await box.put(_exportTransCodesKey, settings.exportTranslationCodes!);
+    }
 
     if (settings.fabRelX != null && settings.fabRelY != null) {
       await box.put(_fabRelXKey, settings.fabRelX!);

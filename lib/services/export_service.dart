@@ -722,8 +722,8 @@ class ExportService {
     required List<Size> pageLogicalSizes,
   }) async {
     final doc = pw.Document(
-      title: 'Al-Quran Export',
-      creator: 'Al-Quran App',
+      title: 'Ibadia Export',
+      creator: 'Ibadia App',
     );
 
     for (int i = 0; i < pagePngs.length; i++) {
@@ -781,7 +781,7 @@ class ExportService {
     return savedPath != null && savedPath.isNotEmpty;
   }
 
-  /// Saves every PNG page directly into Android Gallery ('Al-Quran' album) via MediaStore,
+  /// Saves every PNG page directly into Android Gallery ('Ibadia' album) via MediaStore,
   /// or triggers browser downloads on Web.
   static Future<bool> savePngPages({
     required List<Uint8List> pages,
@@ -793,7 +793,7 @@ class ExportService {
         final suffix = pages.length > 1 ? '_page_${i + 1}' : '';
         await Gal.putImageBytes(
           pages[i],
-          album: 'Al-Quran',
+          album: 'Ibadia',
           name: '$cleanBase$suffix',
         );
       }

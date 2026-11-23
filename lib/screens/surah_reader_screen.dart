@@ -2567,9 +2567,8 @@ class _DraggableAutoScrollFabState
     if (wasDragging) {
       final pos = _dragRelNotifier.value;
       if (pos != null) {
-        final s = ref.read(settingsProvider);
-        ref.read(settingsProvider.notifier).update(
-              s.copyWith(fabRelX: pos.dx, fabRelY: pos.dy),
+        ref.read(settingsProvider.notifier).updateWith(
+              (s) => s.copyWith(fabRelX: pos.dx, fabRelY: pos.dy),
             );
       }
     } else if (!cancelled && !wasLongPress) {

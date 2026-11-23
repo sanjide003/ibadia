@@ -113,8 +113,8 @@ class PrayerTimesNotifier extends StateNotifier<PrayerTimesState> {
       if (s.prayerLocationMode == 'city' &&
           ((s.prayerLat - result.latitude).abs() > 0.02 ||
               (s.prayerLon - result.longitude).abs() > 0.02)) {
-        await _ref.read(settingsProvider.notifier).update(
-              s.copyWith(
+        await _ref.read(settingsProvider.notifier).updateWith(
+              (cur) => cur.copyWith(
                 prayerLat: result.latitude,
                 prayerLon: result.longitude,
               ),
@@ -130,10 +130,9 @@ class PrayerTimesNotifier extends StateNotifier<PrayerTimesState> {
   }
 
   Future<void> selectCityPreset(CityPreset preset) async {
-    final s = _ref.read(settingsProvider);
     state = state.copyWith(clearGpsNotice: true);
-    await _ref.read(settingsProvider.notifier).update(
-          s.copyWith(
+    await _ref.read(settingsProvider.notifier).updateWith(
+          (cur) => cur.copyWith(
             prayerLocationMode: 'city',
             prayerCity: preset.city,
             prayerCountry: preset.country,
@@ -149,10 +148,9 @@ class PrayerTimesNotifier extends StateNotifier<PrayerTimesState> {
     final cleanCountry = country.trim();
     if (cleanCity.isEmpty || cleanCountry.isEmpty) return;
 
-    final s = _ref.read(settingsProvider);
     state = state.copyWith(clearGpsNotice: true);
-    await _ref.read(settingsProvider.notifier).update(
-          s.copyWith(
+    await _ref.read(settingsProvider.notifier).updateWith(
+          (cur) => cur.copyWith(
             prayerLocationMode: 'city',
             prayerCity: cleanCity,
             prayerCountry: cleanCountry,
@@ -205,9 +203,8 @@ class PrayerTimesNotifier extends StateNotifier<PrayerTimesState> {
 
       final label =
           'GPS (${pos.latitude.toStringAsFixed(2)}°, ${pos.longitude.toStringAsFixed(2)}°)';
-      final current = _ref.read(settingsProvider);
-      await _ref.read(settingsProvider.notifier).update(
-            current.copyWith(
+      await _ref.read(settingsProvider.notifier).updateWith(
+            (cur) => cur.copyWith(
               prayerLocationMode: 'gps',
               prayerLat: pos.latitude,
               prayerLon: pos.longitude,
@@ -325,6 +322,9 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
   String? _lastWidgetSignature;
   String? _lastTriggeredSlotKey;
   bool _pendingEnableAutoSilentOnResume = false;
+  bool? _dndSyncInFlightBacking;
+  bool get _dndSyncInFlight => _dndSyncInFlightBacking ?? false;
+  set _dndSyncInFlight(bool v) => _dndSyncInFlightBacking = v;
 
   PrayerAlarmNotifier(this._ref)
       : super(
@@ -441,7 +441,7 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
         _lastDndSignature = null;
         await _ref
             .read(settingsProvider.notifier)
-            .update(current.copyWith(autoSilentEnabled: true));
+            .updateWith((cur) => cur.copyWith(autoSilentEnabled: true));
         return;
       }
     }
@@ -587,18 +587,37 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
     final now = DateTime.now();
     final dateKey = IslamicFeaturesService.formatDateKey(now);
 
-    // Rollover to a fresh calendar day at midnight so today-only dismissals clear cleanly
+    // Rollover to a fresh calendar day at midnight so today-only dismissals & DND windows refresh cleanly
     if (dateKey != state.currentDateKey) {
       _lastTriggeredSlotKey = null;
       _lastScheduledSignature = null;
+      _lastDndSignature = null;
       await _reloadDismissedForDate(dateKey);
       await _ref.read(prayerTimesProvider.notifier).load(forceRefresh: false);
       _recomputeAndSync(syncNative: true);
       return;
     }
 
-    // Check active alarm match while app is open
     final settings = _ref.read(settingsProvider);
+
+    // Reconcile native Auto-Silent DND status every 5 seconds even if Prayer Alarms are OFF
+    if (_bridge.isNativeAndroid &&
+        (settings.autoSilentEnabled || state.autoSilentActiveNow) &&
+        now.second % 5 == 0 &&
+        !_dndSyncInFlight) {
+      _dndSyncInFlight = true;
+      try {
+        final dndActive = await _bridge.isAutoSilentActiveNow();
+        if (!mounted) return;
+        if (dndActive != state.autoSilentActiveNow) {
+          state = state.copyWith(autoSilentActiveNow: dndActive);
+        }
+      } finally {
+        _dndSyncInFlight = false;
+      }
+    }
+
+    // Check active alarm match while app is open
     if (!settings.prayerAlarmMasterEnabled || state.slots.isEmpty) return;
 
     if (_bridge.isNativeAndroid) {
@@ -651,18 +670,16 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
 
   Future<void> setMasterAlarmEnabled(bool enabled) async {
     final notifier = _ref.read(settingsProvider.notifier);
-    final current = _ref.read(settingsProvider);
     if (enabled) {
       await _bridge.requestAlarmPermissions();
     }
-    await notifier.update(
-      current.copyWith(prayerAlarmMasterEnabled: enabled),
+    await notifier.updateWith(
+      (cur) => cur.copyWith(prayerAlarmMasterEnabled: enabled),
     );
   }
 
   Future<bool> setAutoSilentEnabled(bool enabled) async {
     final notifier = _ref.read(settingsProvider.notifier);
-    final current = _ref.read(settingsProvider);
     if (enabled && _bridge.isNativeAndroid) {
       final granted = await _bridge.isDndPolicyAccessGranted();
       if (mounted) {
@@ -678,7 +695,7 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
       _pendingEnableAutoSilentOnResume = false;
     }
     _lastDndSignature = null;
-    await notifier.update(current.copyWith(autoSilentEnabled: enabled));
+    await notifier.updateWith((cur) => cur.copyWith(autoSilentEnabled: enabled));
     if (!enabled) {
       await _bridge.restoreNormalRingerNow();
       if (mounted) {

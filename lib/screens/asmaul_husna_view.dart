@@ -368,6 +368,11 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
         );
   }
 
+  String _arabicDigits(int n) {
+    const digits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return n.toString().split('').map((c) => digits[int.parse(c)]).join();
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
@@ -376,6 +381,7 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = _palette(context, settings);
     final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 1040) / 2);
+    final String viewMode = settings.names99ViewMode;
 
     final trimmed = _query.trim().toLowerCase();
     final strippedQuery = _stripArabicTashkeel(_query.trim());
@@ -394,7 +400,7 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
 
     return Column(
       children: [
-        // Top Header + Live Search
+        // Top Header + Dual View Toggle + Live Search
         Container(
           width: double.infinity,
           padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 12),
@@ -434,6 +440,41 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                 ],
               ),
               const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: 'grid',
+                      icon: const Icon(Icons.grid_on_rounded, size: 16),
+                      label: Text(
+                        t.names99GridMode,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                    ),
+                    ButtonSegment(
+                      value: 'list',
+                      icon: const Icon(Icons.view_agenda_outlined, size: 16),
+                      label: Text(
+                        t.names99ListMode,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                    ),
+                  ],
+                  selected: {viewMode},
+                  onSelectionChanged: (sel) {
+                    ref.read(settingsProvider.notifier).updateWith(
+                          (s) => s.copyWith(names99ViewMode: sel.first),
+                        );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
               TextField(
                 controller: _searchCtrl,
                 onChanged: (v) => setState(() => _query = v),
@@ -463,11 +504,23 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                   ),
                 ),
               ),
+              if (viewMode == 'grid') ...[
+                const SizedBox(height: 8),
+                Text(
+                  t.names99GridHint,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
 
-        // Names List / Responsive Grid
+        // 3-Column RTL Arabic Calligraphy Grid OR Detailed Cards
         Expanded(
           child: filtered.isEmpty
               ? Center(
@@ -483,19 +536,144 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                     ),
                   ),
                 )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    final w = constraints.maxWidth;
-                    final int cols = w >= 1020 ? 3 : (w >= 640 ? 2 : 1);
-                    if (cols == 1) {
-                      return ListView.builder(
+              : viewMode == 'grid'
+                  ? Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: GridView.builder(
                         padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 1.08,
+                        ),
                         itemCount: filtered.length,
                         itemBuilder: (_, idx) {
                           final item = filtered[idx];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _AsmaulHusnaCard(
+                          final accent =
+                              isDark ? AppBranding.accentGold : cs.primary;
+                          return Material(
+                            color: palette.cardBg,
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () {
+                                _recordNameActivity(item);
+                                showAsmaulHusnaDetailSheet(
+                                  context,
+                                  initialIndex: item.number - 1,
+                                  strings: t,
+                                  appLanguage: settings.appLanguage,
+                                  onNavigateName: _recordNameActivity,
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: palette.cardBorder),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 1.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: cs.primaryContainer
+                                            .withValues(alpha: 0.55),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        _arabicDigits(item.number),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: cs.primary,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Expanded(
+                                      child: Center(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            item.arabic,
+                                            textDirection: TextDirection.rtl,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 1,
+                                            style: GoogleFonts.amiri(
+                                              fontSize: 25,
+                                              fontWeight: FontWeight.w700,
+                                              height: 1.25,
+                                              color: accent,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final w = constraints.maxWidth;
+                        final int cols = w >= 1020 ? 3 : (w >= 640 ? 2 : 1);
+                        if (cols == 1) {
+                          return ListView.builder(
+                            padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
+                            itemCount: filtered.length,
+                            itemBuilder: (_, idx) {
+                              final item = filtered[idx];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _AsmaulHusnaCard(
+                                  item: item,
+                                  cs: cs,
+                                  isDark: isDark,
+                                  cardBg: palette.cardBg,
+                                  cardBorder: palette.cardBorder,
+                                  onTap: () {
+                                    _recordNameActivity(item);
+                                    showAsmaulHusnaDetailSheet(
+                                      context,
+                                      initialIndex: item.number - 1,
+                                      strings: t,
+                                      appLanguage: settings.appLanguage,
+                                      onNavigateName: _recordNameActivity,
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          );
+                        }
+
+                        return GridView.builder(
+                          padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: cols,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            mainAxisExtent: 120,
+                          ),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, idx) {
+                            final item = filtered[idx];
+                            return _AsmaulHusnaCard(
                               item: item,
                               cs: cs,
                               isDark: isDark,
@@ -511,44 +689,11 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                   onNavigateName: _recordNameActivity,
                                 );
                               },
-                            ),
-                          );
-                        },
-                      );
-                    }
-
-                    return GridView.builder(
-                      padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: cols,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        mainAxisExtent: 120,
-                      ),
-                      itemCount: filtered.length,
-                      itemBuilder: (_, idx) {
-                        final item = filtered[idx];
-                        return _AsmaulHusnaCard(
-                          item: item,
-                          cs: cs,
-                          isDark: isDark,
-                          cardBg: palette.cardBg,
-                          cardBorder: palette.cardBorder,
-                          onTap: () {
-                            _recordNameActivity(item);
-                            showAsmaulHusnaDetailSheet(
-                              context,
-                              initialIndex: item.number - 1,
-                              strings: t,
-                              appLanguage: settings.appLanguage,
-                              onNavigateName: _recordNameActivity,
                             );
                           },
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
         ),
       ],
     );

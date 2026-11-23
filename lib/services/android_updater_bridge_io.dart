@@ -64,8 +64,8 @@ class AndroidUpdaterBridge {
     final dirPath = await _channel.invokeMethod<String>('getUpdateCacheDir');
     if (dirPath == null || dirPath.isEmpty) return null;
 
-    final partFile = File('$dirPath/Al-Quran-latest.apk.part');
-    final finalFile = File('$dirPath/Al-Quran-latest.apk');
+    final partFile = File('$dirPath/Ibadia-latest.apk.part');
+    final finalFile = File('$dirPath/Ibadia-latest.apk');
     if (await partFile.exists()) {
       await partFile.delete();
     }

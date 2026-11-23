@@ -266,7 +266,7 @@ class OfflineStatusBanner extends StatelessWidget {
 /// - Check for Updates / Update Now (with top foreground overlay + inline drawer status card)
 /// - Install App (only on Web when eligible & not yet installed as PWA)
 /// - Download Android APK (only on Web before APK download / PWA install)
-/// - Share App (shares https://a1-quran.vercel.app cleanly)
+/// - Share App (shares https://ibadia.vercel.app cleanly)
 class DrawerBottomAppActions extends ConsumerStatefulWidget {
   final AppStrings strings;
 
