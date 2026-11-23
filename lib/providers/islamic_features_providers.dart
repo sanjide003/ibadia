@@ -1035,6 +1035,8 @@ class TasbihState {
   final String todayDateKey;
   final int todayTotal;
   final bool vibrateOnTap;
+  final bool? _tapAnywhere;
+  bool get tapAnywhere => _tapAnywhere ?? false;
   final bool loaded;
 
   const TasbihState({
@@ -1046,8 +1048,9 @@ class TasbihState {
     this.todayDateKey = '',
     this.todayTotal = 0,
     this.vibrateOnTap = true,
+    bool? tapAnywhere = false,
     this.loaded = false,
-  });
+  }) : _tapAnywhere = tapAnywhere;
 
   List<TasbihPreset> get allPresets => [
         ...AdhkarCatalog.defaultTasbihPresets,
@@ -1074,6 +1077,7 @@ class TasbihState {
     String? todayDateKey,
     int? todayTotal,
     bool? vibrateOnTap,
+    bool? tapAnywhere,
     bool? loaded,
   }) {
     return TasbihState(
@@ -1085,6 +1089,7 @@ class TasbihState {
       todayDateKey: todayDateKey ?? this.todayDateKey,
       todayTotal: todayTotal ?? this.todayTotal,
       vibrateOnTap: vibrateOnTap ?? this.vibrateOnTap,
+      tapAnywhere: tapAnywhere ?? this.tapAnywhere,
       loaded: loaded ?? this.loaded,
     );
   }
@@ -1134,6 +1139,7 @@ class TasbihNotifier extends StateNotifier<TasbihState> {
       todayDateKey: today,
       todayTotal: savedTodayTotal,
       vibrateOnTap: snap['vibrateOnTap'] as bool? ?? true,
+      tapAnywhere: snap['tapAnywhere'] as bool? ?? false,
       loaded: true,
     );
   }
@@ -1148,6 +1154,7 @@ class TasbihNotifier extends StateNotifier<TasbihState> {
           todayDateKey: state.todayDateKey,
           todayTotal: state.todayTotal,
           vibrateOnTap: state.vibrateOnTap,
+          tapAnywhere: state.tapAnywhere,
         );
   }
 
@@ -1212,6 +1219,11 @@ class TasbihNotifier extends StateNotifier<TasbihState> {
 
   void toggleVibrateOnTap() {
     state = state.copyWith(vibrateOnTap: !state.vibrateOnTap);
+    unawaited(_persist());
+  }
+
+  void toggleTapAnywhere() {
+    state = state.copyWith(tapAnywhere: !state.tapAnywhere);
     unawaited(_persist());
   }
 

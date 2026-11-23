@@ -620,7 +620,6 @@ class _DigitalTasbihViewState extends ConsumerState<DigitalTasbihView>
     final t = ref.watch(stringsProvider);
     final cs = Theme.of(context).colorScheme;
     final palette = _themePalette(context, settings);
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 680) / 2);
 
     final activePreset = tasbih.activePreset;
     final target = tasbih.activeTarget;
@@ -630,296 +629,609 @@ class _DigitalTasbihViewState extends ConsumerState<DigitalTasbihView>
         : ((cycleCount % 33) / 33.0);
     final bool cycleDone = target > 0 && cycleCount >= target;
 
-    return ListView(
-      padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 28),
-      children: [
-        // Preset Selector + Add Custom Dhikr Row
-        Row(
-          children: [
-            Expanded(
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  filled: true,
-                  fillColor: palette.cardBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: palette.cardBorder),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: activePreset.id,
-                    isExpanded: true,
-                    borderRadius: BorderRadius.circular(14),
-                    items: tasbih.allPresets.map((p) {
-                      return DropdownMenuItem<String>(
-                        value: p.id,
-                        child: Text(
-                          p.titleFor(settings.appLanguage),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (id) {
-                      if (id != null) notifier.selectPreset(id);
-                    },
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 48,
-              height: 48,
-              child: FilledButton.tonal(
-                style: FilledButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: () => _openAddCustomDialog(t),
-                child: Tooltip(
-                  message: t.addCustomDhikr,
-                  child: const Icon(Icons.add_rounded, size: 22),
-                ),
-              ),
-            ),
-            if (activePreset.isCustom) ...[
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 48,
-                height: 48,
-                child: IconButton.outlined(
-                  onPressed: () => notifier.deleteCustomPreset(activePreset.id),
-                  tooltip: t.deleteCustomLabel,
-                  icon: Icon(
-                    Icons.delete_outline_rounded,
-                    color: cs.error,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hPad = math.max(16.0, (constraints.maxWidth - 680) / 2);
+        final isCompactHeight = constraints.maxHeight < 520;
 
-        const SizedBox(height: 16),
-
-        // Selected Dhikr Display Card
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            color: palette.cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: palette.cardBorder),
-          ),
+        final topDock = Padding(
+          padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 8),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                activePreset.arabic,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.amiri(
-                  fontSize: 31,
-                  fontWeight: FontWeight.w700,
-                  height: 1.45,
-                  color: cs.primary,
-                ),
-              ),
-              if (settings.appLanguage != 'ar') ...[
-                const SizedBox(height: 4),
-                Text(
-                  activePreset.titleFor(settings.appLanguage),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 22),
-
-        // Large Ergonomic Circular Tap Zone (>= 220px diameter)
-        Center(
-          child: AnimatedBuilder(
-            animation: _pulseCtrl,
-            builder: (context, child) {
-              final scale = 1.0 - (_pulseCtrl.value * 0.045);
-              return Transform.scale(scale: scale, child: child);
-            },
-            child: Semantics(
-              button: true,
-              label: '${activePreset.titleFor(settings.appLanguage)} $cycleCount',
-              child: GestureDetector(
-                onTap: _onTapCounter,
-                child: SizedBox(
-                  width: 232,
-                  height: 232,
-                  child: CustomPaint(
-                    painter: _TasbihRingPainter(
-                      progress: ringProgress,
-                      trackColor: palette.cardBorder,
-                      progressColor: cycleDone
-                          ? AppBranding.accentGold
-                          : cs.primary,
-                    ),
-                    child: Container(
-                      margin: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            palette.headerBg,
-                            AppBranding.darkEmerald,
-                          ],
+              // 1. Dhikr Selector + Add/Delete Custom Dhikr
+              Row(
+                children: [
+                  Expanded(
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: palette.headerBg.withValues(alpha: 0.28),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
+                        filled: true,
+                        fillColor: palette.cardBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: palette.cardBorder),
+                        ),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '$cycleCount',
-                            style: const TextStyle(
-                              fontSize: 58,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              height: 1.05,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            target > 0 ? '/ $target' : t.unlimitedLabel,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: cycleDone
-                                  ? AppBranding.accentGold
-                                  : Colors.white.withValues(alpha: 0.8),
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            t.tapToCount,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: Colors.white.withValues(alpha: 0.68),
-                            ),
-                          ),
-                        ],
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: activePreset.id,
+                          isExpanded: true,
+                          borderRadius: BorderRadius.circular(14),
+                          items: tasbih.allPresets.map((p) {
+                            return DropdownMenuItem<String>(
+                              value: p.id,
+                              child: Text(
+                                p.titleFor(settings.appLanguage),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (id) {
+                            if (id != null) notifier.selectPreset(id);
+                          },
+                        ),
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 46,
+                    height: 46,
+                    child: FilledButton.tonal(
+                      style: FilledButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () => _openAddCustomDialog(t),
+                      child: Tooltip(
+                        message: t.addCustomDhikr,
+                        child: const Icon(Icons.add_rounded, size: 22),
+                      ),
+                    ),
+                  ),
+                  if (activePreset.isCustom) ...[
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 46,
+                      height: 46,
+                      child: IconButton.outlined(
+                        onPressed: () =>
+                            notifier.deleteCustomPreset(activePreset.id),
+                        tooltip: t.deleteCustomLabel,
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          color: cs.error,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // 2. Target Selector (33 / 99 / 100 / Free)
+              SegmentedButton<int>(
+                showSelectedIcon: false,
+                style: SegmentedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
                 ),
+                segments: [
+                  const ButtonSegment(value: 33, label: Text('33')),
+                  const ButtonSegment(value: 99, label: Text('99')),
+                  const ButtonSegment(value: 100, label: Text('100')),
+                  ButtonSegment(
+                    value: 0,
+                    label: Text(
+                      t.unlimitedLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+                selected: {
+                  const [33, 99, 100, 0].contains(target) ? target : 0,
+                },
+                onSelectionChanged: (sel) => notifier.setTarget(sel.first),
               ),
-            ),
-          ),
-        ),
 
-        const SizedBox(height: 22),
+              const SizedBox(height: 10),
 
-        // Target Selector (33 / 99 / 100 / Free)
-        SegmentedButton<int>(
-          showSelectedIcon: false,
-          segments: [
-            const ButtonSegment(value: 33, label: Text('33')),
-            const ButtonSegment(value: 99, label: Text('99')),
-            const ButtonSegment(value: 100, label: Text('100')),
-            ButtonSegment(
-              value: 0,
-              label: Text(
-                t.unlimitedLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-          selected: {
-            const [33, 99, 100, 0].contains(target) ? target : 0,
-          },
-          onSelectionChanged: (sel) => notifier.setTarget(sel.first),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Clean Stats + Haptic & Reset Bar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: palette.cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.cardBorder),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // 3. Stats + Tap Anywhere Toggle + Vibrate + Reset Bar
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: palette.cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: palette.cardBorder),
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     Text(
                       '${t.todayTotalLabel}: ${tasbih.todayTotal}  ·  ${t.lifetimeTotalLabel}: ${tasbih.activeLifetimeCount}',
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: cs.onSurface,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Material(
+                          color: tasbih.tapAnywhere
+                              ? cs.primary
+                              : cs.surfaceContainerHighest
+                                  .withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(10),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: notifier.toggleTapAnywhere,
+                            child: Container(
+                              constraints: const BoxConstraints(minHeight: 38),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.touch_app_rounded,
+                                    size: 16,
+                                    color: tasbih.tapAnywhere
+                                        ? cs.onPrimary
+                                        : cs.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    t.tapAnywhereLabel,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: tasbih.tapAnywhere
+                                          ? cs.onPrimary
+                                          : cs.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        IconButton(
+                          tooltip: t.vibrateOnTapLabel,
+                          visualDensity: VisualDensity.compact,
+                          constraints:
+                              const BoxConstraints(minWidth: 38, minHeight: 38),
+                          onPressed: notifier.toggleVibrateOnTap,
+                          icon: Icon(
+                            tasbih.vibrateOnTap
+                                ? Icons.vibration_rounded
+                                : Icons.smartphone_rounded,
+                            size: 20,
+                            color: tasbih.vibrateOnTap
+                                ? cs.primary
+                                : cs.onSurfaceVariant,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: t.resetCycleLabel,
+                          visualDensity: VisualDensity.compact,
+                          constraints:
+                              const BoxConstraints(minWidth: 38, minHeight: 38),
+                          onPressed:
+                              cycleCount > 0 ? notifier.resetCycle : null,
+                          icon: Icon(
+                            Icons.restart_alt_rounded,
+                            size: 20,
+                            color: cycleCount > 0
+                                ? cs.error
+                                : cs.onSurfaceVariant.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: t.vibrateOnTapLabel,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                onPressed: notifier.toggleVibrateOnTap,
-                icon: Icon(
-                  tasbih.vibrateOnTap
-                      ? Icons.vibration_rounded
-                      : Icons.smartphone_rounded,
-                  color: tasbih.vibrateOnTap ? cs.primary : cs.onSurfaceVariant,
-                ),
-              ),
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(44, 44),
-                ),
-                onPressed: cycleCount > 0 ? notifier.resetCycle : null,
-                icon: const Icon(Icons.restart_alt_rounded, size: 18),
-                label: Text(t.resetCycleLabel),
-              ),
             ],
           ),
-        ),
-      ],
+        );
+
+        Widget buildCircleZone(double availableHeight) {
+          final double circleSize = isCompactHeight
+              ? 204.0
+              : (availableHeight - 138.0).clamp(178.0, 222.0);
+          final double countFont = circleSize < 195 ? 48 : 56;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Middle: Selected Dhikr Card
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: palette.cardBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: palette.cardBorder),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        activePreset.arabic,
+                        textDirection: TextDirection.rtl,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.amiri(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          height: 1.38,
+                          color: cs.primary,
+                        ),
+                      ),
+                      if (settings.appLanguage != 'ar') ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          activePreset.titleFor(settings.appLanguage),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                if (isCompactHeight)
+                  const SizedBox(height: 14)
+                else
+                  const Spacer(),
+
+                // Bottom: Ergonomic Thumb-Zone Counter Circle
+                Center(
+                  child: AnimatedBuilder(
+                    animation: _pulseCtrl,
+                    builder: (context, child) {
+                      final scale = 1.0 - (_pulseCtrl.value * 0.045);
+                      return Transform.scale(scale: scale, child: child);
+                    },
+                    child: Semantics(
+                      button: true,
+                      label:
+                          '${activePreset.titleFor(settings.appLanguage)} $cycleCount',
+                      child: GestureDetector(
+                        onTap: _onTapCounter,
+                        child: SizedBox(
+                          width: circleSize,
+                          height: circleSize,
+                          child: CustomPaint(
+                            painter: _TasbihRingPainter(
+                              progress: ringProgress,
+                              trackColor: palette.cardBorder,
+                              progressColor: cycleDone
+                                  ? AppBranding.accentGold
+                                  : cs.primary,
+                            ),
+                            child: Container(
+                              margin: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    palette.headerBg,
+                                    AppBranding.darkEmerald,
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        palette.headerBg.withValues(alpha: 0.28),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '$cycleCount',
+                                    style: TextStyle(
+                                      fontSize: countFont,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      height: 1.05,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    target > 0
+                                        ? '/ $target'
+                                        : t.unlimitedLabel,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: cycleDone
+                                          ? AppBranding.accentGold
+                                          : Colors.white
+                                              .withValues(alpha: 0.82),
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14),
+                                    child: Text(
+                                      t.tapToCount,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.72),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                if (!isCompactHeight) const SizedBox(height: 4),
+              ],
+            ),
+          );
+        }
+
+        Widget buildTapAnywhereZone() {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 16),
+            child: Semantics(
+              button: true,
+              label:
+                  '${activePreset.titleFor(settings.appLanguage)} $cycleCount',
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(24),
+                clipBehavior: Clip.antiAlias,
+                child: Ink(
+                  width: double.infinity,
+                  height: isCompactHeight ? 280 : double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        palette.headerBg,
+                        AppBranding.darkEmerald,
+                      ],
+                    ),
+                    border: Border.all(
+                      color: cycleDone
+                          ? AppBranding.accentGold
+                          : cs.primary.withValues(alpha: 0.45),
+                      width: cycleDone ? 2.0 : 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: palette.headerBg.withValues(alpha: 0.24),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: InkWell(
+                    onTap: _onTapCounter,
+                    splashColor: Colors.white.withValues(alpha: 0.16),
+                    highlightColor: Colors.white.withValues(alpha: 0.08),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Top inside Tap Box: Arabic Dhikr + localized title
+                          Column(
+                            children: [
+                              Text(
+                                activePreset.arabic,
+                                textDirection: TextDirection.rtl,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.amiri(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.4,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              if (settings.appLanguage != 'ar') ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  activePreset.titleFor(settings.appLanguage),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white.withValues(alpha: 0.78),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+
+                          // Center-Lower: Giant Counter + Target + Progress Bar
+                          AnimatedBuilder(
+                            animation: _pulseCtrl,
+                            builder: (context, child) {
+                              final scale = 1.0 - (_pulseCtrl.value * 0.04);
+                              return Transform.scale(scale: scale, child: child);
+                            },
+                            child: Column(
+                              children: [
+                                Text(
+                                  '$cycleCount',
+                                  style: const TextStyle(
+                                    fontSize: 70,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  target > 0 ? '/ $target' : t.unlimitedLabel,
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: cycleDone
+                                        ? AppBranding.accentGold
+                                        : Colors.white.withValues(alpha: 0.85),
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                SizedBox(
+                                  width: 220,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(99),
+                                    child: LinearProgressIndicator(
+                                      value: ringProgress,
+                                      minHeight: 6,
+                                      backgroundColor:
+                                          Colors.white.withValues(alpha: 0.16),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        cycleDone
+                                            ? AppBranding.accentGold
+                                            : Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Bottom Prompt inside Thumb Zone
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.touch_app_rounded,
+                                size: 17,
+                                color: Colors.white.withValues(alpha: 0.78),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  t.tapAnywhereHint,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white.withValues(alpha: 0.82),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final lowerContent = LayoutBuilder(
+          builder: (context, lowerConstraints) {
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: KeyedSubtree(
+                key: ValueKey<bool>(tasbih.tapAnywhere),
+                child: tasbih.tapAnywhere
+                    ? buildTapAnywhereZone()
+                    : buildCircleZone(
+                        isCompactHeight ? 360.0 : lowerConstraints.maxHeight,
+                      ),
+              ),
+            );
+          },
+        );
+
+        if (isCompactHeight) {
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                topDock,
+                lowerContent,
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            topDock,
+            Expanded(child: lowerContent),
+          ],
+        );
+      },
     );
   }
 }

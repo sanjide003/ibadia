@@ -824,6 +824,7 @@ class StorageService {
     required String todayDateKey,
     required int todayTotal,
     required bool vibrateOnTap,
+    bool tapAnywhere = false,
   }) async {
     final box = await _tasbihBox();
     await box.put(
@@ -837,6 +838,7 @@ class StorageService {
         'todayDateKey': todayDateKey,
         'todayTotal': todayTotal,
         'vibrateOnTap': vibrateOnTap,
+        'tapAnywhere': tapAnywhere,
       }),
     );
   }

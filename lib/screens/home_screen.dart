@@ -433,100 +433,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ],
           bottom: _tabIndex == 0
-              ? TabBar(
+              ? _buildSubTabBar(
                   controller: _quranTabController,
-                  indicatorColor: Colors.white,
-                  indicatorWeight: 3,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  dividerColor: Colors.transparent,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.white70,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13.5,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13.5,
-                  ),
                   tabs: [
-                    Tab(
-                      child: Text(
-                        t.surahTabLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    _HeaderIconTab(
+                      icon: Icons.menu_book_rounded,
+                      label: t.surahTabLabel,
                     ),
-                    Tab(
-                      child: Text(
-                        t.juzTabLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    _HeaderIconTab(
+                      icon: Icons.grid_view_rounded,
+                      label: t.juzTabLabel,
                     ),
-                    Tab(
-                      child: Text(
-                        t.bookmarksTab,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    _HeaderIconTab(
+                      icon: Icons.bookmark_rounded,
+                      label: t.bookmarksTab,
                     ),
-                    Tab(
-                      child: Text(
-                        t.exportTab,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    _HeaderIconTab(
+                      icon: Icons.ios_share_rounded,
+                      label: t.exportTab,
                     ),
                   ],
                 )
               : _tabIndex == 1
-                  ? TabBar(
+                  ? _buildSubTabBar(
                       controller: _featuresTabController,
-                      indicatorColor: Colors.white,
-                      indicatorWeight: 3,
-                      indicatorSize: TabBarIndicatorSize.label,
-                      dividerColor: Colors.transparent,
-                      labelColor: Colors.white,
-                      unselectedLabelColor: Colors.white70,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                      labelStyle: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13.5,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13.5,
-                      ),
                       tabs: [
-                        Tab(
-                          child: Text(
-                            t.prayerShortTab,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        _HeaderIconTab(
+                          icon: Icons.mosque_rounded,
+                          label: t.prayerShortTab,
                         ),
-                        Tab(
-                          child: Text(
-                            t.hijriCalendarTab,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        _HeaderIconTab(
+                          icon: Icons.calendar_month_rounded,
+                          label: t.hijriCalendarTab,
                         ),
-                        Tab(
-                          child: Text(
-                            t.adhkarTab,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        _HeaderIconTab(
+                          icon: Icons.auto_stories_rounded,
+                          label: t.adhkarTab,
                         ),
-                        Tab(
-                          child: Text(
-                            t.tasbihTab,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        _HeaderIconTab(
+                          icon: Icons.touch_app_rounded,
+                          label: t.tasbihTab,
                         ),
                       ],
                     )
@@ -1502,12 +1448,99 @@ class _BookmarksTab extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => onOpenSurah(
-            surahNo,
-            ayahNo: int.tryParse(ayahNo),
+            onTap: () => onOpenSurah(
+              surahNo,
+              ayahNo: int.tryParse(ayahNo),
+            ),
+          );
+        },
+      );
+  }
+}
+
+PreferredSizeWidget _buildSubTabBar({
+  required TabController controller,
+  required List<Widget> tabs,
+}) {
+  return PreferredSize(
+    preferredSize: const Size.fromHeight(54),
+    child: Container(
+      height: 44,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.14),
+        ),
+      ),
+      child: TabBar(
+        controller: controller,
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        indicator: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        labelColor: AppBranding.darkEmerald,
+        unselectedLabelColor: Colors.white.withValues(alpha: 0.90),
+        labelPadding: EdgeInsets.zero,
+        splashBorderRadius: BorderRadius.circular(10),
+        labelStyle: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12.5,
+          letterSpacing: 0.1,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12.5,
+        ),
+        tabs: tabs,
+      ),
+    ),
+  );
+}
+
+class _HeaderIconTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HeaderIconTab({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tab(
+      height: 36,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

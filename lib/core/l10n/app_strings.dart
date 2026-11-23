@@ -516,7 +516,7 @@ class AppStrings {
   // Features Sub-Tabs (Short 1-word labels for clean 4-tab bar)
   String get prayerShortTab => _pick('Prayer', 'നമസ്കാരം', 'الصلاة');
   String get adhkarTab => _pick('Adhkar', 'ദിക്ർ', 'الأذكار');
-  String get tasbihTab => _pick('Tasbih', 'തസ്ബീഹ്', 'التسبيح');
+  String get tasbihTab => _pick('Counter', 'കൗണ്ടർ', 'العدّاد');
 
   // Offline Daily Duas & Adhkar (Hisnul Muslim)
   String get morningAdhkar => _pick('Morning', 'രാവിലെ', 'الصباح');
@@ -541,11 +541,18 @@ class AppStrings {
         'لا توجد أذكار مفضلة بعد. اضغط على أيقونة النجمة لحفظها هنا.',
       );
 
-  // Digital Tasbih Counter
+  // Digital Counter (Tasbih)
   String get tasbihTitle =>
-      _pick('Digital Tasbih', 'ഡിജിറ്റൽ തസ്ബീഹ്', 'المسبحة الرقمية');
+      _pick('Counter', 'കൗണ്ടർ', 'العدّاد');
   String get tapToCount =>
-      _pick('Tap anywhere inside circle', 'എണ്ണാൻ ടാപ്പ് ചെയ്യുക', 'اضغط هنا للتسبيح');
+      _pick('Tap circle to count', 'എണ്ണാൻ ടാപ്പ് ചെയ്യുക', 'اضغط هنا للتسبيح');
+  String get tapAnywhereLabel =>
+      _pick('Tap Anywhere', 'എവിടെയും ടാപ്പ്', 'الضغط بأي مكان');
+  String get tapAnywhereHint => _pick(
+        'Tap anywhere in this zone to count',
+        'ഈ ഭാഗത്ത് എവിടെ തൊട്ടാലും എണ്ണും',
+        'اضغط في أي مكان هنا للعد',
+      );
   String get targetLabel => _pick('Target', 'ലക്ഷ്യം', 'الهدف');
   String get unlimitedLabel => _pick('Free', 'അൺലിമിറ്റഡ്', 'مفتوح');
   String get todayTotalLabel => _pick('Today', 'ഇന്ന്', 'اليوم');
