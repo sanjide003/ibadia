@@ -13,11 +13,15 @@ Modern offline-first Islamic companion & Quran application built with **Flutter*
   - **Searchable Detailed List** for instant lookup.
 - **Quran Reader & Audio (`lib/screens/surah_reader_screen.dart`)**:
   - **Mushaf Page View** & **Verse List View**, bi-directional continuous Surah scrolling, viewport anchor auto-save, interactive Tajweed color-coding (`lib/services/tajweed_engine.dart` & `lib/widgets/tajweed_widgets.dart`), multi-language translations (`Malayalam`, `English`, `Arabic Tafsir`), draggable auto-scroll controls, and Ayah-by-Ayah recitation player (`lib/providers/audio_provider.dart`).
+- **Ibadah & Salah Complete Guide (`lib/screens/ibadah_guide_screen.dart`)**:
+  - 100% offline Kerala-standard **Shafi'i Fiqh** companion backed by bundled JSON datasets (`assets/data/ibadah/niyyah.json`, `salah_guide.json`, `sunnah_and_surahs.json`, `mayyith_guide.json`) and a shared single-stream offline audio controller (`lib/services/ibadah_audio_controller.dart`).
+  - **4 Focused Modules**: **Niyyah** (5 Fard with *Munfarid / Imam / Ma'moom* + 11 major Sunnah prayers), **Salah Guide** (persistent Hive Shart checklist, 13 Arkan pillars, and 14 sequential steps from *Takbiratul Ihram* to *Salam*), **Rawatib & Recommended Surahs** (with one-tap deep link into `SurahReaderScreen`), and **Mayyith Guide** (*Ihtidar*, *Ghusl*, *Kafan*, 4 funeral Niyyahs, 4 Takbirs, and *Dafn* + *Talqeen*).
+  - Optional MP3 recordings placed in `assets/audio/ibadah/` matching each `audioPath` play automatically offline; missing files fall back gracefully with a localized notice.
 - **Prayer Times, Hijri Calendar, Home Widget & Android Auto-Silent DND**:
   - Live countdown, GPS or quick city presets, per-prayer Iqamah & alarm configuration, Hijri moon adjustment (`-1/0/+1`), Android home-screen widget sync (`com.ibadia.ibadia.PrayerHomeWidgetProvider`), and native Android `PrayerAlarmController` (`com.ibadia.ibadia`).
 - **PDF & PNG Export (`lib/screens/export_screen.dart` & `lib/services/export_service.dart`)**:
   - Export Ayah ranges, full Surahs, or full Juz as print-ready PDFs or shareable PNG cards with auto-saved preferences.
-- **Instant Auto-Save**: Reader settings, theme (`Light`, `Sepia`, `Dark`), language (`EN`, `ML`, `AR`), bookmarks, Tasbih counts, and Adhkar progress persist cleanly to Hive CE (`lib/services/hive_db.dart`).
+- **Instant Auto-Save**: Reader settings, theme (`Light`, `Sepia`, `Dark`), language (`EN`, `ML`, `AR`), bookmarks, Tasbih counts, Adhkar progress, and Ibadah Shart checklist state persist cleanly to Hive CE (`lib/services/hive_db.dart`).
 
 ## Flutter Development & Build
 

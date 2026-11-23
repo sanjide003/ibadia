@@ -677,49 +677,50 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       ),
     ];
 
-    // Remaining tools under Categories grid
+    final ibadahAction = _DashboardQuickAction(
+      id: 'ibadah_guide',
+      icon: Icons.menu_book_outlined,
+      accent: const Color(0xFF047857),
+      titleEn: t.actionIbadahGuide,
+      titleMl: t.actionIbadahGuide,
+      titleAr: t.actionIbadahGuide,
+      subtitleEn: 'Niyyah, Salah, Rawatib & Mayyith',
+      subtitleMl: 'നിയ്യത്ത്, നിസ്കാരം, റവാതിബ്, മയ്യിത്ത്',
+      subtitleAr: 'النية والصلاة والرواتب والجنازة',
+      keywords: const [
+        'ibadah',
+        'salah',
+        'niyyah',
+        'namaz',
+        'rawatib',
+        'mayyith',
+        'janazah',
+        'qunoot',
+        'witr',
+        'shafi',
+        'ഇബാദത്ത്',
+        'നിസ്കാരം',
+        'നിയ്യത്ത്',
+        'മയ്യിത്ത്',
+        'ഖുനൂത്ത്',
+      ],
+      onTap: () {
+        _recordSimpleActivity(
+          id: 'tool:ibadah_guide',
+          type: RecentActivityType.ibadah,
+          titleEn: 'Ibadah & Salah Guide',
+          titleMl: 'ഇബാദത്ത് & നിസ്കാര ഗൈഡ്',
+          titleAr: 'دليل الصلاة والعبادات',
+          subtitleEn: 'Niyyah, Salah, Rawatib & Mayyith',
+          subtitleMl: 'നിയ്യത്ത്, നിസ്കാരം, റവാതിബ്, മയ്യിത്ത്',
+          subtitleAr: 'الفقه الشافعي',
+        );
+        widget.onOpenFeature('ibadah_guide');
+      },
+    );
+
+    // Remaining 6 tools under Categories grid (balanced 3x2 layout)
     final categoryTools = <_DashboardQuickAction>[
-      _DashboardQuickAction(
-        id: 'ibadah_guide',
-        icon: Icons.menu_book_outlined,
-        accent: const Color(0xFF047857),
-        titleEn: t.actionIbadahGuide,
-        titleMl: t.actionIbadahGuide,
-        titleAr: t.actionIbadahGuide,
-        subtitleEn: 'Niyyah, Salah, Rawatib & Mayyith',
-        subtitleMl: 'നിയ്യത്ത്, നിസ്കാരം, റവാതിബ്, മയ്യിത്ത്',
-        subtitleAr: 'النية والصلاة والرواتب والجنازة',
-        keywords: const [
-          'ibadah',
-          'salah',
-          'niyyah',
-          'namaz',
-          'rawatib',
-          'mayyith',
-          'janazah',
-          'qunoot',
-          'witr',
-          'shafi',
-          'ഇബാദത്ത്',
-          'നിസ്കാരം',
-          'നിയ്യത്ത്',
-          'മയ്യിത്ത്',
-          'ഖുനൂത്ത്',
-        ],
-        onTap: () {
-          _recordSimpleActivity(
-            id: 'tool:ibadah_guide',
-            type: RecentActivityType.ibadah,
-            titleEn: 'Ibadah & Salah Guide',
-            titleMl: 'ഇബാദത്ത് & നിസ്കാര ഗൈഡ്',
-            titleAr: 'دليل الصلاة والعبادات',
-            subtitleEn: 'Niyyah, Salah, Rawatib & Mayyith',
-            subtitleMl: 'നിയ്യത്ത്, നിസ്കാരം, റവാതിബ്, മയ്യിത്ത്',
-            subtitleAr: 'الفقه الشافعي',
-          );
-          widget.onOpenFeature('ibadah_guide');
-        },
-      ),
       _DashboardQuickAction(
         id: 'juz_index',
         icon: Icons.grid_view_rounded,
@@ -864,7 +865,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       ),
     ];
 
-    final allActions = [...topTools, ...categoryTools];
+    final allActions = [...topTools, ibadahAction, ...categoryTools];
 
     // Daily Asmaul Husna & Daily Tajweed Rule indices
     final now = DateTime.now();
@@ -1198,6 +1199,134 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                   onOpenFullGuide: () => showTajweedLegendSheet(
                     context,
                     strings: t,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // 4C. Featured Ibadah & Salah Complete Guide Card
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: Material(
+                color: palette.cardBg,
+                borderRadius: BorderRadius.circular(18),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: ibadahAction.onTap,
+                  child: Container(
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: (isDark ? AppBranding.accentGold : cs.primary)
+                            .withValues(alpha: 0.35),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black
+                              .withValues(alpha: isDark ? 0.2 : 0.035),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                color: (isDark
+                                        ? AppBranding.accentGold
+                                        : cs.primary)
+                                    .withValues(alpha: 0.13),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.menu_book_outlined,
+                                size: 22,
+                                color: isDark
+                                    ? AppBranding.accentGold
+                                    : cs.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t.ibadahGuideTitle,
+                                    style: const TextStyle(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    t.ibadahFiqhSubtitle,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 16,
+                              color: isDark
+                                  ? AppBranding.accentGold
+                                  : cs.primary,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 11),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final label in [
+                              t.niyyahTabLabel,
+                              t.salahGuideTabLabel,
+                              t.rawatibTabLabel,
+                              t.mayyithTabLabel,
+                            ])
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (isDark
+                                          ? AppBranding.accentGold
+                                          : cs.primary)
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? AppBranding.accentGold
+                                        : cs.primary,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
+import '../providers/audio_provider.dart';
 import '../services/ibadah_audio_controller.dart';
 
 class IbadahAudioCard extends ConsumerWidget {
@@ -342,8 +345,17 @@ class IbadahAudioCard extends ConsumerWidget {
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
-                        onTap: () => IbadahAudioController.instance
-                            .playOrToggle(audioPath!),
+                        onTap: () {
+                          if (ref.read(quranAudioProvider).isVisible) {
+                            unawaited(
+                              ref.read(quranAudioProvider.notifier).stopAndClose(),
+                            );
+                          }
+                          unawaited(
+                            IbadahAudioController.instance
+                                .playOrToggle(audioPath!),
+                          );
+                        },
                         child: SizedBox(
                           width: 36,
                           height: 36,
