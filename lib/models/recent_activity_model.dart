@@ -95,6 +95,31 @@ class RecentActivityEntry {
     return subtitleEn;
   }
 
+  String timeAgoLabel(String lang) {
+    final diffMs = DateTime.now().millisecondsSinceEpoch - timestampMs;
+    if (diffMs < 60000) {
+      if (lang == 'ml') return 'ഇപ്പോൾ';
+      if (lang == 'ar') return 'الآن';
+      return 'Now';
+    }
+    final mins = diffMs ~/ 60000;
+    if (mins < 60) {
+      if (lang == 'ml') return '$mins മി.';
+      if (lang == 'ar') return '${mins}د';
+      return '${mins}m';
+    }
+    final hours = mins ~/ 60;
+    if (hours < 24) {
+      if (lang == 'ml') return '$hours മ.';
+      if (lang == 'ar') return '${hours}س';
+      return '${hours}h';
+    }
+    final days = hours ~/ 24;
+    if (lang == 'ml') return '$days ദി.';
+    if (lang == 'ar') return '${days}ي';
+    return '${days}d';
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'type': type.name,

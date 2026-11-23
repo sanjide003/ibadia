@@ -826,7 +826,9 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
           SnackBar(
             content: Text(
               savedToGallery
-                  ? t.savedToGallery(capturedPngs.length)
+                  ? (capturedPngs.length > 1
+                      ? '${t.savedToGallery} (${capturedPngs.length})'
+                      : t.savedToGallery)
                   : t.exportSuccess,
             ),
           ),

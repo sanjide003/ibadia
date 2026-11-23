@@ -16,7 +16,6 @@ import '../models/surah_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
-import '../services/tajweed_engine.dart';
 import '../widgets/tajweed_widgets.dart';
 import 'asmaul_husna_view.dart';
 import 'features_views.dart';

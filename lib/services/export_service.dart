@@ -12,6 +12,52 @@ import 'package:share_plus/share_plus.dart';
 import '../core/config/api_config.dart';
 import '../models/surah_model.dart';
 
+enum ExportScope { range, surah, juz }
+
+enum ExportFormat { pdf, image }
+
+class ExportAyahBlock {
+  final int numberInSurah;
+  final String arabicText;
+  final Map<String, String> translations;
+
+  const ExportAyahBlock({
+    required this.numberInSurah,
+    required this.arabicText,
+    required this.translations,
+  });
+}
+
+class ExportSurahSection {
+  final SurahSummary summary;
+  final bool showBanner;
+  final bool showBismillah;
+  final List<ExportAyahBlock> ayahs;
+
+  const ExportSurahSection({
+    required this.summary,
+    required this.showBanner,
+    required this.showBismillah,
+    required this.ayahs,
+  });
+}
+
+class ExportPageData {
+  final int pageIndex;
+  final int totalPages;
+  final String headerTitle;
+  final String headerSubtitle;
+  final List<ExportSurahSection> sections;
+
+  const ExportPageData({
+    required this.pageIndex,
+    required this.totalPages,
+    required this.headerTitle,
+    required this.headerSubtitle,
+    required this.sections,
+  });
+}
+
 class RenderedExportPage {
   final Uint8List bytes;
   final Size logicalSize;
