@@ -123,6 +123,20 @@ class PrayerAlarmBridge {
 
   Future<List<String>> getNativeDismissedKeys(String dateKey) async =>
       const [];
+
+  void setOnOpenSurahHandler(void Function(int surahNumber)? handler) {}
+
+  void setOnOpenPrayerTabHandler(void Function()? handler) {}
+
+  Future<void> syncKahfReminders({
+    required AppSettings settings,
+    required AppStrings strings,
+  }) async {}
+
+  Future<void> testKahfNotification({required AppStrings strings}) async {}
+
+  Future<({int? openSurah, bool openPrayerTab})?> getInitialLaunchAction() async =>
+      null;
 }
 
 typedef VoidCallback = void Function();

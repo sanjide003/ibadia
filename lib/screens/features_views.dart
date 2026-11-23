@@ -11,6 +11,7 @@ import '../models/islamic_features_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
+import 'adhkar_tasbih_views.dart';
 
 /// Shared helper to open the City / GPS location picker bottom sheet.
 Future<void> showPrayerLocationPickerSheet(
@@ -658,16 +659,23 @@ class HijriAdjustmentControl extends ConsumerWidget {
 
 class FeaturesContainerView extends StatelessWidget {
   final TabController controller;
+  final void Function(int surahNumber)? onOpenSurah;
 
-  const FeaturesContainerView({super.key, required this.controller});
+  const FeaturesContainerView({
+    super.key,
+    required this.controller,
+    this.onOpenSurah,
+  });
 
   @override
   Widget build(BuildContext context) {
     return TabBarView(
       controller: controller,
-      children: const [
-        PrayerTimesView(),
-        HijriCalendarView(),
+      children: [
+        PrayerTimesView(onOpenSurah: onOpenSurah),
+        const HijriCalendarView(),
+        const AdhkarDuasView(),
+        const DigitalTasbihView(),
       ],
     );
   }
@@ -677,7 +685,9 @@ class FeaturesContainerView extends StatelessWidget {
 // 1. PRAYER TIMES VIEW (Adhan, Iqamah & Alarm Schedule Cards)
 // ---------------------------------------------------------------------------
 class PrayerTimesView extends ConsumerStatefulWidget {
-  const PrayerTimesView({super.key});
+  final void Function(int surahNumber)? onOpenSurah;
+
+  const PrayerTimesView({super.key, this.onOpenSurah});
 
   @override
   ConsumerState<PrayerTimesView> createState() => _PrayerTimesViewState();
@@ -1218,9 +1228,73 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
               ))
         : const [];
 
+    final showKahfBanner = ref.watch(kahfBannerVisibleProvider);
+
     return ListView(
       padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
       children: [
+        if (showKahfBanner && widget.onOpenSurah != null) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            decoration: BoxDecoration(
+              color: cs.primaryContainer.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: cs.primary.withValues(alpha: 0.45)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_stories_rounded, color: cs.primary, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t.kahfBannerTitle,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: cs.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        t.kahfBannerDesc,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
+                  onPressed: () => widget.onOpenSurah!(18),
+                  child: Text(t.kahfOpenSurahBtn),
+                ),
+                IconButton(
+                  tooltip: t.closeLabel,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => ref
+                      .read(kahfBannerVisibleProvider.notifier)
+                      .dismissForToday(),
+                  icon: Icon(Icons.close_rounded,
+                      size: 18, color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         // Hero Card: Location, Hijri Date & Live Next-Prayer Countdown
         Container(
           padding: const EdgeInsets.all(18),

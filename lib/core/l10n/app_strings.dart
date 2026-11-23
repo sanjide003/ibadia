@@ -513,6 +513,120 @@ class AppStrings {
   String get dayZero => _pick('0 (Default)', '0 (സാധാരണ)', '0 (افتراضي)');
   String get dayPlusOne => _pick('+1 Day', '+1 ദിവസം', '+1 يوم');
 
+  // Features Sub-Tabs (Short 1-word labels for clean 4-tab bar)
+  String get prayerShortTab => _pick('Prayer', 'നമസ്കാരം', 'الصلاة');
+  String get adhkarTab => _pick('Adhkar', 'ദിക്ർ', 'الأذكار');
+  String get tasbihTab => _pick('Tasbih', 'തസ്ബീഹ്', 'التسبيح');
+
+  // Offline Daily Duas & Adhkar (Hisnul Muslim)
+  String get morningAdhkar => _pick('Morning', 'രാവിലെ', 'الصباح');
+  String get eveningAdhkar => _pick('Evening', 'വൈകിട്ട്', 'المساء');
+  String get afterSalahAdhkar =>
+      _pick('After Salah', 'നിസ്കാര ശേഷം', 'بعد الصلاة');
+  String get dailyDuasCategory =>
+      _pick('Daily Duas', 'നിത്യ ദുആകൾ', 'أدعية يومية');
+  String get allAdhkarLabel => _pick('All', 'എല്ലാം', 'الكل');
+  String get favoritesOnlyLabel => _pick('Favorites', 'പ്രിയപ്പെട്ടവ', 'المفضلة');
+  String get resetTodayProgress =>
+      _pick('Reset Progress', 'റീസെറ്റ്', 'إعادة التصفير');
+  String get completedLabel => _pick('Completed', 'പൂർത്തിയായി', 'مكتمل');
+  String get hisnulMuslimNote => _pick(
+        'Offline Hisnul Muslim & Prophetic Adhkar — Tap card to count',
+        'ഓഫ്‌ലൈൻ ഹിസ്നുൽ മുസ്‌ലിം ദിക്റുകളും ദുആകളും — എണ്ണാൻ കാർഡിൽ ടാപ്പ് ചെയ്യുക',
+        'حصن المسلم وأذكار يومية بدون إنترنت — اضغط على البطاقة للعد',
+      );
+  String get noFavoriteAdhkar => _pick(
+        'No favorite Adhkar saved yet. Tap the star icon on any Dhikr to save it here.',
+        'പ്രിയപ്പെട്ട ദിക്റുകൾ ഒന്നും സേവ് ചെയ്തിട്ടില്ല. നക്ഷത്ര ഐക്കണിൽ ടാപ്പ് ചെയ്ത് സേവ് ചെയ്യാം.',
+        'لا توجد أذكار مفضلة بعد. اضغط على أيقونة النجمة لحفظها هنا.',
+      );
+
+  // Digital Tasbih Counter
+  String get tasbihTitle =>
+      _pick('Digital Tasbih', 'ഡിജിറ്റൽ തസ്ബീഹ്', 'المسبحة الرقمية');
+  String get tapToCount =>
+      _pick('Tap anywhere inside circle', 'എണ്ണാൻ ടാപ്പ് ചെയ്യുക', 'اضغط هنا للتسبيح');
+  String get targetLabel => _pick('Target', 'ലക്ഷ്യം', 'الهدف');
+  String get unlimitedLabel => _pick('Free', 'അൺലിമിറ്റഡ്', 'مفتوح');
+  String get todayTotalLabel => _pick('Today', 'ഇന്ന്', 'اليوم');
+  String get lifetimeTotalLabel => _pick('Total', 'ആകെ', 'الإجمالي');
+  String get addCustomDhikr =>
+      _pick('Add Custom Dhikr', 'പുതിയ ദിക്ർ ചേർക്കുക', 'إضافة ذكر مخصص');
+  String get customDhikrArabic =>
+      _pick('Arabic Text (optional)', 'അറബിക് ടെക്സ്റ്റ് (നിർബന്ധമില്ല)', 'النص العربي (اختياري)');
+  String get customDhikrName =>
+      _pick('Dhikr Title / Meaning', 'ദിക്ർ പേര് / അർത്ഥം', 'اسم الذكر / المعنى');
+  String get vibrateOnTapLabel =>
+      _pick('Haptic Vibration', 'ടാപ്പ് വൈബ്രേഷൻ', 'الاهتزاز عند الضغط');
+  String get resetCycleLabel => _pick('Reset', 'റീസെറ്റ്', 'تصفير');
+  String get deleteCustomLabel =>
+      _pick('Remove Custom Dhikr', 'നീക്കം ചെയ്യുക', 'حذف الذكر');
+
+  // Weekly Surah Al-Kahf Reminder
+  String get kahfReminderTitle => _pick(
+        'Surah Al-Kahf Weekly Reminder',
+        'സൂറത്തുൽ കഹ്ഫ് ഓർമ്മപ്പെടുത്തൽ',
+        'تذكير سورة الكهف الأسبوعي',
+      );
+  String get kahfReminderDesc => _pick(
+        'Notifies every Thursday evening and Friday morning. Tap the notification to open Surah Al-Kahf directly.',
+        'എല്ലാ വ്യാഴാഴ്ച വൈകുന്നേരവും വെള്ളിയാഴ്ച രാവിലെയും ഓർമ്മിപ്പിക്കും. നോട്ടിഫിക്കേഷനിൽ ടാപ്പ് ചെയ്താൽ നേരിട്ട് സൂറത്തുൽ കഹ്ഫ് തുറക്കാം.',
+        'ينبّهك كل مساء خميس وصباح جمعة. اضغط على الإشعار لفتح سورة الكهف مباشرة.',
+      );
+  String get kahfThuLabel =>
+      _pick('Thursday Evening', 'വ്യാഴാഴ്ച രാത്രി', 'مساء الخميس');
+  String get kahfFriLabel =>
+      _pick('Friday Morning', 'വെള്ളിയാഴ്ച രാവിലെ', 'صباح الجمعة');
+  String get kahfNotifTitle => _pick(
+        'Surah Al-Kahf Reminder',
+        'സൂറത്തുൽ കഹ്ഫ് ഓതാൻ സമയമായി',
+        'تذكير قراءة سورة الكهف',
+      );
+  String get kahfNotifBody => _pick(
+        'Illuminate your Friday with Surah Al-Kahf. Tap to open Surah 18 directly.',
+        'വെള്ളിയാഴ്ചയുടെ പ്രകാശത്തിനായി സൂറത്തുൽ കഹ്ഫ് പാരായണം ചെയ്യുക. തുറക്കാൻ ടാപ്പ് ചെയ്യുക.',
+        'نورٌ بين الجمعتين — اضغط لفتح سورة الكهف مباشرة.',
+      );
+  String get kahfOpenSurahBtn => _pick(
+        'Read Surah Al-Kahf',
+        'സൂറത്തുൽ കഹ്ഫ് ഓതുക',
+        'اقرأ سورة الكهف',
+      );
+  String get kahfBannerTitle => _pick(
+        'Jumu\'ah Reminder — Surah Al-Kahf',
+        'ജുമുഅ ഓർമ്മപ്പെടുത്തൽ — സൂറത്തുൽ കഹ്ഫ്',
+        'تذكير الجمعة — سورة الكهف',
+      );
+  String get kahfBannerDesc => _pick(
+        'Tap to open Surah Al-Kahf (Surah 18) directly',
+        'സൂറത്തുൽ കഹ്ഫ് (18) നേരിട്ട് തുറന്ന് പാരായണം ചെയ്യാം',
+        'اضغط لفتح سورة الكهف (18) مباشرة',
+      );
+  String get testKahfReminder => _pick(
+        'Test Reminder Notification',
+        'ടെസ്റ്റ് നോട്ടിഫിക്കേഷൻ കാണുക',
+        'تجربة الإشعار',
+      );
+  String get changeTimeLabel =>
+      _pick('Change Time', 'സമയം മാറ്റുക', 'تغيير الوقت');
+  String get kahfTestWebFeedback => _pick(
+        'Surah Al-Kahf reminder active! On Android APK it sends a scheduled notification tapping straight to Surah 18.',
+        'സൂറത്തുൽ കഹ്ഫ് റിമൈൻഡർ സജ്ജമാണ്! Android ആപ്പിൽ വ്യാഴം/വെള്ളി ദിവസങ്ങളിൽ നേരിട്ട് നോട്ടിഫിക്കേഷൻ ലഭിക്കും.',
+        'التذكير مفعّل! على تطبيق أندرويد يصلك إشعار مجدول يفتح السورة مباشرة.',
+      );
+
+  // Android Home Screen Widget Info
+  String get homeWidgetTitle => _pick(
+        'Home Screen Widget',
+        'ഹോം സ്ക്രീൻ വിഡ്ജറ്റ്',
+        'أداة الشاشة الرئيسية',
+      );
+  String get homeWidgetDesc => _pick(
+        'Long-press your Android home screen -> Widgets -> "Al-Quran Prayer Times" to view next prayer & Hijri date live without opening the app.',
+        'ആപ്പ് തുറക്കാതെ തന്നെ അടുത്ത നിസ്കാര സമയവും ഹിജ്‌രി തീയതിയും കാണാൻ ഫോൺ ഹോം സ്ക്രീനിൽ ലോങ്-പ്രസ് ചെയ്ത് Widgets -> "Al-Quran Prayer Times" ചേർക്കുക.',
+        'اضغط مطولاً على شاشة هاتفك -> التطبيقات المصغرة -> "Al-Quran Prayer Times" لمتابعة الصلاة القادمة والتاريخ الهجري مباشرة.',
+      );
+
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('mecc') || lower.contains('makk')) {

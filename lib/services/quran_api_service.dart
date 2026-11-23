@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config/api_config.dart';
 import '../models/surah_model.dart';
+import 'hive_db.dart';
 
 class QuranApiService {
   static const String _surahListCacheKey = 'cache_surah_list_v3';
@@ -12,11 +13,16 @@ class QuranApiService {
   static final Map<int, JuzDetail> _memJuzArabicCache = {};
   static final Map<String, List<String>> _memJuzTranslationCache = {};
 
+  Future<Box<dynamic>> _cacheBox() async {
+    await HiveDb.instance.ensureInitialized();
+    return HiveDb.instance.quranCacheBox;
+  }
+
   Future<List<SurahSummary>> fetchSurahList() async {
     if (_memSurahList != null) return _memSurahList!;
 
-    final prefs = await SharedPreferences.getInstance();
-    final cached = prefs.getString(_surahListCacheKey);
+    final box = await _cacheBox();
+    final cached = box.get(_surahListCacheKey) as String?;
     if (cached != null) {
       final decoded = jsonDecode(cached) as List<dynamic>;
       _memSurahList = decoded
@@ -41,7 +47,7 @@ class QuranApiService {
         .toList();
 
     _memSurahList = surahs;
-    await prefs.setString(
+    await box.put(
       _surahListCacheKey,
       jsonEncode(surahs.map((s) => s.toJson()).toList()),
     );
@@ -49,18 +55,18 @@ class QuranApiService {
   }
 
   /// Fetches ONLY Arabic text + the exact translation languages currently enabled.
-  /// Every edition is cached in memory and SharedPreferences for instant offline loading.
+  /// Every edition is cached in memory and Hive for instant offline loading.
   Future<SurahDetail> fetchSurahDetail({
     required int surahNumber,
     required List<String> requiredTranslations,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final baseData = await _fetchArabicBase(prefs, surahNumber);
+    final box = await _cacheBox();
+    final baseData = await _fetchArabicBase(box, surahNumber);
 
     final Map<String, List<String>> loadedTranslations = {};
     if (requiredTranslations.isNotEmpty) {
       final futures = requiredTranslations.map((code) async {
-        final texts = await _fetchTranslationEdition(prefs, surahNumber, code);
+        final texts = await _fetchTranslationEdition(box, surahNumber, code);
         return MapEntry(code, texts);
       });
       final entries = await Future.wait(futures);
@@ -77,14 +83,14 @@ class QuranApiService {
   }
 
   Future<SurahDetail> _fetchArabicBase(
-    SharedPreferences prefs,
+    Box<dynamic> box,
     int surahNumber,
   ) async {
     final memHit = _memArabicCache[surahNumber];
     if (memHit != null) return memHit;
 
     final cacheKey = 'cache_ar_v3_$surahNumber';
-    final cached = prefs.getString(cacheKey);
+    final cached = box.get(cacheKey) as String?;
     if (cached != null) {
       final decoded = jsonDecode(cached) as Map<String, dynamic>;
       final detail = SurahDetail(
@@ -137,7 +143,7 @@ class QuranApiService {
       );
     }).toList();
 
-    await prefs.setString(
+    await box.put(
       cacheKey,
       jsonEncode({
         'summary': summary.toJson(),
@@ -151,7 +157,7 @@ class QuranApiService {
   }
 
   Future<List<String>> _fetchTranslationEdition(
-    SharedPreferences prefs,
+    Box<dynamic> box,
     int surahNumber,
     String langCode,
   ) async {
@@ -159,7 +165,7 @@ class QuranApiService {
     final memHit = _memTranslationCache[cacheKey];
     if (memHit != null) return memHit;
 
-    final cached = prefs.getString(cacheKey);
+    final cached = box.get(cacheKey) as String?;
     if (cached != null) {
       final list = (jsonDecode(cached) as List<dynamic>)
           .map((e) => e.toString())
@@ -187,7 +193,7 @@ class QuranApiService {
         .toList();
 
     _memTranslationCache[cacheKey] = texts;
-    await prefs.setString(cacheKey, jsonEncode(texts));
+    await box.put(cacheKey, jsonEncode(texts));
     return texts;
   }
 
@@ -195,13 +201,13 @@ class QuranApiService {
     required int juzNumber,
     required List<String> requiredTranslations,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final baseData = await _fetchJuzArabic(prefs, juzNumber);
+    final box = await _cacheBox();
+    final baseData = await _fetchJuzArabic(box, juzNumber);
 
     final Map<String, List<String>> loadedTranslations = {};
     if (requiredTranslations.isNotEmpty) {
       final futures = requiredTranslations.map((code) async {
-        final texts = await _fetchJuzTranslationEdition(prefs, juzNumber, code);
+        final texts = await _fetchJuzTranslationEdition(box, juzNumber, code);
         return MapEntry(code, texts);
       });
       final entries = await Future.wait(futures);
@@ -218,14 +224,14 @@ class QuranApiService {
   }
 
   Future<JuzDetail> _fetchJuzArabic(
-    SharedPreferences prefs,
+    Box<dynamic> box,
     int juzNumber,
   ) async {
     final memHit = _memJuzArabicCache[juzNumber];
     if (memHit != null) return memHit;
 
     final cacheKey = 'cache_juz_ar_v3_$juzNumber';
-    final cached = prefs.getString(cacheKey);
+    final cached = box.get(cacheKey) as String?;
     if (cached != null) {
       final decoded = jsonDecode(cached) as List<dynamic>;
       final entries = decoded.map((item) {
@@ -281,7 +287,7 @@ class QuranApiService {
       return JuzAyahEntry(surah: surah, ayah: ayah);
     }).toList();
 
-    await prefs.setString(
+    await box.put(
       cacheKey,
       jsonEncode(
         entries
@@ -301,7 +307,7 @@ class QuranApiService {
   }
 
   Future<List<String>> _fetchJuzTranslationEdition(
-    SharedPreferences prefs,
+    Box<dynamic> box,
     int juzNumber,
     String langCode,
   ) async {
@@ -309,7 +315,7 @@ class QuranApiService {
     final memHit = _memJuzTranslationCache[cacheKey];
     if (memHit != null) return memHit;
 
-    final cached = prefs.getString(cacheKey);
+    final cached = box.get(cacheKey) as String?;
     if (cached != null) {
       final list = (jsonDecode(cached) as List<dynamic>)
           .map((e) => e.toString())
@@ -337,7 +343,7 @@ class QuranApiService {
         .toList();
 
     _memJuzTranslationCache[cacheKey] = texts;
-    await prefs.setString(cacheKey, jsonEncode(texts));
+    await box.put(cacheKey, jsonEncode(texts));
     return texts;
   }
 

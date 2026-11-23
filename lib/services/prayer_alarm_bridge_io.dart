@@ -27,6 +27,8 @@ class PrayerAlarmBridge {
   static const int _minValidAudioBytes = 2048;
 
   void Function(NativeRingingAlarm alarm)? _ringingHandler;
+  void Function(int surahNumber)? _openSurahHandler;
+  void Function()? _openPrayerTabHandler;
   AudioPlayer? _fallbackPlayer;
   StreamSubscription<void>? _completeSub;
   final Map<String, Future<String?>> _inFlightDownloads = {};
@@ -41,6 +43,15 @@ class PrayerAlarmBridge {
       if (info.prayerKey.isNotEmpty) {
         _ringingHandler?.call(info);
       }
+    } else if (call.method == 'onLaunchAction' && call.arguments is Map) {
+      final map = call.arguments as Map<dynamic, dynamic>;
+      final surah = (map['openSurah'] as num?)?.toInt();
+      final openPrayer = map['openPrayerTab'] == true;
+      if (surah != null && surah > 0) {
+        _openSurahHandler?.call(surah);
+      } else if (openPrayer) {
+        _openPrayerTabHandler?.call();
+      }
     }
     return null;
   }
@@ -49,6 +60,14 @@ class PrayerAlarmBridge {
     void Function(NativeRingingAlarm alarm)? handler,
   ) {
     _ringingHandler = handler;
+  }
+
+  void setOnOpenSurahHandler(void Function(int surahNumber)? handler) {
+    _openSurahHandler = handler;
+  }
+
+  void setOnOpenPrayerTabHandler(void Function()? handler) {
+    _openPrayerTabHandler = handler;
   }
 
   Future<String?> _getAdhanCacheDir() async {
@@ -301,6 +320,52 @@ class PrayerAlarmBridge {
       return list ?? const [];
     } catch (_) {
       return const [];
+    }
+  }
+
+  Future<void> syncKahfReminders({
+    required AppSettings settings,
+    required AppStrings strings,
+  }) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod<bool>('scheduleKahfReminders', {
+        'thuEnabled': settings.kahfThursdayEnabled,
+        'friEnabled': settings.kahfFridayEnabled,
+        'thuHour': settings.kahfThuHour,
+        'thuMinute': settings.kahfThuMinute,
+        'friHour': settings.kahfFriHour,
+        'friMinute': settings.kahfFriMinute,
+        'title': strings.kahfNotifTitle,
+        'body': strings.kahfNotifBody,
+      });
+    } catch (_) {}
+  }
+
+  Future<void> testKahfNotification({required AppStrings strings}) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod<bool>('testKahfNotification', {
+        'title': strings.kahfNotifTitle,
+        'body': strings.kahfNotifBody,
+      });
+    } catch (_) {}
+  }
+
+  Future<({int? openSurah, bool openPrayerTab})?>
+      getInitialLaunchAction() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final raw = await _channel.invokeMapMethod<String, dynamic>(
+        'getInitialLaunchAction',
+      );
+      if (raw == null) return null;
+      final surah = (raw['openSurah'] as num?)?.toInt();
+      final openPrayer = raw['openPrayerTab'] == true;
+      if ((surah == null || surah <= 0) && !openPrayer) return null;
+      return (openSurah: surah, openPrayerTab: openPrayer);
+    } catch (_) {
+      return null;
     }
   }
 }

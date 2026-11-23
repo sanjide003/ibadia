@@ -10,6 +10,7 @@ import '../providers/audio_provider.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
+import '../services/prayer_alarm_bridge.dart';
 import '../widgets/quick_reader_controls.dart';
 import '../widgets/web_pwa_widgets.dart';
 import 'features_views.dart';
@@ -523,6 +524,218 @@ class FeaturesSettingsSection extends ConsumerWidget {
 
         // 6. Hijri Moon Sighting Offset (-1 / 0 / +1)
         const HijriAdjustmentControl(compact: true),
+
+        const Divider(height: 24),
+
+        // 7. Weekly Surah Al-Kahf Reminder (Thursday Night & Friday Morning)
+        Row(
+          children: [
+            Icon(Icons.auto_stories_rounded, size: 18, color: cs.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                t.kahfReminderTitle,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13.5,
+                  color: cs.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          t.kahfReminderDesc,
+          style: TextStyle(
+            fontSize: 11.5,
+            color: cs.onSurfaceVariant,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _KahfScheduleRow(
+          label: t.kahfThuLabel,
+          enabled: settings.kahfThursdayEnabled,
+          hour: settings.kahfThuHour,
+          minute: settings.kahfThuMinute,
+          onToggle: (v) =>
+              notifier.update(settings.copyWith(kahfThursdayEnabled: v)),
+          onPickTime: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: TimeOfDay(
+                hour: settings.kahfThuHour,
+                minute: settings.kahfThuMinute,
+              ),
+            );
+            if (picked != null) {
+              await notifier.update(
+                settings.copyWith(
+                  kahfThuHour: picked.hour,
+                  kahfThuMinute: picked.minute,
+                ),
+              );
+            }
+          },
+        ),
+        _KahfScheduleRow(
+          label: t.kahfFriLabel,
+          enabled: settings.kahfFridayEnabled,
+          hour: settings.kahfFriHour,
+          minute: settings.kahfFriMinute,
+          onToggle: (v) =>
+              notifier.update(settings.copyWith(kahfFridayEnabled: v)),
+          onPickTime: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: TimeOfDay(
+                hour: settings.kahfFriHour,
+                minute: settings.kahfFriMinute,
+              ),
+            );
+            if (picked != null) {
+              await notifier.update(
+                settings.copyWith(
+                  kahfFriHour: picked.hour,
+                  kahfFriMinute: picked.minute,
+                ),
+              );
+            }
+          },
+        ),
+        const SizedBox(height: 6),
+        FilledButton.tonalIcon(
+          onPressed: () async {
+            if (PrayerAlarmBridge.instance.isNativeAndroid) {
+              await PrayerAlarmBridge.instance.requestAlarmPermissions();
+              await PrayerAlarmBridge.instance
+                  .testKahfNotification(strings: t);
+            } else if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(t.kahfTestWebFeedback),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          },
+          icon: const Icon(Icons.notifications_active_outlined, size: 18),
+          label: Text(t.testKahfReminder),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+
+        const Divider(height: 24),
+
+        // 8. Android Home Screen Widget Setup Info
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: 0.55),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.widgets_outlined, size: 20, color: cs.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.homeWidgetTitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      t.homeWidgetDesc,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: cs.onSurfaceVariant,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _KahfScheduleRow extends StatelessWidget {
+  final String label;
+  final bool enabled;
+  final int hour;
+  final int minute;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onPickTime;
+
+  const _KahfScheduleRow({
+    required this.label,
+    required this.enabled,
+    required this.hour,
+    required this.minute,
+    required this.onToggle,
+    required this.onPickTime,
+  });
+
+  String _formatTime() {
+    final amPm = hour >= 12 ? 'PM' : 'AM';
+    final h12 = hour % 12 == 0 ? 12 : hour % 12;
+    final min = minute.toString().padLeft(2, '0');
+    return '$h12:$min $amPm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        TextButton(
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          ),
+          onPressed: enabled ? onPickTime : null,
+          child: Text(
+            _formatTime(),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: enabled ? cs.primary : cs.onSurfaceVariant,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        Switch(
+          value: enabled,
+          onChanged: onToggle,
+        ),
       ],
     );
   }

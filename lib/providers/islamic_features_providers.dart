@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../data/adhkar_data.dart';
+import '../models/adhkar_tasbih_model.dart';
 import '../models/islamic_features_model.dart';
 import '../services/islamic_features_service.dart';
 import '../services/prayer_alarm_bridge.dart';
+import '../services/prayer_widget_bridge.dart';
 import '../services/storage_service.dart';
 import 'quran_providers.dart';
 
@@ -297,6 +300,8 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
   final PrayerAlarmBridge _bridge = PrayerAlarmBridge.instance;
   Timer? _ticker;
   String? _lastScheduledSignature;
+  String? _lastKahfSignature;
+  String? _lastWidgetSignature;
   String? _lastTriggeredSlotKey;
 
   PrayerAlarmNotifier(this._ref)
@@ -321,12 +326,13 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
       );
     });
 
-    await _ref.read(settingsProvider.notifier).ensureLoaded();
+    final settings = await _ref.read(settingsProvider.notifier).ensureLoaded();
     await _reloadDismissedForDate(
       IslamicFeaturesService.formatDateKey(DateTime.now()),
     );
     await syncWithNative();
     _recomputeAndSync(syncNative: true);
+    _syncKahfSchedule(settings, _ref.read(stringsProvider));
 
     _ref.listen<PrayerTimesState>(prayerTimesProvider, (prev, next) {
       if (next.data != prev?.data) {
@@ -337,9 +343,19 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
     _ref.listen<AppSettings>(settingsProvider, (prev, next) {
       if (prev == null) return;
       _recomputeAndSync(syncNative: true);
+      _syncKahfSchedule(next, _ref.read(stringsProvider));
     });
 
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _onSecondTick());
+  }
+
+  void _syncKahfSchedule(AppSettings settings, AppStrings strings) {
+    if (!_bridge.isNativeAndroid) return;
+    final sig =
+        '${settings.kahfThursdayEnabled}|${settings.kahfFridayEnabled}|${settings.kahfThuHour}:${settings.kahfThuMinute}|${settings.kahfFriHour}:${settings.kahfFriMinute}|${settings.appLanguage}';
+    if (sig == _lastKahfSignature) return;
+    _lastKahfSignature = sig;
+    unawaited(_bridge.syncKahfReminders(settings: settings, strings: strings));
   }
 
   @override
@@ -437,6 +453,67 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
         );
       }
     }
+
+    _syncHomeWidget(prayerData, slots, settings, strings, now);
+  }
+
+  void _syncHomeWidget(
+    DailyPrayerData prayerData,
+    List<ComputedPrayerSlot> slots,
+    AppSettings settings,
+    AppStrings strings,
+    DateTime now,
+  ) {
+    if (!PrayerWidgetBridge.instance.isSupported) return;
+
+    ComputedPrayerSlot? upcoming;
+    for (final slot in slots) {
+      if (slot.adhanTime.isAfter(now)) {
+        upcoming = slot;
+        break;
+      }
+    }
+
+    final String prayerName;
+    final DateTime adhanDt;
+    final DateTime iqamahDt;
+
+    if (upcoming != null) {
+      prayerName = _prayerName(upcoming.prayerKey, strings);
+      adhanDt = upcoming.adhanTime;
+      iqamahDt = upcoming.iqamahTime;
+    } else {
+      final tomorrow = now.add(const Duration(days: 1));
+      final fajrCfg = settings.alarmConfigFor('fajr');
+      prayerName = strings.fajrName;
+      adhanDt = prayerData.tunedTimeFor('fajr', settings.prayerTuneFajr, tomorrow);
+      iqamahDt = adhanDt.add(Duration(minutes: fajrCfg.iqamahGapMinutes));
+    }
+
+    final hijriMonth =
+        strings.lang == 'ar' ? prayerData.hijriMonthAr : prayerData.hijriMonthEn;
+    final hijriText =
+        '${prayerData.hijriDay} $hijriMonth ${prayerData.hijriYear}';
+    final adhanText = DailyPrayerData.format12Hour(adhanDt);
+    final iqamahText =
+        '${strings.iqamahLabel}: ${DailyPrayerData.format12Hour(iqamahDt)}';
+    final loc = settings.displayLocationLabel;
+    final nextLbl = strings.nextPrayerLabel;
+
+    final sig = '$loc|$hijriText|$nextLbl|$prayerName|$adhanText|$iqamahText';
+    if (sig == _lastWidgetSignature) return;
+    _lastWidgetSignature = sig;
+
+    unawaited(
+      PrayerWidgetBridge.instance.syncWidget(
+        location: loc,
+        hijriDate: hijriText,
+        nextLabel: nextLbl,
+        prayerName: prayerName,
+        adhanTime: adhanText,
+        iqamahTime: iqamahText,
+      ),
+    );
   }
 
   Future<void> _onSecondTick() async {
@@ -766,4 +843,424 @@ class HijriCalendarNotifier extends StateNotifier<HijriCalendarState> {
 final hijriCalendarProvider =
     StateNotifierProvider<HijriCalendarNotifier, HijriCalendarState>(
   (ref) => HijriCalendarNotifier(ref),
+);
+
+// ---------------------------------------------------------------------------
+// SURAH AL-KAHF WEEKLY IN-APP / WEB BANNER NOTIFIER
+// ---------------------------------------------------------------------------
+
+class KahfBannerNotifier extends StateNotifier<bool> {
+  final Ref _ref;
+
+  KahfBannerNotifier(this._ref) : super(false) {
+    refresh();
+    _ref.listen<AppSettings>(settingsProvider, (_, __) => refresh());
+  }
+
+  bool _isScheduledWindow(AppSettings s, DateTime now) {
+    if (now.weekday == DateTime.thursday && s.kahfThursdayEnabled) {
+      final afterThuReminder = now.hour > s.kahfThuHour ||
+          (now.hour == s.kahfThuHour && now.minute >= s.kahfThuMinute);
+      if (afterThuReminder) return true;
+    }
+    if (now.weekday == DateTime.friday && s.kahfFridayEnabled) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> refresh() async {
+    final s = await _ref.read(settingsProvider.notifier).ensureLoaded();
+    final now = DateTime.now();
+    if (!_isScheduledWindow(s, now)) {
+      if (mounted) state = false;
+      return;
+    }
+    final dateKey = IslamicFeaturesService.formatDateKey(now);
+    final dismissed =
+        await _ref.read(storageServiceProvider).isKahfBannerDismissed(dateKey);
+    if (mounted) state = !dismissed;
+  }
+
+  Future<void> dismissForToday() async {
+    final dateKey = IslamicFeaturesService.formatDateKey(DateTime.now());
+    await _ref.read(storageServiceProvider).setKahfBannerDismissed(dateKey);
+    if (mounted) state = false;
+  }
+}
+
+final kahfBannerVisibleProvider =
+    StateNotifierProvider<KahfBannerNotifier, bool>(
+  (ref) => KahfBannerNotifier(ref),
+);
+
+// ---------------------------------------------------------------------------
+// OFFLINE DAILY DUAS & ADHKAR NOTIFIER (HIVE PERSISTED)
+// ---------------------------------------------------------------------------
+
+class AdhkarState {
+  final String selectedCategory; // 'morning' | 'evening' | 'after_salah' | 'daily_duas'
+  final bool favoritesOnly;
+  final String dateKey;
+  final Map<String, int> countsById;
+  final Set<String> favoriteIds;
+  final bool loaded;
+
+  const AdhkarState({
+    this.selectedCategory = 'morning',
+    this.favoritesOnly = false,
+    this.dateKey = '',
+    this.countsById = const {},
+    this.favoriteIds = const {},
+    this.loaded = false,
+  });
+
+  int countFor(String id) => countsById[id] ?? 0;
+
+  AdhkarState copyWith({
+    String? selectedCategory,
+    bool? favoritesOnly,
+    String? dateKey,
+    Map<String, int>? countsById,
+    Set<String>? favoriteIds,
+    bool? loaded,
+  }) {
+    return AdhkarState(
+      selectedCategory: selectedCategory ?? this.selectedCategory,
+      favoritesOnly: favoritesOnly ?? this.favoritesOnly,
+      dateKey: dateKey ?? this.dateKey,
+      countsById: countsById ?? this.countsById,
+      favoriteIds: favoriteIds ?? this.favoriteIds,
+      loaded: loaded ?? this.loaded,
+    );
+  }
+}
+
+class AdhkarNotifier extends StateNotifier<AdhkarState> {
+  final Ref _ref;
+
+  AdhkarNotifier(this._ref) : super(const AdhkarState()) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final storage = _ref.read(storageServiceProvider);
+    final today = IslamicFeaturesService.formatDateKey(DateTime.now());
+    final counts = await storage.loadAdhkarCountsForDate(today);
+    final favs = await storage.loadFavoriteAdhkarIds();
+    if (!mounted) return;
+    state = state.copyWith(
+      dateKey: today,
+      countsById: counts,
+      favoriteIds: favs,
+      loaded: true,
+    );
+  }
+
+  void selectCategory(String category) {
+    state = state.copyWith(selectedCategory: category, favoritesOnly: false);
+  }
+
+  void toggleFavoritesOnly() {
+    state = state.copyWith(favoritesOnly: !state.favoritesOnly);
+  }
+
+  Future<bool> incrementEntry(AdhkarEntry entry) async {
+    final today = IslamicFeaturesService.formatDateKey(DateTime.now());
+    final Map<String, int> next = state.dateKey == today
+        ? Map<String, int>.from(state.countsById)
+        : <String, int>{};
+
+    final current = next[entry.id] ?? 0;
+    if (current >= entry.targetCount) {
+      return false;
+    }
+    final updatedVal = current + 1;
+    next[entry.id] = updatedVal;
+
+    state = state.copyWith(dateKey: today, countsById: next);
+    await _ref
+        .read(storageServiceProvider)
+        .saveAdhkarCountsForDate(today, next);
+    return updatedVal >= entry.targetCount;
+  }
+
+  Future<void> resetEntry(String id) async {
+    final today = IslamicFeaturesService.formatDateKey(DateTime.now());
+    final next = Map<String, int>.from(state.countsById)..remove(id);
+    state = state.copyWith(dateKey: today, countsById: next);
+    await _ref
+        .read(storageServiceProvider)
+        .saveAdhkarCountsForDate(today, next);
+  }
+
+  Future<void> resetCategory(String category) async {
+    final today = IslamicFeaturesService.formatDateKey(DateTime.now());
+    final next = Map<String, int>.from(state.countsById);
+    for (final item in AdhkarCatalog.entries) {
+      if (item.category == category) {
+        next.remove(item.id);
+      }
+    }
+    state = state.copyWith(dateKey: today, countsById: next);
+    await _ref
+        .read(storageServiceProvider)
+        .saveAdhkarCountsForDate(today, next);
+  }
+
+  Future<void> toggleFavorite(String id) async {
+    final next = Set<String>.from(state.favoriteIds);
+    if (!next.add(id)) {
+      next.remove(id);
+    }
+    state = state.copyWith(favoriteIds: next);
+    await _ref.read(storageServiceProvider).saveFavoriteAdhkarIds(next);
+  }
+}
+
+final adhkarProvider = StateNotifierProvider<AdhkarNotifier, AdhkarState>(
+  (ref) => AdhkarNotifier(ref),
+);
+
+// ---------------------------------------------------------------------------
+// DIGITAL TASBIH COUNTER NOTIFIER (HIVE PERSISTED)
+// ---------------------------------------------------------------------------
+
+class TasbihState {
+  final String selectedId;
+  final List<TasbihPreset> customPresets;
+  final Map<String, int> targetsById; // 0 = unlimited
+  final Map<String, int> cycleCountsById;
+  final Map<String, int> lifetimeCountsById;
+  final String todayDateKey;
+  final int todayTotal;
+  final bool vibrateOnTap;
+  final bool loaded;
+
+  const TasbihState({
+    this.selectedId = 'tasbih_subhanallah',
+    this.customPresets = const [],
+    this.targetsById = const {},
+    this.cycleCountsById = const {},
+    this.lifetimeCountsById = const {},
+    this.todayDateKey = '',
+    this.todayTotal = 0,
+    this.vibrateOnTap = true,
+    this.loaded = false,
+  });
+
+  List<TasbihPreset> get allPresets => [
+        ...AdhkarCatalog.defaultTasbihPresets,
+        ...customPresets,
+      ];
+
+  TasbihPreset get activePreset {
+    for (final p in allPresets) {
+      if (p.id == selectedId) return p;
+    }
+    return AdhkarCatalog.defaultTasbihPresets.first;
+  }
+
+  int get activeTarget => targetsById[selectedId] ?? activePreset.defaultTarget;
+  int get activeCycleCount => cycleCountsById[selectedId] ?? 0;
+  int get activeLifetimeCount => lifetimeCountsById[selectedId] ?? 0;
+
+  TasbihState copyWith({
+    String? selectedId,
+    List<TasbihPreset>? customPresets,
+    Map<String, int>? targetsById,
+    Map<String, int>? cycleCountsById,
+    Map<String, int>? lifetimeCountsById,
+    String? todayDateKey,
+    int? todayTotal,
+    bool? vibrateOnTap,
+    bool? loaded,
+  }) {
+    return TasbihState(
+      selectedId: selectedId ?? this.selectedId,
+      customPresets: customPresets ?? this.customPresets,
+      targetsById: targetsById ?? this.targetsById,
+      cycleCountsById: cycleCountsById ?? this.cycleCountsById,
+      lifetimeCountsById: lifetimeCountsById ?? this.lifetimeCountsById,
+      todayDateKey: todayDateKey ?? this.todayDateKey,
+      todayTotal: todayTotal ?? this.todayTotal,
+      vibrateOnTap: vibrateOnTap ?? this.vibrateOnTap,
+      loaded: loaded ?? this.loaded,
+    );
+  }
+}
+
+class TasbihNotifier extends StateNotifier<TasbihState> {
+  final Ref _ref;
+
+  TasbihNotifier(this._ref) : super(const TasbihState()) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final storage = _ref.read(storageServiceProvider);
+    final snap = await storage.loadTasbihSnapshot();
+    final today = IslamicFeaturesService.formatDateKey(DateTime.now());
+    if (!mounted) return;
+    if (snap == null) {
+      state = state.copyWith(todayDateKey: today, loaded: true);
+      return;
+    }
+
+    final rawCustoms = (snap['customPresets'] as List<dynamic>? ?? const []);
+    final customs = rawCustoms
+        .whereType<Map<String, dynamic>>()
+        .map(TasbihPreset.fromJson)
+        .toList();
+
+    Map<String, int> parseIntMap(dynamic raw) {
+      if (raw is! Map) return {};
+      return {
+        for (final e in raw.entries)
+          e.key.toString(): (e.value as num?)?.toInt() ?? 0,
+      };
+    }
+
+    final savedDay = (snap['todayDateKey'] ?? '').toString();
+    final savedTodayTotal =
+        savedDay == today ? ((snap['todayTotal'] as num?)?.toInt() ?? 0) : 0;
+
+    state = TasbihState(
+      selectedId: (snap['selectedId'] ?? 'tasbih_subhanallah').toString(),
+      customPresets: customs,
+      targetsById: parseIntMap(snap['targetsById']),
+      cycleCountsById: parseIntMap(snap['cycleCountsById']),
+      lifetimeCountsById: parseIntMap(snap['lifetimeCountsById']),
+      todayDateKey: today,
+      todayTotal: savedTodayTotal,
+      vibrateOnTap: snap['vibrateOnTap'] as bool? ?? true,
+      loaded: true,
+    );
+  }
+
+  Future<void> _persist() async {
+    await _ref.read(storageServiceProvider).saveTasbihSnapshot(
+          selectedId: state.selectedId,
+          customPresets: state.customPresets,
+          targetsById: state.targetsById,
+          cycleCountsById: state.cycleCountsById,
+          lifetimeCountsById: state.lifetimeCountsById,
+          todayDateKey: state.todayDateKey,
+          todayTotal: state.todayTotal,
+          vibrateOnTap: state.vibrateOnTap,
+        );
+  }
+
+  void selectPreset(String id) {
+    state = state.copyWith(selectedId: id);
+    unawaited(_persist());
+  }
+
+  /// Increments count by 1. Returns `true` on exact cycle target completion.
+  bool tap() {
+    final id = state.selectedId;
+    final target = state.activeTarget;
+    final today = IslamicFeaturesService.formatDateKey(DateTime.now());
+    final baseTodayTotal = state.todayDateKey == today ? state.todayTotal : 0;
+
+    final currentCycle = state.cycleCountsById[id] ?? 0;
+    int nextCycle = currentCycle + 1;
+    bool hitTarget = false;
+    if (target > 0 && nextCycle >= target) {
+      hitTarget = nextCycle == target;
+      if (nextCycle > target) {
+        nextCycle = 1;
+      }
+    }
+
+    final nextCycles = Map<String, int>.from(state.cycleCountsById)
+      ..[id] = nextCycle;
+    final nextLifetimes = Map<String, int>.from(state.lifetimeCountsById)
+      ..[id] = (state.lifetimeCountsById[id] ?? 0) + 1;
+
+    state = state.copyWith(
+      cycleCountsById: nextCycles,
+      lifetimeCountsById: nextLifetimes,
+      todayDateKey: today,
+      todayTotal: baseTodayTotal + 1,
+    );
+    unawaited(_persist());
+    return hitTarget;
+  }
+
+  void resetCycle() {
+    final nextCycles = Map<String, int>.from(state.cycleCountsById)
+      ..[state.selectedId] = 0;
+    state = state.copyWith(cycleCountsById: nextCycles);
+    unawaited(_persist());
+  }
+
+  void setTarget(int target) {
+    final nextTargets = Map<String, int>.from(state.targetsById)
+      ..[state.selectedId] = target;
+    final currentCycle = state.cycleCountsById[state.selectedId] ?? 0;
+    final nextCycles = Map<String, int>.from(state.cycleCountsById);
+    if (target > 0 && currentCycle > target) {
+      nextCycles[state.selectedId] = currentCycle % target;
+    }
+    state = state.copyWith(
+      targetsById: nextTargets,
+      cycleCountsById: nextCycles,
+    );
+    unawaited(_persist());
+  }
+
+  void toggleVibrateOnTap() {
+    state = state.copyWith(vibrateOnTap: !state.vibrateOnTap);
+    unawaited(_persist());
+  }
+
+  void addCustomPreset({
+    required String title,
+    String arabic = '',
+    int defaultTarget = 33,
+  }) {
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty) return;
+    final id = 'custom_${DateTime.now().millisecondsSinceEpoch}';
+    final preset = TasbihPreset(
+      id: id,
+      arabic: arabic.trim().isEmpty ? cleanTitle : arabic.trim(),
+      titleEn: cleanTitle,
+      titleMl: cleanTitle,
+      defaultTarget: defaultTarget,
+      isCustom: true,
+    );
+    final nextCustoms = [...state.customPresets, preset];
+    final nextTargets = Map<String, int>.from(state.targetsById)
+      ..[id] = defaultTarget;
+    state = state.copyWith(
+      selectedId: id,
+      customPresets: nextCustoms,
+      targetsById: nextTargets,
+    );
+    unawaited(_persist());
+  }
+
+  void deleteCustomPreset(String id) {
+    final nextCustoms = state.customPresets.where((e) => e.id != id).toList();
+    final nextId = state.selectedId == id
+        ? AdhkarCatalog.defaultTasbihPresets.first.id
+        : state.selectedId;
+    final nextTargets = Map<String, int>.from(state.targetsById)..remove(id);
+    final nextCycles = Map<String, int>.from(state.cycleCountsById)..remove(id);
+    final nextLife = Map<String, int>.from(state.lifetimeCountsById)..remove(id);
+    state = state.copyWith(
+      selectedId: nextId,
+      customPresets: nextCustoms,
+      targetsById: nextTargets,
+      cycleCountsById: nextCycles,
+      lifetimeCountsById: nextLife,
+    );
+    unawaited(_persist());
+  }
+}
+
+final tasbihProvider = StateNotifierProvider<TasbihNotifier, TasbihState>(
+  (ref) => TasbihNotifier(ref),
 );

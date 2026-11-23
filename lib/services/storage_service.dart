@@ -1,6 +1,8 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
+import '../models/adhkar_tasbih_model.dart';
 import '../models/islamic_features_model.dart';
+import 'hive_db.dart';
 
 class AppSettings {
   final String appLanguage; // 'en' (default) | 'ml' | 'ar'
@@ -39,6 +41,14 @@ class AppSettings {
   final bool? _alarmVibrate;
   final Map<String, PrayerAlarmConfig>? _prayerConfigs;
 
+  // Surah Al-Kahf Reminder settings (Thursday 7:00 PM & Friday 8:00 AM)
+  final bool? _kahfThursdayEnabled;
+  final bool? _kahfFridayEnabled;
+  final int? _kahfThuHour;
+  final int? _kahfThuMinute;
+  final int? _kahfFriHour;
+  final int? _kahfFriMinute;
+
   String get prayerLocationMode => _prayerLocationMode ?? 'city';
   String get prayerCity => _prayerCity ?? 'Kochi';
   String get prayerCountry => _prayerCountry ?? 'India';
@@ -59,6 +69,13 @@ class AppSettings {
   bool get alarmVibrate => _alarmVibrate ?? true;
   Map<String, PrayerAlarmConfig> get prayerConfigs =>
       _prayerConfigs ?? AlAdhanCatalog.defaultPrayerConfigs();
+
+  bool get kahfThursdayEnabled => _kahfThursdayEnabled ?? true;
+  bool get kahfFridayEnabled => _kahfFridayEnabled ?? true;
+  int get kahfThuHour => (_kahfThuHour ?? 19).clamp(0, 23);
+  int get kahfThuMinute => (_kahfThuMinute ?? 0).clamp(0, 59);
+  int get kahfFriHour => (_kahfFriHour ?? 8).clamp(0, 23);
+  int get kahfFriMinute => (_kahfFriMinute ?? 0).clamp(0, 59);
 
   PrayerAlarmConfig alarmConfigFor(String prayerKey) =>
       prayerConfigs[prayerKey] ?? PrayerAlarmConfig(prayerKey: prayerKey);
@@ -94,6 +111,12 @@ class AppSettings {
     double? alarmVolume = 0.85,
     bool? alarmVibrate = true,
     Map<String, PrayerAlarmConfig>? prayerConfigs,
+    bool? kahfThursdayEnabled = true,
+    bool? kahfFridayEnabled = true,
+    int? kahfThuHour = 19,
+    int? kahfThuMinute = 0,
+    int? kahfFriHour = 8,
+    int? kahfFriMinute = 0,
   })  : _prayerLocationMode = prayerLocationMode,
         _prayerCity = prayerCity,
         _prayerCountry = prayerCountry,
@@ -111,7 +134,13 @@ class AppSettings {
         _alarmSoundType = alarmSoundType,
         _alarmVolume = alarmVolume,
         _alarmVibrate = alarmVibrate,
-        _prayerConfigs = prayerConfigs;
+        _prayerConfigs = prayerConfigs,
+        _kahfThursdayEnabled = kahfThursdayEnabled,
+        _kahfFridayEnabled = kahfFridayEnabled,
+        _kahfThuHour = kahfThuHour,
+        _kahfThuMinute = kahfThuMinute,
+        _kahfFriHour = kahfFriHour,
+        _kahfFriMinute = kahfFriMinute;
 
   int tuneFor(String prayerKey) {
     switch (prayerKey) {
@@ -212,6 +241,12 @@ class AppSettings {
     double? alarmVolume,
     bool? alarmVibrate,
     Map<String, PrayerAlarmConfig>? prayerConfigs,
+    bool? kahfThursdayEnabled,
+    bool? kahfFridayEnabled,
+    int? kahfThuHour,
+    int? kahfThuMinute,
+    int? kahfFriHour,
+    int? kahfFriMinute,
   }) {
     return AppSettings(
       appLanguage: appLanguage ?? this.appLanguage,
@@ -247,6 +282,12 @@ class AppSettings {
       alarmVolume: alarmVolume ?? this.alarmVolume,
       alarmVibrate: alarmVibrate ?? this.alarmVibrate,
       prayerConfigs: prayerConfigs ?? this.prayerConfigs,
+      kahfThursdayEnabled: kahfThursdayEnabled ?? this.kahfThursdayEnabled,
+      kahfFridayEnabled: kahfFridayEnabled ?? this.kahfFridayEnabled,
+      kahfThuHour: kahfThuHour ?? this.kahfThuHour,
+      kahfThuMinute: kahfThuMinute ?? this.kahfThuMinute,
+      kahfFriHour: kahfFriHour ?? this.kahfFriHour,
+      kahfFriMinute: kahfFriMinute ?? this.kahfFriMinute,
     );
   }
 }
@@ -296,7 +337,7 @@ class AppResumeState {
   final String lastScreen; // 'home' | 'reader'
   final int homeTabIndex; // 0: Quran, 1: Features, 2: Settings
   final int quranSubTabIndex; // 0: Surah, 1: Juz, 2: Bookmarks, 3: Export
-  final int? _featuresSubTabIndex; // 0: Prayer Times, 1: Hijri
+  final int? _featuresSubTabIndex; // 0: Prayer, 1: Hijri, 2: Adhkar, 3: Tasbih
   int get featuresSubTabIndex => _featuresSubTabIndex ?? 0;
   final double surahListScrollOffset;
   final double juzListScrollOffset;
@@ -421,35 +462,87 @@ class StorageService {
   static const _tuneIshaKey = 'pref_tune_isha_v1';
   static const _hijriAdjKey = 'pref_hijri_adj_v1';
 
-  // Prayer Alarm preferences
+  // Prayer Alarm & Al-Kahf Reminder preferences
   static const _alarmMasterKey = 'pref_alarm_master_v1';
   static const _alarmSoundKey = 'pref_alarm_sound_v1';
   static const _alarmVolumeKey = 'pref_alarm_volume_v1';
   static const _alarmVibrateKey = 'pref_alarm_vibrate_v1';
   static const _prayerConfigsKey = 'pref_prayer_configs_v1';
   static const _dismissedAlarmsKey = 'prayer_alarm_dismissed_v1';
+  static const _kahfThuEnabledKey = 'pref_kahf_thu_enabled_v1';
+  static const _kahfFriEnabledKey = 'pref_kahf_fri_enabled_v1';
+  static const _kahfThuHourKey = 'pref_kahf_thu_hour_v1';
+  static const _kahfThuMinKey = 'pref_kahf_thu_min_v1';
+  static const _kahfFriHourKey = 'pref_kahf_fri_hour_v1';
+  static const _kahfFriMinKey = 'pref_kahf_fri_min_v1';
 
   // Offline API caches
   static const _dailyPrayerCacheKey = 'prayer_daily_cache_v1';
   static const _hijriCalCachePrefix = 'hijri_month_cal_v2_';
 
-  Future<SharedPreferences>? _prefsFuture;
-  Future<SharedPreferences> get _prefs =>
-      _prefsFuture ??= SharedPreferences.getInstance();
+  // Adhkar & Tasbih Hive keys
+  static const _adhkarDailyKeyPrefix = 'adhkar_daily_v1_';
+  static const _adhkarFavoritesKey = 'adhkar_favorites_v1';
+  static const _kahfBannerDismissedPrefix = 'kahf_banner_dismissed_v1_';
+  static const _tasbihSnapshotKey = 'tasbih_snapshot_v1';
+
+  Future<Box<dynamic>> _prefsBox() async {
+    await HiveDb.instance.ensureInitialized();
+    return HiveDb.instance.appPrefsBox;
+  }
+
+  Future<Box<dynamic>> _islamicBox() async {
+    await HiveDb.instance.ensureInitialized();
+    return HiveDb.instance.islamicCacheBox;
+  }
+
+  Future<Box<dynamic>> _adhkarBox() async {
+    await HiveDb.instance.ensureInitialized();
+    return HiveDb.instance.adhkarProgressBox;
+  }
+
+  Future<Box<dynamic>> _tasbihBox() async {
+    await HiveDb.instance.ensureInitialized();
+    return HiveDb.instance.tasbihBox;
+  }
+
+  T? _readTyped<T>(Box<dynamic> box, String key) {
+    final v = box.get(key);
+    if (v is T) return v;
+    return null;
+  }
+
+  int? _readInt(Box<dynamic> box, String key) {
+    final v = box.get(key);
+    if (v is num) return v.toInt();
+    return null;
+  }
+
+  double? _readDouble(Box<dynamic> box, String key) {
+    final v = box.get(key);
+    if (v is num) return v.toDouble();
+    return null;
+  }
+
+  List<String>? _readStringList(Box<dynamic> box, String key) {
+    final v = box.get(key);
+    if (v is List) return v.map((e) => e.toString()).toList();
+    return null;
+  }
 
   Future<List<String>> loadBookmarks() async {
-    final prefs = await _prefs;
-    return prefs.getStringList(_bookmarksKey) ?? <String>[];
+    final box = await _prefsBox();
+    return _readStringList(box, _bookmarksKey) ?? <String>[];
   }
 
   Future<void> saveBookmarks(List<String> keys) async {
-    final prefs = await _prefs;
-    await prefs.setStringList(_bookmarksKey, keys);
+    final box = await _prefsBox();
+    await box.put(_bookmarksKey, keys);
   }
 
   Future<LastReadPosition?> loadLastRead() async {
-    final prefs = await _prefs;
-    final raw = prefs.getString(_lastReadKey);
+    final box = await _prefsBox();
+    final raw = _readTyped<String>(box, _lastReadKey);
     if (raw == null) return null;
     try {
       return LastReadPosition.fromJson(jsonDecode(raw) as Map<String, dynamic>);
@@ -459,13 +552,13 @@ class StorageService {
   }
 
   Future<void> saveLastRead(LastReadPosition pos) async {
-    final prefs = await _prefs;
-    await prefs.setString(_lastReadKey, jsonEncode(pos.toJson()));
+    final box = await _prefsBox();
+    await box.put(_lastReadKey, jsonEncode(pos.toJson()));
   }
 
   Future<AppResumeState> loadResumeState() async {
-    final prefs = await _prefs;
-    final raw = prefs.getString(_resumeStateKey);
+    final box = await _prefsBox();
+    final raw = _readTyped<String>(box, _resumeStateKey);
     if (raw == null) return const AppResumeState();
     try {
       return AppResumeState.fromJson(jsonDecode(raw) as Map<String, dynamic>);
@@ -475,16 +568,16 @@ class StorageService {
   }
 
   Future<void> saveResumeState(AppResumeState state) async {
-    final prefs = await _prefs;
-    await prefs.setString(_resumeStateKey, jsonEncode(state.toJson()));
+    final box = await _prefsBox();
+    await box.put(_resumeStateKey, jsonEncode(state.toJson()));
   }
 
   Future<AppSettings> loadSettings() async {
-    final prefs = await _prefs;
-    final savedTrans = prefs.getStringList(_selTransKey);
+    final box = await _prefsBox();
+    final savedTrans = _readStringList(box, _selTransKey);
 
     final configs = AlAdhanCatalog.defaultPrayerConfigs();
-    final rawConfigs = prefs.getString(_prayerConfigsKey);
+    final rawConfigs = _readTyped<String>(box, _prayerConfigsKey);
     if (rawConfigs != null) {
       try {
         final decoded = jsonDecode(rawConfigs) as Map<String, dynamic>;
@@ -498,91 +591,105 @@ class StorageService {
     }
 
     return AppSettings(
-      appLanguage: prefs.getString(_appLangKey) ?? 'en',
-      readingMode: prefs.getString(_readModeKey) ?? 'mushaf',
-      themeMode: prefs.getString(_themeKey) ?? 'sepia',
-      arabicFontSize: prefs.getDouble(_arSizeKey) ?? 27.0,
-      translationFontSize: prefs.getDouble(_trSizeKey) ?? 15.0,
-      showTranslation: prefs.getBool(_showTransKey) ?? false,
+      appLanguage: _readTyped<String>(box, _appLangKey) ?? 'en',
+      readingMode: _readTyped<String>(box, _readModeKey) ?? 'mushaf',
+      themeMode: _readTyped<String>(box, _themeKey) ?? 'sepia',
+      arabicFontSize: _readDouble(box, _arSizeKey) ?? 27.0,
+      translationFontSize: _readDouble(box, _trSizeKey) ?? 15.0,
+      showTranslation: _readTyped<bool>(box, _showTransKey) ?? false,
       selectedTranslations:
           (savedTrans != null && savedTrans.isNotEmpty) ? savedTrans : ['en'],
-      autoScrollSpeed: prefs.getDouble(_scrollSpeedKey) ?? 1.0,
-      reciterId: prefs.getString(_reciterIdKey) ?? 'ar.alafasy',
-      fabRelX: prefs.getDouble(_fabRelXKey),
-      fabRelY: prefs.getDouble(_fabRelYKey),
-      prayerLocationMode: prefs.getString(_prayerLocModeKey) ?? 'city',
-      prayerCity: prefs.getString(_prayerCityKey) ?? 'Kochi',
-      prayerCountry: prefs.getString(_prayerCountryKey) ?? 'India',
-      prayerLat: prefs.getDouble(_prayerLatKey) ?? 9.9312,
-      prayerLon: prefs.getDouble(_prayerLonKey) ?? 76.2673,
-      gpsLocalityLabel: prefs.getString(_gpsLocalityKey),
-      prayerMethod: prefs.getInt(_prayerMethodKey) ?? 1,
-      prayerSchool: prefs.getInt(_prayerSchoolKey) ?? 0,
-      prayerTuneFajr: prefs.getInt(_tuneFajrKey) ?? 0,
-      prayerTuneDhuhr: prefs.getInt(_tuneDhuhrKey) ?? 0,
-      prayerTuneAsr: prefs.getInt(_tuneAsrKey) ?? 0,
-      prayerTuneMaghrib: prefs.getInt(_tuneMaghribKey) ?? 0,
-      prayerTuneIsha: prefs.getInt(_tuneIshaKey) ?? 0,
-      hijriAdjustment: (prefs.getInt(_hijriAdjKey) ?? 0).clamp(-1, 1),
-      prayerAlarmMasterEnabled: prefs.getBool(_alarmMasterKey) ?? false,
-      alarmSoundType: prefs.getString(_alarmSoundKey) ?? 'adhan_alafasy',
-      alarmVolume: (prefs.getDouble(_alarmVolumeKey) ?? 0.85).clamp(0.1, 1.0),
-      alarmVibrate: prefs.getBool(_alarmVibrateKey) ?? true,
+      autoScrollSpeed: _readDouble(box, _scrollSpeedKey) ?? 1.0,
+      reciterId: _readTyped<String>(box, _reciterIdKey) ?? 'ar.alafasy',
+      fabRelX: _readDouble(box, _fabRelXKey),
+      fabRelY: _readDouble(box, _fabRelYKey),
+      prayerLocationMode: _readTyped<String>(box, _prayerLocModeKey) ?? 'city',
+      prayerCity: _readTyped<String>(box, _prayerCityKey) ?? 'Kochi',
+      prayerCountry: _readTyped<String>(box, _prayerCountryKey) ?? 'India',
+      prayerLat: _readDouble(box, _prayerLatKey) ?? 9.9312,
+      prayerLon: _readDouble(box, _prayerLonKey) ?? 76.2673,
+      gpsLocalityLabel: _readTyped<String>(box, _gpsLocalityKey),
+      prayerMethod: _readInt(box, _prayerMethodKey) ?? 1,
+      prayerSchool: _readInt(box, _prayerSchoolKey) ?? 0,
+      prayerTuneFajr: _readInt(box, _tuneFajrKey) ?? 0,
+      prayerTuneDhuhr: _readInt(box, _tuneDhuhrKey) ?? 0,
+      prayerTuneAsr: _readInt(box, _tuneAsrKey) ?? 0,
+      prayerTuneMaghrib: _readInt(box, _tuneMaghribKey) ?? 0,
+      prayerTuneIsha: _readInt(box, _tuneIshaKey) ?? 0,
+      hijriAdjustment: (_readInt(box, _hijriAdjKey) ?? 0).clamp(-1, 1),
+      prayerAlarmMasterEnabled: _readTyped<bool>(box, _alarmMasterKey) ?? false,
+      alarmSoundType:
+          _readTyped<String>(box, _alarmSoundKey) ?? 'adhan_alafasy',
+      alarmVolume: (_readDouble(box, _alarmVolumeKey) ?? 0.85).clamp(0.1, 1.0),
+      alarmVibrate: _readTyped<bool>(box, _alarmVibrateKey) ?? true,
       prayerConfigs: configs,
+      kahfThursdayEnabled: _readTyped<bool>(box, _kahfThuEnabledKey) ?? true,
+      kahfFridayEnabled: _readTyped<bool>(box, _kahfFriEnabledKey) ?? true,
+      kahfThuHour: _readInt(box, _kahfThuHourKey) ?? 19,
+      kahfThuMinute: _readInt(box, _kahfThuMinKey) ?? 0,
+      kahfFriHour: _readInt(box, _kahfFriHourKey) ?? 8,
+      kahfFriMinute: _readInt(box, _kahfFriMinKey) ?? 0,
     );
   }
 
   Future<void> saveSettings(AppSettings settings) async {
-    final prefs = await _prefs;
-    await prefs.setString(_appLangKey, settings.appLanguage);
-    await prefs.setString(_readModeKey, settings.readingMode);
-    await prefs.setString(_themeKey, settings.themeMode);
-    await prefs.setDouble(_arSizeKey, settings.arabicFontSize);
-    await prefs.setDouble(_trSizeKey, settings.translationFontSize);
-    await prefs.setBool(_showTransKey, settings.showTranslation);
-    await prefs.setStringList(_selTransKey, settings.selectedTranslations);
-    await prefs.setDouble(_scrollSpeedKey, settings.autoScrollSpeed);
-    await prefs.setString(_reciterIdKey, settings.reciterId);
+    final box = await _prefsBox();
+    await box.putAll({
+      _appLangKey: settings.appLanguage,
+      _readModeKey: settings.readingMode,
+      _themeKey: settings.themeMode,
+      _arSizeKey: settings.arabicFontSize,
+      _trSizeKey: settings.translationFontSize,
+      _showTransKey: settings.showTranslation,
+      _selTransKey: settings.selectedTranslations,
+      _scrollSpeedKey: settings.autoScrollSpeed,
+      _reciterIdKey: settings.reciterId,
+      _prayerLocModeKey: settings.prayerLocationMode,
+      _prayerCityKey: settings.prayerCity,
+      _prayerCountryKey: settings.prayerCountry,
+      _prayerLatKey: settings.prayerLat,
+      _prayerLonKey: settings.prayerLon,
+      _prayerMethodKey: settings.prayerMethod,
+      _prayerSchoolKey: settings.prayerSchool,
+      _tuneFajrKey: settings.prayerTuneFajr,
+      _tuneDhuhrKey: settings.prayerTuneDhuhr,
+      _tuneAsrKey: settings.prayerTuneAsr,
+      _tuneMaghribKey: settings.prayerTuneMaghrib,
+      _tuneIshaKey: settings.prayerTuneIsha,
+      _hijriAdjKey: settings.hijriAdjustment,
+      _alarmMasterKey: settings.prayerAlarmMasterEnabled,
+      _alarmSoundKey: settings.alarmSoundType,
+      _alarmVolumeKey: settings.alarmVolume,
+      _alarmVibrateKey: settings.alarmVibrate,
+      _prayerConfigsKey: jsonEncode({
+        for (final e in settings.prayerConfigs.entries) e.key: e.value.toJson(),
+      }),
+      _kahfThuEnabledKey: settings.kahfThursdayEnabled,
+      _kahfFriEnabledKey: settings.kahfFridayEnabled,
+      _kahfThuHourKey: settings.kahfThuHour,
+      _kahfThuMinKey: settings.kahfThuMinute,
+      _kahfFriHourKey: settings.kahfFriHour,
+      _kahfFriMinKey: settings.kahfFriMinute,
+    });
+
     if (settings.fabRelX != null && settings.fabRelY != null) {
-      await prefs.setDouble(_fabRelXKey, settings.fabRelX!);
-      await prefs.setDouble(_fabRelYKey, settings.fabRelY!);
+      await box.put(_fabRelXKey, settings.fabRelX!);
+      await box.put(_fabRelYKey, settings.fabRelY!);
     } else {
-      await prefs.remove(_fabRelXKey);
-      await prefs.remove(_fabRelYKey);
+      await box.delete(_fabRelXKey);
+      await box.delete(_fabRelYKey);
     }
 
-    await prefs.setString(_prayerLocModeKey, settings.prayerLocationMode);
-    await prefs.setString(_prayerCityKey, settings.prayerCity);
-    await prefs.setString(_prayerCountryKey, settings.prayerCountry);
-    await prefs.setDouble(_prayerLatKey, settings.prayerLat);
-    await prefs.setDouble(_prayerLonKey, settings.prayerLon);
     if (settings.gpsLocalityLabel != null) {
-      await prefs.setString(_gpsLocalityKey, settings.gpsLocalityLabel!);
+      await box.put(_gpsLocalityKey, settings.gpsLocalityLabel!);
     } else {
-      await prefs.remove(_gpsLocalityKey);
+      await box.delete(_gpsLocalityKey);
     }
-    await prefs.setInt(_prayerMethodKey, settings.prayerMethod);
-    await prefs.setInt(_prayerSchoolKey, settings.prayerSchool);
-    await prefs.setInt(_tuneFajrKey, settings.prayerTuneFajr);
-    await prefs.setInt(_tuneDhuhrKey, settings.prayerTuneDhuhr);
-    await prefs.setInt(_tuneAsrKey, settings.prayerTuneAsr);
-    await prefs.setInt(_tuneMaghribKey, settings.prayerTuneMaghrib);
-    await prefs.setInt(_tuneIshaKey, settings.prayerTuneIsha);
-    await prefs.setInt(_hijriAdjKey, settings.hijriAdjustment);
-
-    await prefs.setBool(_alarmMasterKey, settings.prayerAlarmMasterEnabled);
-    await prefs.setString(_alarmSoundKey, settings.alarmSoundType);
-    await prefs.setDouble(_alarmVolumeKey, settings.alarmVolume);
-    await prefs.setBool(_alarmVibrateKey, settings.alarmVibrate);
-    final encodedConfigs = {
-      for (final e in settings.prayerConfigs.entries) e.key: e.value.toJson(),
-    };
-    await prefs.setString(_prayerConfigsKey, jsonEncode(encodedConfigs));
   }
 
   Future<Set<String>> loadDismissedAlarmsForDate(String dateKey) async {
-    final prefs = await _prefs;
-    final list = prefs.getStringList(_dismissedAlarmsKey) ?? const [];
+    final box = await _islamicBox();
+    final list = _readStringList(box, _dismissedAlarmsKey) ?? const [];
     return list.where((k) => k.startsWith('$dateKey|')).toSet();
   }
 
@@ -590,14 +697,14 @@ class StorageService {
     String dateKey,
     Set<String> keys,
   ) async {
-    final prefs = await _prefs;
+    final box = await _islamicBox();
     final pruned = keys.where((k) => k.startsWith('$dateKey|')).toList();
-    await prefs.setStringList(_dismissedAlarmsKey, pruned);
+    await box.put(_dismissedAlarmsKey, pruned);
   }
 
   Future<Map<String, dynamic>?> loadDailyPrayerCache() async {
-    final prefs = await _prefs;
-    final raw = prefs.getString(_dailyPrayerCacheKey);
+    final box = await _islamicBox();
+    final raw = _readTyped<String>(box, _dailyPrayerCacheKey);
     if (raw == null) return null;
     try {
       return jsonDecode(raw) as Map<String, dynamic>;
@@ -607,8 +714,8 @@ class StorageService {
   }
 
   Future<void> saveDailyPrayerCache(Map<String, dynamic> payload) async {
-    final prefs = await _prefs;
-    await prefs.setString(_dailyPrayerCacheKey, jsonEncode(payload));
+    final box = await _islamicBox();
+    await box.put(_dailyPrayerCacheKey, jsonEncode(payload));
   }
 
   Future<List<dynamic>?> loadHijriCalendarCache(
@@ -616,8 +723,9 @@ class StorageService {
     int hijriMonth,
     int adjustment,
   ) async {
-    final prefs = await _prefs;
-    final raw = prefs.getString(
+    final box = await _islamicBox();
+    final raw = _readTyped<String>(
+      box,
       '$_hijriCalCachePrefix${hijriYear}_${hijriMonth}_adj$adjustment',
     );
     if (raw == null) return null;
@@ -634,10 +742,102 @@ class StorageService {
     int adjustment,
     List<Map<String, dynamic>> entries,
   ) async {
-    final prefs = await _prefs;
-    await prefs.setString(
+    final box = await _islamicBox();
+    await box.put(
       '$_hijriCalCachePrefix${hijriYear}_${hijriMonth}_adj$adjustment',
       jsonEncode(entries),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // ADHKAR PROGRESS & FAVORITES (HIVE)
+  // -------------------------------------------------------------------------
+
+  Future<Map<String, int>> loadAdhkarCountsForDate(String dateKey) async {
+    final box = await _adhkarBox();
+    final raw = _readTyped<String>(box, '$_adhkarDailyKeyPrefix$dateKey');
+    if (raw == null) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return {
+        for (final e in decoded.entries) e.key: (e.value as num?)?.toInt() ?? 0,
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> saveAdhkarCountsForDate(
+    String dateKey,
+    Map<String, int> counts,
+  ) async {
+    final box = await _adhkarBox();
+    await box.put('$_adhkarDailyKeyPrefix$dateKey', jsonEncode(counts));
+  }
+
+  Future<Set<String>> loadFavoriteAdhkarIds() async {
+    final box = await _adhkarBox();
+    return (_readStringList(box, _adhkarFavoritesKey) ?? const []).toSet();
+  }
+
+  Future<void> saveFavoriteAdhkarIds(Set<String> ids) async {
+    final box = await _adhkarBox();
+    await box.put(_adhkarFavoritesKey, ids.toList());
+  }
+
+  // -------------------------------------------------------------------------
+  // SURAH AL-KAHF BANNER DISMISSAL (WEB/IN-APP)
+  // -------------------------------------------------------------------------
+
+  Future<bool> isKahfBannerDismissed(String dateKey) async {
+    final box = await _islamicBox();
+    return _readTyped<bool>(box, '$_kahfBannerDismissedPrefix$dateKey') ??
+        false;
+  }
+
+  Future<void> setKahfBannerDismissed(String dateKey) async {
+    final box = await _islamicBox();
+    await box.put('$_kahfBannerDismissedPrefix$dateKey', true);
+  }
+
+  // -------------------------------------------------------------------------
+  // DIGITAL TASBIH STORE (HIVE)
+  // -------------------------------------------------------------------------
+
+  Future<Map<String, dynamic>?> loadTasbihSnapshot() async {
+    final box = await _tasbihBox();
+    final raw = _readTyped<String>(box, _tasbihSnapshotKey);
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveTasbihSnapshot({
+    required String selectedId,
+    required List<TasbihPreset> customPresets,
+    required Map<String, int> targetsById,
+    required Map<String, int> cycleCountsById,
+    required Map<String, int> lifetimeCountsById,
+    required String todayDateKey,
+    required int todayTotal,
+    required bool vibrateOnTap,
+  }) async {
+    final box = await _tasbihBox();
+    await box.put(
+      _tasbihSnapshotKey,
+      jsonEncode({
+        'selectedId': selectedId,
+        'customPresets': customPresets.map((e) => e.toJson()).toList(),
+        'targetsById': targetsById,
+        'cycleCountsById': cycleCountsById,
+        'lifetimeCountsById': lifetimeCountsById,
+        'todayDateKey': todayDateKey,
+        'todayTotal': todayTotal,
+        'vibrateOnTap': vibrateOnTap,
+      }),
     );
   }
 }

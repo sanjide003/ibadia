@@ -11,6 +11,7 @@ import '../models/surah_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
+import '../services/prayer_alarm_bridge.dart';
 import '../services/storage_service.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/web_pwa_widgets.dart';
@@ -75,14 +76,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   TabController _ensureFeaturesTabController() {
     final existing = _featuresTabCtrl;
-    if (existing != null && existing.length == 2) {
+    if (existing != null && existing.length == 4) {
       return existing;
     }
     if (existing != null) {
       existing.removeListener(_onFeaturesSubTabChanged);
       existing.dispose();
     }
-    final ctrl = TabController(length: 2, vsync: this);
+    final ctrl = TabController(length: 4, vsync: this);
     ctrl.addListener(_onFeaturesSubTabChanged);
     _featuresTabCtrl = ctrl;
     return ctrl;
@@ -98,6 +99,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _surahScrollController;
     _juzScrollController;
     _bookmarksScrollController;
+
+    PrayerAlarmBridge.instance.setOnOpenSurahHandler((surahNo) {
+      if (!mounted) return;
+      _openSurah(context, surahNo);
+    });
+    PrayerAlarmBridge.instance.setOnOpenPrayerTabHandler(() {
+      if (!mounted) return;
+      setState(() => _tabIndex = 1);
+      if (_featuresTabController.index != 0) {
+        _featuresTabController.animateTo(0);
+      }
+      _persistHomeState(forceHomeActive: true);
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -116,6 +130,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void dispose() {
+    PrayerAlarmBridge.instance.setOnOpenSurahHandler(null);
+    PrayerAlarmBridge.instance.setOnOpenPrayerTabHandler(null);
     WidgetsBinding.instance.removeObserver(this);
     _homeScrollDebounce?.cancel();
     _quranTabCtrl?.removeListener(_onQuranSubTabChanged);
@@ -232,15 +248,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final restoredTab = resume.homeTabIndex.clamp(0, 2);
     final restoredSubTab = resume.quranSubTabIndex.clamp(0, 3);
-    final restoredFeaturesSubTab = resume.featuresSubTabIndex.clamp(0, 1);
+    final restoredFeaturesSubTab = resume.featuresSubTabIndex.clamp(0, 3);
+
+    final launchAction =
+        await PrayerAlarmBridge.instance.getInitialLaunchAction();
+    if (!mounted) return;
 
     setState(() {
-      _tabIndex = restoredTab;
+      _tabIndex = (launchAction?.openPrayerTab == true) ? 1 : restoredTab;
       if (_quranTabController.index != restoredSubTab) {
         _quranTabController.index = restoredSubTab;
       }
-      if (_featuresTabController.index != restoredFeaturesSubTab) {
-        _featuresTabController.index = restoredFeaturesSubTab;
+      final targetFeatTab =
+          (launchAction?.openPrayerTab == true) ? 0 : restoredFeaturesSubTab;
+      if (_featuresTabController.index != targetFeatTab) {
+        _featuresTabController.index = targetFeatTab;
       }
       _pendingSurahScrollOffset = resume.surahListScrollOffset;
       _pendingJuzScrollOffset = resume.juzListScrollOffset;
@@ -251,7 +273,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _applyPendingHomeScrollOffsets();
     });
 
-    if (resume.lastScreen == 'reader') {
+    if (launchAction?.openSurah != null && launchAction!.openSurah! > 0) {
+      await _openSurah(
+        context,
+        launchAction.openSurah!,
+        instantTransition: true,
+      );
+      return;
+    }
+
+    if (launchAction?.openPrayerTab != true && resume.lastScreen == 'reader') {
       final targetSurah = resume.activeSurahNumber ?? lastRead?.surahNumber;
       if (targetSurah != null) {
         final targetAyah = resume.activeAyahNumber ?? lastRead?.ayahNumber;
@@ -459,19 +490,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       dividerColor: Colors.transparent,
                       labelColor: Colors.white,
                       unselectedLabelColor: Colors.white70,
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                       labelStyle: const TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        fontSize: 13.5,
                       ),
                       unselectedLabelStyle: const TextStyle(
                         fontWeight: FontWeight.w500,
-                        fontSize: 14,
+                        fontSize: 13.5,
                       ),
                       tabs: [
                         Tab(
                           child: Text(
-                            t.prayerTimesTab,
+                            t.prayerShortTab,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -479,6 +510,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         Tab(
                           child: Text(
                             t.hijriCalendarTab,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Tab(
+                          child: Text(
+                            t.adhkarTab,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Tab(
+                          child: Text(
+                            t.tasbihTab,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -601,6 +646,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   : _tabIndex == 1
                       ? FeaturesContainerView(
                           controller: _featuresTabController,
+                          onOpenSurah: (surahNo) =>
+                              _openSurah(context, surahNo),
                         )
                       : const SettingsTabView(),
             ),

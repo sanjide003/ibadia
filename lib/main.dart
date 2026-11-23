@@ -6,9 +6,11 @@ import 'core/l10n/app_strings.dart';
 import 'providers/islamic_features_providers.dart';
 import 'providers/quran_providers.dart';
 import 'screens/home_screen.dart';
+import 'services/hive_db.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await HiveDb.instance.ensureInitialized();
   runApp(const ProviderScope(child: QuranMalayalamApp()));
 }
 

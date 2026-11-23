@@ -7,7 +7,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,6 +26,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
 import android.view.WindowManager
+import android.widget.RemoteViews
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -33,6 +37,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -44,6 +49,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private var alarmChannel: MethodChannel? = null
+    private var pendingLaunchAction: Map<String, Any>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,12 +67,35 @@ class MainActivity : FlutterActivity() {
             )
         }
         PrayerAlarmController.ensureNotificationChannel(this)
+        PrayerAlarmController.ensureKahfNotificationChannel(this)
+        pendingLaunchAction = extractLaunchAction(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         notifyFlutterActiveAlarm()
+        val action = extractLaunchAction(intent)
+        if (action != null) {
+            if (alarmChannel != null) {
+                alarmChannel?.invokeMethod("onLaunchAction", action)
+            } else {
+                pendingLaunchAction = action
+            }
+        }
+    }
+
+    private fun extractLaunchAction(intent: Intent?): Map<String, Any>? {
+        if (intent == null) return null
+        val surah = intent.getIntExtra("openSurahNumber", 0)
+        val openPrayer = intent.getBooleanExtra("openPrayerTab", false)
+        if (surah <= 0 && !openPrayer) return null
+        intent.removeExtra("openSurahNumber")
+        intent.removeExtra("openPrayerTab")
+        val map = mutableMapOf<String, Any>()
+        if (surah > 0) map["openSurah"] = surah
+        if (openPrayer) map["openPrayerTab"] = true
+        return map
     }
 
     private fun notifyFlutterActiveAlarm() {
@@ -272,6 +301,46 @@ class MainActivity : FlutterActivity() {
                     result.success(PrayerAlarmController.getDismissedKeysForDate(applicationContext, dateKey))
                 }
 
+                "scheduleKahfReminders" -> {
+                    try {
+                        val thuEnabled = call.argument<Boolean>("thuEnabled") ?: true
+                        val friEnabled = call.argument<Boolean>("friEnabled") ?: true
+                        val thuHour = call.argument<Number>("thuHour")?.toInt() ?: 19
+                        val thuMinute = call.argument<Number>("thuMinute")?.toInt() ?: 0
+                        val friHour = call.argument<Number>("friHour")?.toInt() ?: 8
+                        val friMinute = call.argument<Number>("friMinute")?.toInt() ?: 0
+                        val title = call.argument<String>("title") ?: "Surah Al-Kahf Reminder"
+                        val body = call.argument<String>("body") ?: "Tap to read Surah Al-Kahf"
+                        PrayerAlarmController.saveAndScheduleKahf(
+                            context = applicationContext,
+                            thuEnabled = thuEnabled,
+                            friEnabled = friEnabled,
+                            thuHour = thuHour,
+                            thuMinute = thuMinute,
+                            friHour = friHour,
+                            friMinute = friMinute,
+                            title = title,
+                            body = body
+                        )
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("KAHF_SCHEDULE_ERROR", e.message, null)
+                    }
+                }
+
+                "testKahfNotification" -> {
+                    val title = call.argument<String>("title") ?: "Surah Al-Kahf Reminder"
+                    val body = call.argument<String>("body") ?: "Tap to read Surah Al-Kahf"
+                    PrayerAlarmController.showKahfNotification(applicationContext, title, body)
+                    result.success(true)
+                }
+
+                "getInitialLaunchAction" -> {
+                    val act = pendingLaunchAction ?: extractLaunchAction(intent)
+                    pendingLaunchAction = null
+                    result.success(act)
+                }
+
                 else -> result.notImplemented()
             }
         }
@@ -293,6 +362,20 @@ object PrayerAlarmController {
     private const val CHANNEL_ID = "prayer_alarm_channel_v1"
     private const val CHANNEL_NAME = "Prayer Time Alarms"
     private const val ALARM_NOTIFICATION_ID = 7701
+
+    private const val KAHF_CHANNEL_ID = "kahf_reminder_channel_v1"
+    private const val KAHF_CHANNEL_NAME = "Surah Al-Kahf Reminders"
+    private const val KAHF_NOTIFICATION_ID = 7702
+    private const val KEY_KAHF_THU_ENABLED = "kahf_thu_enabled"
+    private const val KEY_KAHF_FRI_ENABLED = "kahf_fri_enabled"
+    private const val KEY_KAHF_THU_HOUR = "kahf_thu_hour"
+    private const val KEY_KAHF_THU_MIN = "kahf_thu_min"
+    private const val KEY_KAHF_FRI_HOUR = "kahf_fri_hour"
+    private const val KEY_KAHF_FRI_MIN = "kahf_fri_min"
+    private const val KEY_KAHF_TITLE = "kahf_notif_title"
+    private const val KEY_KAHF_BODY = "kahf_notif_body"
+    private const val REQ_KAHF_THU = 8201
+    private const val REQ_KAHF_FRI = 8202
 
     private val PRAYER_REQUEST_CODES = mapOf(
         "fajr" to 8101,
@@ -716,6 +799,156 @@ object PrayerAlarmController {
         val set = prefs.getStringSet(KEY_DISMISSED_SET, emptySet()) ?: emptySet()
         return set.filter { it.startsWith("$dateKey|") }
     }
+
+    fun ensureKahfNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (nm.getNotificationChannel(KAHF_CHANNEL_ID) == null) {
+                val ch = NotificationChannel(
+                    KAHF_CHANNEL_ID,
+                    KAHF_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Thursday evening and Friday morning Surah Al-Kahf reminders"
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    enableVibration(true)
+                }
+                nm.createNotificationChannel(ch)
+            }
+        }
+    }
+
+    private fun nextWeeklyOccurrenceMillis(dayOfWeek: Int, hour: Int, minute: Int): Long {
+        val now = Calendar.getInstance()
+        val target = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, dayOfWeek)
+            set(Calendar.HOUR_OF_DAY, hour.coerceIn(0, 23))
+            set(Calendar.MINUTE, minute.coerceIn(0, 59))
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        if (target.timeInMillis <= now.timeInMillis + 2000L) {
+            target.add(Calendar.WEEK_OF_YEAR, 1)
+        }
+        return target.timeInMillis
+    }
+
+    fun saveAndScheduleKahf(
+        context: Context,
+        thuEnabled: Boolean,
+        friEnabled: Boolean,
+        thuHour: Int,
+        thuMinute: Int,
+        friHour: Int,
+        friMinute: Int,
+        title: String,
+        body: String
+    ) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean(KEY_KAHF_THU_ENABLED, thuEnabled)
+            .putBoolean(KEY_KAHF_FRI_ENABLED, friEnabled)
+            .putInt(KEY_KAHF_THU_HOUR, thuHour)
+            .putInt(KEY_KAHF_THU_MIN, thuMinute)
+            .putInt(KEY_KAHF_FRI_HOUR, friHour)
+            .putInt(KEY_KAHF_FRI_MIN, friMinute)
+            .putString(KEY_KAHF_TITLE, title)
+            .putString(KEY_KAHF_BODY, body)
+            .apply()
+        rescheduleKahfFromPrefs(context)
+    }
+
+    fun rescheduleKahfFromPrefs(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        val thuEnabled = prefs.getBoolean(KEY_KAHF_THU_ENABLED, true)
+        val friEnabled = prefs.getBoolean(KEY_KAHF_FRI_ENABLED, true)
+        val thuHour = prefs.getInt(KEY_KAHF_THU_HOUR, 19)
+        val thuMin = prefs.getInt(KEY_KAHF_THU_MIN, 0)
+        val friHour = prefs.getInt(KEY_KAHF_FRI_HOUR, 8)
+        val friMin = prefs.getInt(KEY_KAHF_FRI_MIN, 0)
+        val title = prefs.getString(KEY_KAHF_TITLE, "Surah Al-Kahf Reminder") ?: "Surah Al-Kahf Reminder"
+        val body = prefs.getString(KEY_KAHF_BODY, "Tap to read Surah Al-Kahf") ?: "Tap to read Surah Al-Kahf"
+
+        fun scheduleSingle(slotTag: String, reqCode: Int, enabled: Boolean, dayOfWeek: Int, hour: Int, min: Int) {
+            val intent = Intent(context, PrayerKahfReceiver::class.java).apply {
+                putExtra("slotTag", slotTag)
+                putExtra("title", title)
+                putExtra("body", body)
+            }
+            val pi = PendingIntent.getBroadcast(
+                context,
+                reqCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmManager.cancel(pi)
+            if (!enabled) return
+
+            val triggerAt = nextWeeklyOccurrenceMillis(dayOfWeek, hour, min)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                } else {
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                }
+            } catch (_: Exception) {}
+        }
+
+        scheduleSingle("thu", REQ_KAHF_THU, thuEnabled, Calendar.THURSDAY, thuHour, thuMin)
+        scheduleSingle("fri", REQ_KAHF_FRI, friEnabled, Calendar.FRIDAY, friHour, friMin)
+    }
+
+    fun handleKahfFired(context: Context, intent: Intent) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val title = intent.getStringExtra("title")
+            ?: prefs.getString(KEY_KAHF_TITLE, "Surah Al-Kahf Reminder")
+            ?: "Surah Al-Kahf Reminder"
+        val body = intent.getStringExtra("body")
+            ?: prefs.getString(KEY_KAHF_BODY, "Tap to read Surah Al-Kahf")
+            ?: "Tap to read Surah Al-Kahf"
+        showKahfNotification(context, title, body)
+        rescheduleKahfFromPrefs(context)
+    }
+
+    @Suppress("DEPRECATION")
+    fun showKahfNotification(context: Context, title: String, body: String) {
+        ensureKahfNotificationChannel(context)
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+            )
+            putExtra("openSurahNumber", 18)
+        }
+        val tapPi = PendingIntent.getActivity(
+            context,
+            9301,
+            tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, KAHF_CHANNEL_ID)
+        } else {
+            Notification.Builder(context)
+        }
+
+        val notif = builder
+            .setSmallIcon(android.R.drawable.ic_menu_compass)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(Notification.BigTextStyle().bigText(body))
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setContentIntent(tapPi)
+            .build()
+
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(KAHF_NOTIFICATION_ID, notif)
+    }
 }
 
 class PrayerAlarmReceiver : BroadcastReceiver() {
@@ -732,8 +965,59 @@ class PrayerDismissReceiver : BroadcastReceiver() {
     }
 }
 
+class PrayerKahfReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        PrayerAlarmController.handleKahfFired(context.applicationContext, intent)
+    }
+}
+
 class PrayerBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        PrayerAlarmController.rescheduleStoredAlarms(context.applicationContext)
+        val appCtx = context.applicationContext
+        PrayerAlarmController.rescheduleStoredAlarms(appCtx)
+        PrayerAlarmController.rescheduleKahfFromPrefs(appCtx)
+    }
+}
+
+class PrayerHomeWidgetProvider : AppWidgetProvider() {
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
+        val location = prefs.getString("widget_location", "Kochi, India") ?: "Kochi, India"
+        val hijri = prefs.getString("widget_hijri_date", "Al-Quran") ?: "Al-Quran"
+        val nextLabel = prefs.getString("widget_next_label", "Next Prayer") ?: "Next Prayer"
+        val prayerName = prefs.getString("widget_prayer_name", "Fajr") ?: "Fajr"
+        val adhanTime = prefs.getString("widget_adhan_time", "--:--") ?: "--:--"
+        val iqamahTime = prefs.getString("widget_iqamah_time", "") ?: ""
+
+        for (appWidgetId in appWidgetIds) {
+            val views = RemoteViews(context.packageName, R.layout.prayer_home_widget)
+            views.setTextViewText(R.id.widget_location, location)
+            views.setTextViewText(R.id.widget_hijri_date, hijri)
+            views.setTextViewText(R.id.widget_next_label, nextLabel)
+            views.setTextViewText(R.id.widget_prayer_name, prayerName)
+            views.setTextViewText(R.id.widget_adhan_time, adhanTime)
+            views.setTextViewText(R.id.widget_iqamah_time, iqamahTime)
+
+            val launchIntent = Intent(context, MainActivity::class.java).apply {
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                )
+                putExtra("openPrayerTab", true)
+            }
+            val pi = PendingIntent.getActivity(
+                context,
+                9401 + appWidgetId,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_root, pi)
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
     }
 }
