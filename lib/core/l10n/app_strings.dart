@@ -754,6 +754,48 @@ class AppStrings {
         'ഓട്ടോ-സൈലന്റ് വേണ്ട നമസ്കാരങ്ങൾ',
         'الصلوات المفعّلة للصامت',
       );
+  String get exactAlarmNeeded => _pick(
+        'Allow "Alarms & reminders" for exact Auto-Silent timing',
+        'കൃത്യസമയത്ത് സൈലന്റ് ആകാൻ Alarms & reminders അനുമതി നൽകുക',
+        'اسمح بصلاحية المنبهات والتذكيرات لتفعيل الصامت في وقته',
+      );
+  String get grantExactAlarmBtn => _pick(
+        'Allow Exact Time',
+        'അനുമതി നൽകുക',
+        'السماح بالوقت الدقيق',
+      );
+  String get silentWindowPrefix =>
+      _pick('Silent', 'സൈലന്റ്', 'صامت');
+  String get dailyNameTitle => _pick(
+        'Name of the Day · Asmaul Husna',
+        'ഇന്നത്തെ നാമം · അസ്മാഉൽ ഹുസ്ന',
+        'اسم اليوم من الأسماء الحسنى',
+      );
+  String get dailyTajweedTitle => _pick(
+        'Daily Tajweed Rule',
+        'ഇന്നത്തെ തജ്‌വീദ് നിയമം',
+        'حكم التجويد اليومي',
+      );
+  String get categoriesTitle => _pick(
+        'Categories',
+        'മറ്റ് വിഭാഗങ്ങൾ',
+        'التصنيفات والأقسام',
+      );
+  String get viewMeaningBtn => _pick(
+        'View Details',
+        'വിവരണം കാണുക',
+        'عرض التفاصيل',
+      );
+  String get exploreRuleBtn => _pick(
+        'Explore Rule',
+        'നിയമം കാണുക',
+        'عرض الحكم',
+      );
+  String get ruleLanguageLabel => _pick(
+        'Explanation Language',
+        'വിശദീകരണ ഭാഷ',
+        'لغة الشرح',
+      );
 
   String revelationLabel(String raw) {
     final lower = raw.toLowerCase();

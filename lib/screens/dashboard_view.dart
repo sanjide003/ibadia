@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
@@ -15,6 +16,7 @@ import '../models/surah_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
+import '../services/tajweed_engine.dart';
 import '../widgets/tajweed_widgets.dart';
 import 'asmaul_husna_view.dart';
 import 'features_views.dart';
@@ -51,6 +53,12 @@ class _DashboardQuickAction {
     if (lang == 'ar') return titleAr;
     return titleEn;
   }
+
+  String subtitleFor(String lang) {
+    if (lang == 'ml') return subtitleMl;
+    if (lang == 'ar') return subtitleAr;
+    return subtitleEn;
+  }
 }
 
 class DashboardView extends ConsumerStatefulWidget {
@@ -73,15 +81,6 @@ class DashboardView extends ConsumerStatefulWidget {
 }
 
 class _DashboardViewState extends ConsumerState<DashboardView> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  String _query = '';
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
   ({Color cardBg, Color cardBorder, Color headerBg}) _palette(
     BuildContext context,
     AppSettings settings,
@@ -158,7 +157,6 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
   }
 
   void _handleRecentTap(RecentActivityEntry entry, AppStrings t, String lang) {
-    // Re-stamp recency when accessed again
     ref.read(recentActivityProvider.notifier).record(
           RecentActivityEntry(
             id: entry.id,
@@ -258,6 +256,275 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     }
   }
 
+  void _showUniversalSearchSheet({
+    required BuildContext context,
+    required AppStrings strings,
+    required AppSettings settings,
+    required List<_DashboardQuickAction> allActions,
+    required List<SurahSummary> surahs,
+    required ({Color cardBg, Color cardBorder, Color headerBg}) palette,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        String rawQuery = '';
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            final cs = Theme.of(sheetCtx).colorScheme;
+            final trimmedQuery = rawQuery.trim().toLowerCase();
+            final bool isSearching = trimmedQuery.isNotEmpty;
+
+            final List<_DashboardQuickAction> matchedActions = isSearching
+                ? allActions.where((a) {
+                    return a.titleEn.toLowerCase().contains(trimmedQuery) ||
+                        a.titleMl.toLowerCase().contains(trimmedQuery) ||
+                        a.titleAr.contains(rawQuery.trim()) ||
+                        a.keywords
+                            .any((k) => k.toLowerCase().contains(trimmedQuery));
+                  }).toList()
+                : allActions.take(6).toList();
+
+            final List<SurahSummary> matchedSurahs = isSearching
+                ? surahs
+                    .where((s) =>
+                        s.number.toString() == trimmedQuery ||
+                        s.englishName.toLowerCase().contains(trimmedQuery) ||
+                        s.nameArabic.contains(rawQuery.trim()))
+                    .take(6)
+                    .toList()
+                : const [];
+
+            final List<AsmaulHusnaItem> matchedNames = isSearching
+                ? AsmaulHusnaCatalog.names
+                    .where((n) =>
+                        n.number.toString() == trimmedQuery ||
+                        n.transliteration
+                            .toLowerCase()
+                            .contains(trimmedQuery) ||
+                        n.englishMeaning
+                            .toLowerCase()
+                            .contains(trimmedQuery) ||
+                        n.malayalamMeaning
+                            .toLowerCase()
+                            .contains(trimmedQuery) ||
+                        n.arabicMeaning.contains(rawQuery.trim()) ||
+                        n.arabic.contains(rawQuery.trim()))
+                    .take(6)
+                    .toList()
+                : const [];
+
+            final List<AdhkarEntry> matchedAdhkar = isSearching
+                ? AdhkarCatalog.entries
+                    .where((d) =>
+                        d.titleEn.toLowerCase().contains(trimmedQuery) ||
+                        d.titleMl.toLowerCase().contains(trimmedQuery) ||
+                        d.arabic.contains(rawQuery.trim()))
+                    .take(5)
+                    .toList()
+                : const [];
+
+            final bool hasAnyMatch = matchedActions.isNotEmpty ||
+                matchedSurahs.isNotEmpty ||
+                matchedNames.isNotEmpty ||
+                matchedAdhkar.isNotEmpty;
+
+            return Directionality(
+              textDirection: strings.textDirection,
+              child: DraggableScrollableSheet(
+                expand: false,
+                initialChildSize: 0.82,
+                minChildSize: 0.5,
+                maxChildSize: 0.94,
+                builder: (_, scrollCtrl) {
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        child: TextField(
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            hintText: strings.dashboardSearchHint,
+                            prefixIcon:
+                                const Icon(Icons.search_rounded, size: 21),
+                            suffixIcon: rawQuery.isNotEmpty
+                                ? IconButton(
+                                    onPressed: () =>
+                                        setSheetState(() => rawQuery = ''),
+                                    icon:
+                                        const Icon(Icons.close_rounded, size: 19),
+                                  )
+                                : null,
+                            isDense: true,
+                            filled: true,
+                            fillColor: palette.cardBg,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: palette.cardBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: palette.cardBorder),
+                            ),
+                          ),
+                          onChanged: (v) => setSheetState(() => rawQuery = v),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          controller: scrollCtrl,
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          children: [
+                            if (!hasAnyMatch)
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: palette.cardBg,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: palette.cardBorder),
+                                ),
+                                child: Text(
+                                  strings.noSearchResults,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: cs.onSurfaceVariant),
+                                ),
+                              )
+                            else ...[
+                              if (matchedActions.isNotEmpty) ...[
+                                _SearchSectionHeader(
+                                  label: strings.quickActionsTitle,
+                                  cs: cs,
+                                ),
+                                ...matchedActions.map((a) => _SearchResultTile(
+                                      icon: a.icon,
+                                      accent: a.accent,
+                                      title: a.titleFor(settings.appLanguage),
+                                      subtitle:
+                                          a.subtitleFor(settings.appLanguage),
+                                      cardBg: palette.cardBg,
+                                      cardBorder: palette.cardBorder,
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        a.onTap();
+                                      },
+                                    )),
+                                const SizedBox(height: 10),
+                              ],
+                              if (matchedSurahs.isNotEmpty) ...[
+                                _SearchSectionHeader(
+                                  label: strings.surahTabLabel,
+                                  cs: cs,
+                                ),
+                                ...matchedSurahs.map((s) => _SearchResultTile(
+                                      icon: Icons.menu_book_rounded,
+                                      accent: cs.primary,
+                                      title: '${s.number}. ${s.englishName}',
+                                      subtitle:
+                                          '${s.nameArabic} · ${s.numberOfAyahs} ${strings.ayahsLabel}',
+                                      cardBg: palette.cardBg,
+                                      cardBorder: palette.cardBorder,
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        widget.onOpenSurah(s.number);
+                                      },
+                                    )),
+                                const SizedBox(height: 10),
+                              ],
+                              if (matchedNames.isNotEmpty) ...[
+                                _SearchSectionHeader(
+                                  label: strings.actionNames99,
+                                  cs: cs,
+                                ),
+                                ...matchedNames.map((n) => _SearchResultTile(
+                                      icon: Icons.auto_awesome_rounded,
+                                      accent: const Color(0xFF8E24AA),
+                                      title:
+                                          '${n.number}. ${n.transliteration} — ${n.arabic}',
+                                      subtitle:
+                                          '${n.malayalamMeaning} · ${n.englishMeaning}',
+                                      cardBg: palette.cardBg,
+                                      cardBorder: palette.cardBorder,
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        ref
+                                            .read(
+                                                recentActivityProvider.notifier)
+                                            .record(
+                                              RecentActivityEntry(
+                                                id: 'asma:${n.number}',
+                                                type: RecentActivityType
+                                                    .asmaulHusna,
+                                                titleEn:
+                                                    '${n.number}. ${n.transliteration}',
+                                                titleMl:
+                                                    '${n.number}. ${n.malayalamMeaning}',
+                                                titleAr:
+                                                    '${n.number}. ${n.arabic}',
+                                                subtitleEn: n.englishMeaning,
+                                                subtitleMl: n.transliteration,
+                                                subtitleAr: n.arabicMeaning,
+                                                timestampMs: DateTime.now()
+                                                    .millisecondsSinceEpoch,
+                                                featureSubTab: 4,
+                                                asmaIndex: n.number - 1,
+                                              ),
+                                            );
+                                        showAsmaulHusnaDetailSheet(
+                                          context,
+                                          initialIndex: n.number - 1,
+                                          strings: strings,
+                                          appLanguage: settings.appLanguage,
+                                        );
+                                      },
+                                    )),
+                                const SizedBox(height: 10),
+                              ],
+                              if (matchedAdhkar.isNotEmpty) ...[
+                                _SearchSectionHeader(
+                                  label: strings.actionAdhkar,
+                                  cs: cs,
+                                ),
+                                ...matchedAdhkar.map((d) => _SearchResultTile(
+                                      icon: Icons.auto_stories_rounded,
+                                      accent: const Color(0xFF0B7A43),
+                                      title: d.titleFor(settings.appLanguage),
+                                      subtitle: d.reference,
+                                      cardBg: palette.cardBg,
+                                      cardBorder: palette.cardBorder,
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        _recordSimpleActivity(
+                                          id: 'tool:adhkar',
+                                          type: RecentActivityType.adhkar,
+                                          titleEn: d.titleEn,
+                                          titleMl: d.titleMl,
+                                          titleAr: d.titleEn,
+                                          subtitleEn: d.reference,
+                                          subtitleMl: d.reference,
+                                          subtitleAr: d.reference,
+                                          featureSubTab: 2,
+                                        );
+                                        widget.onNavigateTab(2, subTab: 2);
+                                      },
+                                    )),
+                              ],
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
@@ -270,7 +537,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     final palette = _palette(context, settings);
     final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 1040) / 2);
 
-    final quickActions = <_DashboardQuickAction>[
+    // Core 6 tools rendered right beneath the floating prayer hero card
+    final topTools = <_DashboardQuickAction>[
       _DashboardQuickAction(
         id: 'read_quran',
         icon: Icons.menu_book_rounded,
@@ -284,6 +552,127 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         keywords: const ['quran', 'surah', 'read', 'ഖുർആൻ', 'സൂറത്ത്'],
         onTap: () => widget.onNavigateTab(1, subTab: 0),
       ),
+      _DashboardQuickAction(
+        id: 'prayer_times',
+        icon: Icons.mosque_rounded,
+        accent: const Color(0xFF0B7A43),
+        titleEn: t.actionPrayer,
+        titleMl: t.actionPrayer,
+        titleAr: t.actionPrayer,
+        subtitleEn: 'Adhan, Iqamah & Alarms',
+        subtitleMl: 'ബാങ്ക്, ഇഖാമത്ത്, അലാറം',
+        subtitleAr: 'الأذان والإقامة',
+        keywords: const ['prayer', 'salah', 'adhan', 'നിസ്കാരം', 'ബാങ്ക്'],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:prayer',
+            type: RecentActivityType.prayer,
+            titleEn: 'Prayer Times',
+            titleMl: 'നിസ്കാര സമയം',
+            titleAr: 'أوقات الصلاة',
+            subtitleEn: settings.displayLocationLabel,
+            subtitleMl: settings.displayLocationLabel,
+            subtitleAr: settings.displayLocationLabel,
+            featureSubTab: 0,
+          );
+          widget.onNavigateTab(2, subTab: 0);
+        },
+      ),
+      _DashboardQuickAction(
+        id: 'hijri_calendar',
+        icon: Icons.calendar_month_rounded,
+        accent: const Color(0xFF1565C0),
+        titleEn: t.actionHijri,
+        titleMl: t.actionHijri,
+        titleAr: t.actionHijri,
+        subtitleEn: 'Islamic Calendar',
+        subtitleMl: 'ഹിജ്‌രി കലണ്ടർ',
+        subtitleAr: 'التقويم الهجري',
+        keywords: const ['hijri', 'calendar', 'date', 'ഹിജ്‌രി', 'കലണ്ടർ'],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:hijri',
+            type: RecentActivityType.hijri,
+            titleEn: 'Hijri Calendar',
+            titleMl: 'ഹിജ്‌രി കലണ്ടർ',
+            titleAr: 'التقويم الهجري',
+            subtitleEn: 'Monthly Hijri Dates',
+            subtitleMl: 'ഇസ്‌ലാമിക കലണ്ടർ',
+            subtitleAr: 'التاريخ الهجري',
+            featureSubTab: 1,
+          );
+          widget.onNavigateTab(2, subTab: 1);
+        },
+      ),
+      _DashboardQuickAction(
+        id: 'daily_adhkar',
+        icon: Icons.auto_stories_rounded,
+        accent: const Color(0xFF00796B),
+        titleEn: t.actionAdhkar,
+        titleMl: t.actionAdhkar,
+        titleAr: t.actionAdhkar,
+        subtitleEn: 'Hisnul Muslim',
+        subtitleMl: 'ദിനചര്യ ദുആകൾ',
+        subtitleAr: 'حصن المسلم',
+        keywords: const ['adhkar', 'dua', 'morning', 'evening', 'ദിക്ർ', 'ദുആ'],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:adhkar',
+            type: RecentActivityType.adhkar,
+            titleEn: 'Daily Adhkar',
+            titleMl: 'ദിക്ർ & ദുആ',
+            titleAr: 'الأذكار اليومية',
+            subtitleEn: 'Morning & Evening',
+            subtitleMl: 'രാവിലെയും വൈകുന്നേരവും',
+            subtitleAr: 'أذكار الصباح والمساء',
+            featureSubTab: 2,
+          );
+          widget.onNavigateTab(2, subTab: 2);
+        },
+      ),
+      _DashboardQuickAction(
+        id: 'counter',
+        icon: Icons.touch_app_rounded,
+        accent: const Color(0xFF00838F),
+        titleEn: t.actionCounter,
+        titleMl: t.actionCounter,
+        titleAr: t.actionCounter,
+        subtitleEn: 'Digital Dhikr Counter',
+        subtitleMl: 'ഡിജിറ്റൽ തസ്ബീഹ്',
+        subtitleAr: 'مسبحة رقمية',
+        keywords: const ['counter', 'tasbih', 'dhikr', 'കൗണ്ടർ', 'തസ്ബീഹ്'],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:counter',
+            type: RecentActivityType.counter,
+            titleEn: 'Dhikr Counter',
+            titleMl: 'കൗണ്ടർ',
+            titleAr: 'عدّاد الأذكار',
+            subtitleEn: 'Tap Counter',
+            subtitleMl: 'കൗണ്ടർ',
+            subtitleAr: 'تسبيح',
+            featureSubTab: 3,
+          );
+          widget.onNavigateTab(2, subTab: 3);
+        },
+      ),
+      _DashboardQuickAction(
+        id: 'auto_silent',
+        icon: Icons.do_not_disturb_on_rounded,
+        accent: const Color(0xFFC62828),
+        titleEn: t.actionAutoSilent,
+        titleMl: t.actionAutoSilent,
+        titleAr: t.actionAutoSilent,
+        subtitleEn: '${settings.autoSilentDurationMinutes}m Silent Mode',
+        subtitleMl: '${settings.autoSilentDurationMinutes}മി. സൈലന്റ്',
+        subtitleAr: '${settings.autoSilentDurationMinutes} د صامت',
+        keywords: const ['silent', 'dnd', 'mute', 'സൈലന്റ്', 'നിശബ്ദം'],
+        onTap: () => _openAutoSilent(t),
+      ),
+    ];
+
+    // Remaining 6 tools under Categories grid
+    final categoryTools = <_DashboardQuickAction>[
       _DashboardQuickAction(
         id: 'juz_index',
         icon: Icons.grid_view_rounded,
@@ -337,123 +726,6 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         },
       ),
       _DashboardQuickAction(
-        id: 'prayer_times',
-        icon: Icons.mosque_rounded,
-        accent: cs.primary,
-        titleEn: t.actionPrayer,
-        titleMl: t.actionPrayer,
-        titleAr: t.actionPrayer,
-        subtitleEn: 'Adhan, Iqamah & Alarms',
-        subtitleMl: 'ബാങ്ക്, ഇഖാമത്ത്, അലാറം',
-        subtitleAr: 'الأذان والإقامة',
-        keywords: const ['prayer', 'salah', 'adhan', 'നിസ്കാരം', 'ബാങ്ക്'],
-        onTap: () {
-          _recordSimpleActivity(
-            id: 'tool:prayer',
-            type: RecentActivityType.prayer,
-            titleEn: 'Prayer Times',
-            titleMl: 'നിസ്കാര സമയം',
-            titleAr: 'أوقات الصلاة',
-            subtitleEn: settings.displayLocationLabel,
-            subtitleMl: settings.displayLocationLabel,
-            subtitleAr: settings.displayLocationLabel,
-            featureSubTab: 0,
-          );
-          widget.onNavigateTab(2, subTab: 0);
-        },
-      ),
-      _DashboardQuickAction(
-        id: 'hijri_calendar',
-        icon: Icons.calendar_month_rounded,
-        accent: const Color(0xFF1565C0),
-        titleEn: t.actionHijri,
-        titleMl: t.actionHijri,
-        titleAr: t.actionHijri,
-        subtitleEn: 'Islamic Calendar',
-        subtitleMl: 'ഹിജ്‌രി കലണ്ടർ',
-        subtitleAr: 'التقويم الهجري',
-        keywords: const ['hijri', 'calendar', 'date', 'ഹിജ്‌രി', 'കലണ്ടർ'],
-        onTap: () {
-          _recordSimpleActivity(
-            id: 'tool:hijri',
-            type: RecentActivityType.hijri,
-            titleEn: 'Hijri Calendar',
-            titleMl: 'ഹിജ്‌രി കലണ്ടർ',
-            titleAr: 'التقويم الهجري',
-            subtitleEn: 'Monthly Hijri Dates',
-            subtitleMl: 'ഇസ്‌ലാമിക കലണ്ടർ',
-            subtitleAr: 'التاريخ الهجري',
-            featureSubTab: 1,
-          );
-          widget.onNavigateTab(2, subTab: 1);
-        },
-      ),
-      _DashboardQuickAction(
-        id: 'auto_silent',
-        icon: Icons.do_not_disturb_on_rounded,
-        accent: const Color(0xFFC62828),
-        titleEn: t.actionAutoSilent,
-        titleMl: t.actionAutoSilent,
-        titleAr: t.actionAutoSilent,
-        subtitleEn: '${settings.autoSilentDurationMinutes}m DND',
-        subtitleMl: '${settings.autoSilentDurationMinutes}മി. സൈലന്റ്',
-        subtitleAr: '${settings.autoSilentDurationMinutes} د صامت',
-        keywords: const ['silent', 'dnd', 'mute', 'സൈലന്റ്', 'നിശബ്ദം'],
-        onTap: () => _openAutoSilent(t),
-      ),
-      _DashboardQuickAction(
-        id: 'daily_adhkar',
-        icon: Icons.auto_stories_rounded,
-        accent: const Color(0xFF0B7A43),
-        titleEn: t.actionAdhkar,
-        titleMl: t.actionAdhkar,
-        titleAr: t.actionAdhkar,
-        subtitleEn: 'Hisnul Muslim',
-        subtitleMl: 'ദിനചര്യ ദുആകൾ',
-        subtitleAr: 'حصن المسلم',
-        keywords: const ['adhkar', 'dua', 'morning', 'evening', 'ദിക്ർ', 'ദുആ'],
-        onTap: () {
-          _recordSimpleActivity(
-            id: 'tool:adhkar',
-            type: RecentActivityType.adhkar,
-            titleEn: 'Daily Adhkar',
-            titleMl: 'ദിക്ർ & ദുആ',
-            titleAr: 'الأذكار اليومية',
-            subtitleEn: 'Morning & Evening',
-            subtitleMl: 'രാവിലെയും വൈകുന്നേരവും',
-            subtitleAr: 'أذكار الصباح والمساء',
-            featureSubTab: 2,
-          );
-          widget.onNavigateTab(2, subTab: 2);
-        },
-      ),
-      _DashboardQuickAction(
-        id: 'counter',
-        icon: Icons.touch_app_rounded,
-        accent: const Color(0xFF00838F),
-        titleEn: t.actionCounter,
-        titleMl: t.actionCounter,
-        titleAr: t.actionCounter,
-        subtitleEn: 'Digital Dhikr Counter',
-        subtitleMl: 'ഡിജിറ്റൽ തസ്ബീഹ്',
-        subtitleAr: 'مسبحة رقمية',
-        keywords: const ['counter', 'tasbih', 'dhikr', 'കൗണ്ടർ', 'തസ്ബീഹ്'],
-        onTap: () {
-          _recordSimpleActivity(
-            id: 'tool:counter',
-            type: RecentActivityType.counter,
-            titleEn: 'Dhikr Counter',
-            titleMl: 'തസ്ബീഹ് കൗണ്ടർ',
-            titleAr: 'عدّاد الأذكار',
-            subtitleEn: 'Tap Counter',
-            subtitleMl: 'കൗണ്ടർ',
-            subtitleAr: 'تسبيح',
-            featureSubTab: 3,
-          );
-          widget.onNavigateTab(2, subTab: 3);
-        },
-      ),
-      _DashboardQuickAction(
         id: 'names_99',
         icon: Icons.auto_awesome_rounded,
         accent: const Color(0xFF8E24AA),
@@ -471,7 +743,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             titleEn: '99 Names of Allah',
             titleMl: 'അല്ലാഹുവിന്റെ 99 നാമങ്ങൾ',
             titleAr: 'أسماء الله الحسنى',
-            subtitleEn: 'Malayalam & English',
+            subtitleEn: 'Arabic, Malayalam & English',
             subtitleMl: 'അസ്മാഉൽ ഹുസ്ന',
             subtitleAr: '99 اسماً',
             featureSubTab: 4,
@@ -545,499 +817,423 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       ),
     ];
 
-    final trimmedQuery = _query.trim().toLowerCase();
-    final bool isSearching = trimmedQuery.isNotEmpty;
+    final allActions = [...topTools, ...categoryTools];
 
-    final List<_DashboardQuickAction> matchedActions = isSearching
-        ? quickActions.where((a) {
-            return a.titleEn.toLowerCase().contains(trimmedQuery) ||
-                a.titleMl.toLowerCase().contains(trimmedQuery) ||
-                a.titleAr.contains(_query.trim()) ||
-                a.keywords.any((k) => k.toLowerCase().contains(trimmedQuery));
-          }).toList()
-        : const [];
+    // Daily Asmaul Husna & Daily Tajweed Rule indices
+    final now = DateTime.now();
+    final dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays;
+    final dailyNameIdx = dayOfYear % AsmaulHusnaCatalog.names.length;
+    final dailyName = AsmaulHusnaCatalog.names[dailyNameIdx];
+    final dailyRuleIdx = dayOfYear % TajweedEngine.legend.length;
+    final dailyRule = TajweedEngine.legend[dailyRuleIdx];
 
-    final List<SurahSummary> matchedSurahs = isSearching
-        ? surahs
-            .where((s) =>
-                s.number.toString() == trimmedQuery ||
-                s.englishName.toLowerCase().contains(trimmedQuery) ||
-                s.nameArabic.contains(_query.trim()))
-            .take(6)
-            .toList()
-        : const [];
-
-    final List<AsmaulHusnaItem> matchedNames = isSearching
-        ? AsmaulHusnaCatalog.names
-            .where((n) =>
-                n.number.toString() == trimmedQuery ||
-                n.transliteration.toLowerCase().contains(trimmedQuery) ||
-                n.englishMeaning.toLowerCase().contains(trimmedQuery) ||
-                n.malayalamMeaning.toLowerCase().contains(trimmedQuery) ||
-                n.arabic.contains(_query.trim()))
-            .take(6)
-            .toList()
-        : const [];
-
-    final List<AdhkarEntry> matchedAdhkar = isSearching
-        ? AdhkarCatalog.entries
-            .where((d) =>
-                d.titleEn.toLowerCase().contains(trimmedQuery) ||
-                d.titleMl.toLowerCase().contains(trimmedQuery) ||
-                d.arabic.contains(_query.trim()))
-            .take(5)
-            .toList()
-        : const [];
-
-    final bool hasAnySearchMatch = matchedActions.isNotEmpty ||
-        matchedSurahs.isNotEmpty ||
-        matchedNames.isNotEmpty ||
-        matchedAdhkar.isNotEmpty;
-
-    return ListView(
-      padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 28),
+    return Stack(
       children: [
-        // 1. Live Prayer + Hijri + DND Hero Strip
-        _DashboardHeroPrayerCard(
-          headerBg: palette.headerBg,
-          onOpenPrayerTab: () => widget.onNavigateTab(2, subTab: 0),
-          onOpenAutoSilent: () => _openAutoSilent(t),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Optional compact Continue Reading shortcut if available
-        if (lastRead != null) ...[
-          Material(
-            color: cs.primaryContainer.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () => widget.onOpenSurah(
-                lastRead.surahNumber,
-                ayahNo: lastRead.ayahNumber,
-                anchorOffsetPx: lastRead.anchorOffsetPx,
-                savedReadingMode: lastRead.readingMode,
-              ),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(Icons.play_circle_fill_rounded,
-                        color: cs.primary, size: 22),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '${t.lastRead}: ${settings.appLanguage == 'ar' && lastRead.surahArabicName.isNotEmpty ? lastRead.surahArabicName : lastRead.surahName} · ${t.ayahLabel} ${lastRead.ayahNumber}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onPrimaryContainer,
-                        ),
+        ListView(
+          padding: const EdgeInsets.only(bottom: 92),
+          children: [
+            // 1. Curved Emerald Header Backdrop + Floating White Prayer Card
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 82,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          palette.headerBg,
+                          AppBranding.darkEmerald,
+                        ],
+                      ),
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(28),
                       ),
                     ),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: cs.onPrimaryContainer,
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 0),
+                  child: _DashboardFloatingPrayerCard(
+                    cardBg: palette.cardBg,
+                    cardBorder: palette.cardBorder,
+                    onOpenPrayerTab: () => widget.onNavigateTab(2, subTab: 0),
+                    onOpenAutoSilent: () => _openAutoSilent(t),
+                  ),
+                ),
+              ],
+            ),
+
+            // Optional Continue Reading Shortcut
+            if (lastRead != null) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: hPad),
+                child: Material(
+                  color: cs.primaryContainer.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => widget.onOpenSurah(
+                      lastRead.surahNumber,
+                      ayahNo: lastRead.ayahNumber,
+                      anchorOffsetPx: lastRead.anchorOffsetPx,
+                      savedReadingMode: lastRead.readingMode,
                     ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-
-        // 2. Universal Search Box
-        TextField(
-          controller: _searchCtrl,
-          onChanged: (v) => setState(() => _query = v),
-          decoration: InputDecoration(
-            hintText: t.dashboardSearchHint,
-            prefixIcon: const Icon(Icons.search_rounded, size: 21),
-            suffixIcon: _query.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      setState(() => _query = '');
-                    },
-                    icon: const Icon(Icons.close_rounded, size: 19),
-                  )
-                : null,
-            isDense: true,
-            filled: true,
-            fillColor: palette.cardBg,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: palette.cardBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: palette.cardBorder),
-            ),
-          ),
-        ),
-
-        if (isSearching) ...[
-          const SizedBox(height: 14),
-          if (!hasAnySearchMatch)
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: palette.cardBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: palette.cardBorder),
-              ),
-              child: Text(
-                t.noSearchResults,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: cs.onSurfaceVariant),
-              ),
-            )
-          else ...[
-            if (matchedActions.isNotEmpty) ...[
-              _SearchSectionHeader(label: t.quickActionsTitle, cs: cs),
-              ...matchedActions.map((a) => _SearchResultTile(
-                    icon: a.icon,
-                    accent: a.accent,
-                    title: a.titleFor(settings.appLanguage),
-                    subtitle: settings.appLanguage == 'ml'
-                        ? a.subtitleMl
-                        : (settings.appLanguage == 'ar'
-                            ? a.subtitleAr
-                            : a.subtitleEn),
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: a.onTap,
-                  )),
-              const SizedBox(height: 10),
-            ],
-            if (matchedSurahs.isNotEmpty) ...[
-              _SearchSectionHeader(label: t.surahTabLabel, cs: cs),
-              ...matchedSurahs.map((s) => _SearchResultTile(
-                    icon: Icons.menu_book_rounded,
-                    accent: cs.primary,
-                    title: '${s.number}. ${s.englishName}',
-                    subtitle:
-                        '${s.nameArabic} · ${s.numberOfAyahs} ${t.ayahsLabel}',
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () => widget.onOpenSurah(s.number),
-                  )),
-              const SizedBox(height: 10),
-            ],
-            if (matchedNames.isNotEmpty) ...[
-              _SearchSectionHeader(label: t.actionNames99, cs: cs),
-              ...matchedNames.map((n) => _SearchResultTile(
-                    icon: Icons.auto_awesome_rounded,
-                    accent: const Color(0xFF8E24AA),
-                    title: '${n.number}. ${n.transliteration} — ${n.arabic}',
-                    subtitle: '${n.malayalamMeaning} · ${n.englishMeaning}',
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () {
-                      ref.read(recentActivityProvider.notifier).record(
-                            RecentActivityEntry(
-                              id: 'asma:${n.number}',
-                              type: RecentActivityType.asmaulHusna,
-                              titleEn: '${n.number}. ${n.transliteration}',
-                              titleMl: '${n.number}. ${n.malayalamMeaning}',
-                              titleAr: '${n.number}. ${n.arabic}',
-                              subtitleEn: n.englishMeaning,
-                              subtitleMl: n.transliteration,
-                              subtitleAr: n.englishMeaning,
-                              timestampMs:
-                                  DateTime.now().millisecondsSinceEpoch,
-                              featureSubTab: 4,
-                              asmaIndex: n.number - 1,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.play_circle_fill_rounded,
+                              color: cs.primary, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${t.lastRead}: ${settings.appLanguage == 'ar' && lastRead.surahArabicName.isNotEmpty ? lastRead.surahArabicName : lastRead.surahName} · ${t.ayahLabel} ${lastRead.ayahNumber}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: cs.onPrimaryContainer,
+                              ),
                             ),
-                          );
-                      showAsmaulHusnaDetailSheet(
-                        context,
-                        initialIndex: n.number - 1,
-                        strings: t,
-                        appLanguage: settings.appLanguage,
-                      );
-                    },
-                  )),
-              const SizedBox(height: 10),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: cs.onPrimaryContainer,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
-            if (matchedAdhkar.isNotEmpty) ...[
-              _SearchSectionHeader(label: t.actionAdhkar, cs: cs),
-              ...matchedAdhkar.map((d) => _SearchResultTile(
-                    icon: Icons.auto_stories_rounded,
-                    accent: const Color(0xFF0B7A43),
-                    title: d.titleFor(settings.appLanguage),
-                    subtitle: d.reference,
-                    cardBg: palette.cardBg,
-                    cardBorder: palette.cardBorder,
-                    onTap: () {
-                      _recordSimpleActivity(
-                        id: 'tool:adhkar',
-                        type: RecentActivityType.adhkar,
-                        titleEn: d.titleEn,
-                        titleMl: d.titleMl,
-                        titleAr: d.titleEn,
-                        subtitleEn: d.reference,
-                        subtitleMl: d.reference,
-                        subtitleAr: d.reference,
-                        featureSubTab: 2,
-                      );
-                      widget.onNavigateTab(2, subTab: 2);
-                    },
-                  )),
-            ],
-          ],
-        ] else ...[
-          const SizedBox(height: 16),
 
-          // 3. Recent Activity — Single Horizontally Swipeable Row (max 7)
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  t.recentActivityTitle,
-                  style: TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w800,
-                    color: cs.onSurface,
-                  ),
-                ),
+            const SizedBox(height: 14),
+
+            // 2. Top 3-Column Icon Grid (6 Core Actions)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: _DashboardActionGrid(
+                actions: topTools,
+                appLanguage: settings.appLanguage,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                cs: cs,
+                isDark: isDark,
               ),
-              if (recent.isNotEmpty)
-                TextButton(
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  onPressed: () =>
-                      ref.read(recentActivityProvider.notifier).clearAll(),
-                  child: Text(
-                    t.clearHistoryLabel,
-                    style: const TextStyle(fontSize: 12.5),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (recent.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: palette.cardBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: palette.cardBorder),
-              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // 3. Quick Access (Recent Activity)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
               child: Row(
                 children: [
-                  Icon(Icons.history_rounded,
-                      size: 18, color: cs.onSurfaceVariant),
-                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      t.recentActivityEmpty,
+                      t.recentActivityTitle,
                       style: TextStyle(
-                        fontSize: 12.5,
-                        color: cs.onSurfaceVariant,
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w800,
+                        color: cs.onSurface,
                       ),
                     ),
                   ),
-                ],
-              ),
-            )
-          else
-            SizedBox(
-              height: 98,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: recent.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, idx) {
-                  final item = recent[idx];
-                  final iconColor = isDark ? AppBranding.accentGold : cs.primary;
-                  return Material(
-                    color: palette.cardBg,
-                    borderRadius: BorderRadius.circular(15),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(15),
-                      onTap: () =>
-                          _handleRecentTap(item, t, settings.appLanguage),
-                      child: Container(
-                        width: 168,
-                        padding: const EdgeInsets.all(11),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(color: palette.cardBorder),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: iconColor.withValues(alpha: 0.13),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Icon(
-                                    _iconForRecent(item.type),
-                                    size: 16,
-                                    color: iconColor,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  item.timeAgoLabel(settings.appLanguage),
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.titleFor(settings.appLanguage),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                Text(
-                                  item.subtitleFor(settings.appLanguage),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                  if (recent.isNotEmpty)
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      onPressed: () =>
+                          ref.read(recentActivityProvider.notifier).clearAll(),
+                      child: Text(
+                        t.clearHistoryLabel,
+                        style: const TextStyle(fontSize: 12.5),
                       ),
                     ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (recent.isEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: hPad),
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: palette.cardBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: palette.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.history_rounded,
+                          size: 18, color: cs.onSurfaceVariant),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          t.recentActivityEmpty,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                height: 92,
+                child: ListView.separated(
+                  padding: EdgeInsets.symmetric(horizontal: hPad),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: recent.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (_, idx) {
+                    final item = recent[idx];
+                    final iconColor =
+                        isDark ? AppBranding.accentGold : cs.primary;
+                    return Material(
+                      color: palette.cardBg,
+                      borderRadius: BorderRadius.circular(15),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(15),
+                        onTap: () =>
+                            _handleRecentTap(item, t, settings.appLanguage),
+                        child: Container(
+                          width: 168,
+                          padding: const EdgeInsets.all(11),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: palette.cardBorder),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: iconColor.withValues(alpha: 0.13),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Icon(
+                                      _iconForRecent(item.type),
+                                      size: 16,
+                                      color: iconColor,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    item.timeAgoLabel(settings.appLanguage),
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.titleFor(settings.appLanguage),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    item.subtitleFor(settings.appLanguage),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            const SizedBox(height: 18),
+
+            // 4A. Daily Highlight Card — Asmaul Husna (All 3 Languages)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: _DailyAsmaulHusnaBanner(
+                item: dailyName,
+                headerBg: palette.headerBg,
+                strings: t,
+                onTap: () {
+                  ref.read(recentActivityProvider.notifier).record(
+                        RecentActivityEntry(
+                          id: 'asma:${dailyName.number}',
+                          type: RecentActivityType.asmaulHusna,
+                          titleEn:
+                              '${dailyName.number}. ${dailyName.transliteration}',
+                          titleMl:
+                              '${dailyName.number}. ${dailyName.malayalamMeaning}',
+                          titleAr: '${dailyName.number}. ${dailyName.arabic}',
+                          subtitleEn: dailyName.englishMeaning,
+                          subtitleMl: dailyName.transliteration,
+                          subtitleAr: dailyName.arabicMeaning,
+                          timestampMs: DateTime.now().millisecondsSinceEpoch,
+                          featureSubTab: 4,
+                          asmaIndex: dailyNameIdx,
+                        ),
+                      );
+                  showAsmaulHusnaDetailSheet(
+                    context,
+                    initialIndex: dailyNameIdx,
+                    strings: t,
+                    appLanguage: settings.appLanguage,
                   );
                 },
               ),
             ),
 
-          const SizedBox(height: 18),
+            const SizedBox(height: 12),
 
-          // 4. All Features & Tools — Strictly 3 Per Row
-          Text(
-            t.quickActionsTitle,
-            style: TextStyle(
-              fontSize: 15.5,
-              fontWeight: FontWeight.w800,
-              color: cs.onSurface,
-            ),
-          ),
-          const SizedBox(height: 10),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              mainAxisExtent: 102,
-            ),
-            itemCount: quickActions.length,
-            itemBuilder: (_, idx) {
-              final action = quickActions[idx];
-              return Material(
-                color: palette.cardBg,
-                borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: action.onTap,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: palette.cardBorder),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: action.accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: Icon(
-                            action.icon,
-                            size: 21,
-                            color: isDark && action.accent == cs.primary
-                                ? AppBranding.accentGold
-                                : action.accent,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          action.titleFor(settings.appLanguage),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            height: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
+            // 4B. Daily Tajweed Rule Card (Right Below Asmaul Husna)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: _DailyTajweedRuleCard(
+                meta: dailyRule,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                strings: t,
+                appLanguage: settings.appLanguage,
+                onTap: () => showTajweedRuleInspectorSheet(
+                  context,
+                  meta: dailyRule,
+                  tappedArabic: dailyRule.sampleAr,
+                  strings: t,
+                  onOpenFullGuide: () => showTajweedLegendSheet(
+                    context,
+                    strings: t,
                   ),
                 ),
-              );
-            },
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 5. Categories (3-Column Grid of Remaining Core Features)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: Text(
+                t.categoriesTitle,
+                style: TextStyle(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w800,
+                  color: cs.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: _DashboardActionGrid(
+                actions: categoryTools,
+                appLanguage: settings.appLanguage,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
+                cs: cs,
+                isDark: isDark,
+              ),
+            ),
+          ],
+        ),
+
+        // Floating Search Button (Screenshot-inspired pinned bottom-end action)
+        PositionedDirectional(
+          end: math.max(16.0, (MediaQuery.sizeOf(context).width - 1040) / 2),
+          bottom: 16,
+          child: FloatingActionButton(
+            heroTag: 'dashboard_search_fab',
+            backgroundColor: palette.headerBg,
+            foregroundColor: Colors.white,
+            elevation: 5,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            tooltip: t.dashboardSearchHint,
+            onPressed: () => _showUniversalSearchSheet(
+              context: context,
+              strings: t,
+              settings: settings,
+              allActions: allActions,
+              surahs: surahs,
+              palette: palette,
+            ),
+            child: const Icon(Icons.search_rounded, size: 26),
           ),
-        ],
+        ),
       ],
     );
   }
 }
 
-class _DashboardHeroPrayerCard extends ConsumerStatefulWidget {
-  final Color headerBg;
+class _DashboardFloatingPrayerCard extends ConsumerStatefulWidget {
+  final Color cardBg;
+  final Color cardBorder;
   final VoidCallback onOpenPrayerTab;
   final VoidCallback onOpenAutoSilent;
 
-  const _DashboardHeroPrayerCard({
-    required this.headerBg,
+  const _DashboardFloatingPrayerCard({
+    required this.cardBg,
+    required this.cardBorder,
     required this.onOpenPrayerTab,
     required this.onOpenAutoSilent,
   });
 
   @override
-  ConsumerState<_DashboardHeroPrayerCard> createState() =>
-      _DashboardHeroPrayerCardState();
+  ConsumerState<_DashboardFloatingPrayerCard> createState() =>
+      _DashboardFloatingPrayerCardState();
 }
 
-class _DashboardHeroPrayerCardState
-    extends ConsumerState<_DashboardHeroPrayerCard> {
+class _DashboardFloatingPrayerCardState
+    extends ConsumerState<_DashboardFloatingPrayerCard> {
   Timer? _timer;
   DateTime _now = DateTime.now();
 
@@ -1086,48 +1282,593 @@ class _DashboardHeroPrayerCardState
     final alarmState = ref.watch(prayerAlarmProvider);
     final settings = ref.watch(settingsProvider);
     final t = ref.watch(stringsProvider);
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = isDark ? AppBranding.accentGold : cs.primary;
     final data = prayerState.data;
 
-    ({String name, DateTime time})? nextInfo;
+    ({String name, DateTime time, double progress})? nextInfo;
     if (data != null) {
-      for (final key in AlAdhanCatalog.fivePrayerKeys) {
-        final dt = data.tunedTimeFor(key, settings.tuneFor(key), _now);
-        if (dt.isAfter(_now)) {
-          nextInfo = (name: _prayerName(key, t), time: dt);
+      final todayTimes = <({String key, DateTime time})>[
+        for (final key in AlAdhanCatalog.fivePrayerKeys)
+          (
+            key: key,
+            time: data.tunedTimeFor(key, settings.tuneFor(key), _now),
+          ),
+      ];
+      int nextIdx = -1;
+      for (int i = 0; i < todayTimes.length; i++) {
+        if (todayTimes[i].time.isAfter(_now)) {
+          nextIdx = i;
           break;
         }
       }
-      if (nextInfo == null) {
+
+      DateTime prevTime;
+      DateTime nextTime;
+      String nextName;
+      if (nextIdx >= 0) {
+        nextName = _prayerName(todayTimes[nextIdx].key, t);
+        nextTime = todayTimes[nextIdx].time;
+        if (nextIdx > 0) {
+          prevTime = todayTimes[nextIdx - 1].time;
+        } else {
+          final yesterday = _now.subtract(const Duration(days: 1));
+          prevTime = data.tunedTimeFor(
+            'isha',
+            settings.prayerTuneIsha,
+            yesterday,
+          );
+        }
+      } else {
         final tomorrow = _now.add(const Duration(days: 1));
-        nextInfo = (
-          name: t.fajrName,
-          time: data.tunedTimeFor('fajr', settings.prayerTuneFajr, tomorrow),
-        );
+        nextName = t.fajrName;
+        nextTime = data.tunedTimeFor('fajr', settings.prayerTuneFajr, tomorrow);
+        prevTime = todayTimes.last.time;
       }
+
+      final totalSecs = nextTime.difference(prevTime).inSeconds.clamp(1, 86400);
+      final elapsedSecs = _now.difference(prevTime).inSeconds.clamp(0, totalSecs);
+      nextInfo = (
+        name: nextName,
+        time: nextTime,
+        progress: (elapsedSecs / totalSecs).clamp(0.04, 1.0),
+      );
     }
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.cardBg,
         borderRadius: BorderRadius.circular(20),
-        onTap: widget.onOpenPrayerTab,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: AlignmentDirectional.topStart,
-              end: AlignmentDirectional.bottomEnd,
-              colors: [
-                widget.headerBg,
-                AppBranding.darkEmerald,
-              ],
+        border: Border.all(color: widget.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onOpenPrayerTab,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (data != null)
+                                Text(
+                                  '${data.hijriDay} ${t.lang == 'ar' ? data.hijriMonthAr : data.hijriMonthEn} ${data.hijriYear}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                )
+                              else
+                                Text(
+                                  t.nextPrayerLabel,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              const SizedBox(height: 2),
+                              Text(
+                                nextInfo?.name ?? t.actionPrayer,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 23,
+                                  fontWeight: FontWeight.w900,
+                                  color: accentColor,
+                                  height: 1.12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (nextInfo != null)
+                          Text(
+                            DailyPrayerData.format12Hour(nextInfo.time),
+                            style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w800,
+                              color: cs.onSurface,
+                              height: 1.2,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_rounded,
+                          size: 14,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            settings.displayLocationLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                        if (nextInfo != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            t.remainingLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatCountdown(nextInfo.time.difference(_now)),
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              color: cs.onSurface,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (alarmState.autoSilentActiveNow) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.notifications_paused_rounded,
+                                size: 16, color: accentColor),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                t.dndActiveNowBanner,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: accentColor,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                              ),
+                              onPressed: () => ref
+                                  .read(prayerAlarmProvider.notifier)
+                                  .restoreNormalRingerNow(),
+                              child: Text(
+                                t.restoreSoundNowBtn,
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (nextInfo != null)
+                ClipRRect(
+                  child: LinearProgressIndicator(
+                    value: nextInfo.progress,
+                    minHeight: 4,
+                    backgroundColor:
+                        cs.surfaceContainerHighest.withValues(alpha: 0.45),
+                    valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardActionGrid extends StatelessWidget {
+  final List<_DashboardQuickAction> actions;
+  final String appLanguage;
+  final Color cardBg;
+  final Color cardBorder;
+  final ColorScheme cs;
+  final bool isDark;
+
+  const _DashboardActionGrid({
+    required this.actions,
+    required this.appLanguage,
+    required this.cardBg,
+    required this.cardBorder,
+    required this.cs,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 11,
+        crossAxisSpacing: 11,
+        mainAxisExtent: 102,
+      ),
+      itemCount: actions.length,
+      itemBuilder: (_, idx) {
+        final action = actions[idx];
+        final iconTint = isDark && action.accent == cs.primary
+            ? AppBranding.accentGold
+            : action.accent;
+        return Material(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: action.onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: cardBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.035),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: iconTint.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      action.icon,
+                      size: 24,
+                      color: iconTint,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    action.titleFor(appLanguage),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      height: 1.18,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            borderRadius: BorderRadius.circular(20),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DailyAsmaulHusnaBanner extends StatelessWidget {
+  final AsmaulHusnaItem item;
+  final Color headerBg;
+  final AppStrings strings;
+  final VoidCallback onTap;
+
+  const _DailyAsmaulHusnaBanner({
+    required this.item,
+    required this.headerBg,
+    required this.strings,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [
+            headerBg,
+            AppBranding.darkEmerald,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: headerBg.withValues(alpha: 0.26),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: AppBranding.accentGold,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      strings.dailyNameTitle,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppBranding.accentGold.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppBranding.accentGold.withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: Text(
+                      '#${item.number} / 99',
+                      style: const TextStyle(
+                        color: AppBranding.accentGold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.transliteration,
+                          style: const TextStyle(
+                            color: AppBranding.accentGold,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        if (item.arabicMeaning.isNotEmpty) ...[
+                          Text(
+                            item.arabicMeaning,
+                            textDirection: TextDirection.rtl,
+                            style: GoogleFonts.amiri(
+                              color: Colors.white.withValues(alpha: 0.94),
+                              fontSize: 15,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                        ],
+                        Text(
+                          item.malayalamMeaning,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item.englishMeaning,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.82),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.14),
+                      ),
+                    ),
+                    child: Text(
+                      item.arabic,
+                      textDirection: TextDirection.rtl,
+                      style: GoogleFonts.amiri(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: AlignmentDirectional.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      strings.viewMeaningBtn,
+                      style: TextStyle(
+                        color: AppBranding.accentGold.withValues(alpha: 0.96),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 15,
+                      color: AppBranding.accentGold.withValues(alpha: 0.96),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DailyTajweedRuleCard extends StatelessWidget {
+  final TajweedRuleMeta meta;
+  final Color cardBg;
+  final Color cardBorder;
+  final AppStrings strings;
+  final String appLanguage;
+  final VoidCallback onTap;
+
+  const _DailyTajweedRuleCard({
+    required this.meta,
+    required this.cardBg,
+    required this.cardBorder,
+    required this.strings,
+    required this.appLanguage,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final ruleColor = meta.colorFor(isDark);
+    final langToDisplay = appLanguage == 'en' || appLanguage == 'ar'
+        ? appLanguage
+        : 'ml';
+
+    return Material(
+      color: cardBg,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: ruleColor.withValues(alpha: 0.42),
+            ),
             boxShadow: [
               BoxShadow(
-                color: widget.headerBg.withValues(alpha: 0.24),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -1136,172 +1877,71 @@ class _DashboardHeroPrayerCardState
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.location_on_rounded,
-                    color: AppBranding.accentGold,
-                    size: 16,
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: ruleColor,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                  const SizedBox(width: 5),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      settings.displayLocationLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
+                      strings.dailyTajweedTitle,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: ruleColor,
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: widget.onOpenAutoSilent,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: alarmState.autoSilentActiveNow
-                            ? AppBranding.accentGold
-                            : Colors.white.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            settings.autoSilentEnabled
-                                ? Icons.do_not_disturb_on_rounded
-                                : Icons.do_not_disturb_off_outlined,
-                            size: 13,
-                            color: alarmState.autoSilentActiveNow
-                                ? AppBranding.darkEmerald
-                                : Colors.white,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            alarmState.autoSilentActiveNow
-                                ? 'DND ON'
-                                : (settings.autoSilentEnabled
-                                    ? '${settings.autoSilentDurationMinutes}m'
-                                    : t.actionAutoSilent),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: alarmState.autoSilentActiveNow
-                                  ? AppBranding.darkEmerald
-                                  : Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
+                  Text(
+                    meta.sampleAr,
+                    textDirection: TextDirection.rtl,
+                    style: GoogleFonts.amiri(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: ruleColor,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              Text(
+                meta.titleFor(langToDisplay),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                meta.descriptionFor(langToDisplay),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.45,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 8),
-              if (data != null && nextInfo != null) ...[
-                Text(
-                  '${data.hijriDay} ${t.lang == 'ar' ? data.hijriMonthAr : data.hijriMonthEn} ${data.hijriYear} AH',
-                  style: TextStyle(
-                    color: AppBranding.accentGold.withValues(alpha: 0.95),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    strings.exploreRuleBtn,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: ruleColor,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              t.nextPrayerLabel,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.78),
-                                fontSize: 11,
-                              ),
-                            ),
-                            Text(
-                              '${nextInfo.name} · ${DailyPrayerData.format12Hour(nextInfo.time)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                fontFeatures: [FontFeature.tabularFigures()],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        _formatCountdown(nextInfo.time.difference(_now)),
-                        style: const TextStyle(
-                          color: AppBranding.accentGold,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(height: 6),
-                Text(
-                  t.actionPrayer,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-              if (alarmState.autoSilentActiveNow) ...[
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        t.dndActiveNowBanner,
-                        style: const TextStyle(
-                          color: AppBranding.accentGold,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.white.withValues(alpha: 0.16),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      onPressed: () => ref
-                          .read(prayerAlarmProvider.notifier)
-                          .restoreNormalRingerNow(),
-                      child: Text(
-                        t.restoreSoundNowBtn,
-                        style: const TextStyle(fontSize: 11.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded, size: 15, color: ruleColor),
+                ],
+              ),
             ],
           ),
         ),
@@ -1354,39 +1994,42 @@ class _SearchResultTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 7),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Material(
         color: cardBg,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: cardBorder),
-      ),
-      child: ListTile(
-        dense: true,
-        leading: Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(13),
+          side: BorderSide(color: cardBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          dense: true,
+          leading: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: accent),
           ),
-          alignment: Alignment.center,
-          child: Icon(icon, size: 18, color: accent),
+          title: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded, size: 18),
+          onTap: onTap,
         ),
-        title: Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
-        ),
-        trailing: const Icon(Icons.chevron_right_rounded, size: 18),
-        onTap: onTap,
       ),
     );
   }

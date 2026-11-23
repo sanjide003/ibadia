@@ -151,6 +151,10 @@ class PrayerAlarmBridge {
   Future<void> restoreNormalRingerNow() async {}
 
   Future<bool> isAutoSilentActiveNow() async => false;
+
+  Future<bool> canScheduleExactAlarms() async => true;
+
+  Future<void> openExactAlarmSettings() async {}
 }
 
 typedef VoidCallback = void Function();

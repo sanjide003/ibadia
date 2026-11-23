@@ -362,6 +362,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           backgroundColor: headerBg,
           foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           elevation: 0,
           title: _tabIndex == 0
               ? Row(

@@ -436,4 +436,21 @@ class PrayerAlarmBridge {
       return false;
     }
   }
+
+  Future<bool> canScheduleExactAlarms() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      final ok = await _channel.invokeMethod<bool>('canScheduleExactAlarms');
+      return ok ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<void> openExactAlarmSettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod<bool>('openExactAlarmSettings');
+    } catch (_) {}
+  }
 }

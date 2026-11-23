@@ -476,8 +476,11 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         }
       }
 
-      // Apply exact pixel delta relative to the viewport top
-      for (int refine = 0; refine < 2; refine++) {
+      // Apply exact pixel delta relative to the viewport top.
+      // When opening a Surah at Ayah 1 without a saved pixel offset, align
+      // directly to the Surah's ornamental heading banner (_headerKeys) rather
+      // than the top of a shared Mushaf page that may begin with a prior Surah.
+      for (int refine = 0; refine < 3; refine++) {
         await WidgetsBinding.instance.endOfFrame;
         if (!mounted || !_scrollController.hasClients) return;
 
@@ -493,12 +496,26 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
           break;
         }
 
+        RenderBox alignBox = targetBox;
+        bool aligningToSurahBanner = false;
+        if (targetAyah == 1 && !canUseExactPixelDelta) {
+          final headerCtx = _headerKeys[targetSurah]?.currentContext;
+          if (headerCtx != null && headerCtx.mounted) {
+            final headerBox = headerCtx.findRenderObject() as RenderBox?;
+            if (headerBox != null && headerBox.hasSize && headerBox.attached) {
+              alignBox = headerBox;
+              aligningToSurahBanner = true;
+            }
+          }
+        }
+
         final viewportTopY = viewportBox.localToGlobal(Offset.zero).dy;
         final blockTopRel =
-            targetBox.localToGlobal(Offset.zero).dy - viewportTopY;
+            alignBox.localToGlobal(Offset.zero).dy - viewportTopY;
 
-        final double desiredDelta =
-            canUseExactPixelDelta ? anchorOffsetPx : -10.0;
+        final double desiredDelta = canUseExactPixelDelta
+            ? anchorOffsetPx
+            : (aligningToSurahBanner ? -6.0 : -10.0);
         final double error = blockTopRel + desiredDelta;
         if (error.abs() <= 1.0) break;
 

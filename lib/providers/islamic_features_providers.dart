@@ -268,9 +268,11 @@ class PrayerAlarmState {
   final bool isPreviewingSound;
   final String currentDateKey;
   final bool? _dndPermissionGranted;
+  final bool? _exactAlarmPermissionGranted;
   final bool? _autoSilentActiveNow;
 
   bool get dndPermissionGranted => _dndPermissionGranted ?? false;
+  bool get exactAlarmPermissionGranted => _exactAlarmPermissionGranted ?? true;
   bool get autoSilentActiveNow => _autoSilentActiveNow ?? false;
 
   const PrayerAlarmState({
@@ -280,8 +282,10 @@ class PrayerAlarmState {
     this.isPreviewingSound = false,
     this.currentDateKey = '',
     bool? dndPermissionGranted = false,
+    bool? exactAlarmPermissionGranted = true,
     bool? autoSilentActiveNow = false,
   })  : _dndPermissionGranted = dndPermissionGranted,
+        _exactAlarmPermissionGranted = exactAlarmPermissionGranted,
         _autoSilentActiveNow = autoSilentActiveNow;
 
   PrayerAlarmState copyWith({
@@ -292,6 +296,7 @@ class PrayerAlarmState {
     bool? isPreviewingSound,
     String? currentDateKey,
     bool? dndPermissionGranted,
+    bool? exactAlarmPermissionGranted,
     bool? autoSilentActiveNow,
   }) {
     return PrayerAlarmState(
@@ -303,6 +308,8 @@ class PrayerAlarmState {
       currentDateKey: currentDateKey ?? this.currentDateKey,
       dndPermissionGranted:
           dndPermissionGranted ?? this.dndPermissionGranted,
+      exactAlarmPermissionGranted:
+          exactAlarmPermissionGranted ?? this.exactAlarmPermissionGranted,
       autoSilentActiveNow: autoSilentActiveNow ?? this.autoSilentActiveNow,
     );
   }
@@ -317,6 +324,7 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
   String? _lastDndSignature;
   String? _lastWidgetSignature;
   String? _lastTriggeredSlotKey;
+  bool _pendingEnableAutoSilentOnResume = false;
 
   PrayerAlarmNotifier(this._ref)
       : super(
@@ -400,8 +408,11 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
 
     final nativeRinging = await _bridge.getActiveRingingAlarm();
     final dndGranted = await _bridge.isDndPolicyAccessGranted();
+    final exactGranted = await _bridge.canScheduleExactAlarms();
     final dndActive = await _bridge.isAutoSilentActiveNow();
     if (!mounted) return;
+
+    final bool prevDndGranted = state.dndPermissionGranted;
     if (nativeRinging != null) {
       state = state.copyWith(
         activeRinging: RingingAlarmInfo(
@@ -411,16 +422,36 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
           dateKey: nativeRinging.dateKey,
         ),
         dndPermissionGranted: dndGranted,
+        exactAlarmPermissionGranted: exactGranted,
         autoSilentActiveNow: dndActive,
       );
     } else {
       state = state.copyWith(
         clearActiveRinging: _bridge.isNativeAndroid && state.activeRinging != null,
         dndPermissionGranted: dndGranted,
+        exactAlarmPermissionGranted: exactGranted,
         autoSilentActiveNow: dndActive,
       );
     }
-    _recomputeAndSync(syncNative: false);
+
+    if (dndGranted && _pendingEnableAutoSilentOnResume) {
+      _pendingEnableAutoSilentOnResume = false;
+      final current = _ref.read(settingsProvider);
+      if (!current.autoSilentEnabled) {
+        _lastDndSignature = null;
+        await _ref
+            .read(settingsProvider.notifier)
+            .update(current.copyWith(autoSilentEnabled: true));
+        return;
+      }
+    }
+
+    final shouldForceNativeDndSync =
+        (dndGranted && !prevDndGranted) || _ref.read(settingsProvider).autoSilentEnabled;
+    if (shouldForceNativeDndSync) {
+      _lastDndSignature = null;
+    }
+    _recomputeAndSync(syncNative: shouldForceNativeDndSync);
   }
 
   String _prayerName(String key, AppStrings t) {
@@ -638,10 +669,15 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
         state = state.copyWith(dndPermissionGranted: granted);
       }
       if (!granted) {
+        _pendingEnableAutoSilentOnResume = true;
         await _bridge.openDndPolicySettings();
         return false;
       }
+      _pendingEnableAutoSilentOnResume = false;
+    } else {
+      _pendingEnableAutoSilentOnResume = false;
     }
+    _lastDndSignature = null;
     await notifier.update(current.copyWith(autoSilentEnabled: enabled));
     if (!enabled) {
       await _bridge.restoreNormalRingerNow();
@@ -653,7 +689,12 @@ class PrayerAlarmNotifier extends StateNotifier<PrayerAlarmState> {
   }
 
   Future<void> openDndPolicySettings() async {
+    _pendingEnableAutoSilentOnResume = true;
     await _bridge.openDndPolicySettings();
+  }
+
+  Future<void> openExactAlarmSettings() async {
+    await _bridge.openExactAlarmSettings();
   }
 
   Future<void> restoreNormalRingerNow() async {

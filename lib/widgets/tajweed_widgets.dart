@@ -20,140 +20,172 @@ void showTajweedRuleInspectorSheet(
 
   showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
     useSafeArea: true,
     showDragHandle: true,
     builder: (ctx) {
-      return Directionality(
-        textDirection: strings.textDirection,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 2, 18, 22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+      String sheetLang = 'ml';
+      return StatefulBuilder(
+        builder: (sheetCtx, setSheetState) {
+          final sheetStrings = AppStrings(sheetLang);
+          return Directionality(
+            textDirection: sheetStrings.textDirection,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 2, 18, 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: ruleColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: ruleColor.withValues(alpha: 0.45),
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      cleanSample.isNotEmpty ? cleanSample : meta.sampleAr,
-                      textDirection: TextDirection.rtl,
-                      style: GoogleFonts.amiri(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: ruleColor,
-                        height: 1.15,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.tajweedRuleHeader,
-                          style: TextStyle(
-                            fontSize: 11.5,
+                  Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: ruleColor.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: ruleColor.withValues(alpha: 0.45),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          cleanSample.isNotEmpty ? cleanSample : meta.sampleAr,
+                          textDirection: TextDirection.rtl,
+                          style: GoogleFonts.amiri(
+                            fontSize: 22,
                             fontWeight: FontWeight.w700,
                             color: ruleColor,
+                            height: 1.15,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          meta.titleFor(strings.lang),
-                          style: const TextStyle(
-                            fontSize: 16.5,
-                            fontWeight: FontWeight.w800,
-                          ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              sheetStrings.tajweedRuleHeader,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: ruleColor,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              meta.titleFor(sheetLang),
+                              style: const TextStyle(
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  if (strings.lang != 'ar')
-                    Text(
-                      meta.nameAr,
-                      textDirection: TextDirection.rtl,
-                      style: GoogleFonts.amiri(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: cs.onSurfaceVariant,
                       ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest.withValues(alpha: 0.42),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: cs.outlineVariant.withValues(alpha: 0.55),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      meta.descriptionFor(strings.lang),
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.5,
-                        color: cs.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
+                      if (sheetLang != 'ar')
                         Text(
-                          '${strings.tajweedExamplesLabel}: ',
-                          style: TextStyle(
-                            fontSize: 12.5,
+                          meta.nameAr,
+                          textDirection: TextDirection.rtl,
+                          style: GoogleFonts.amiri(
+                            fontSize: 17,
                             fontWeight: FontWeight.w700,
                             color: cs.onSurfaceVariant,
                           ),
                         ),
-                        Expanded(
-                          child: Text(
-                            meta.sampleAr,
-                            textDirection: TextDirection.rtl,
-                            style: GoogleFonts.amiri(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: ruleColor,
-                            ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Independent Popup Language Switcher (Malayalam Default)
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(
+                          value: 'ml',
+                          label: Text('മലയാളം', style: TextStyle(fontSize: 12)),
+                        ),
+                        ButtonSegment(
+                          value: 'en',
+                          label: Text('English', style: TextStyle(fontSize: 12)),
+                        ),
+                        ButtonSegment(
+                          value: 'ar',
+                          label: Text('العربية', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                      selected: {sheetLang},
+                      onSelectionChanged: (sel) =>
+                          setSheetState(() => sheetLang = sel.first),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.42),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: cs.outlineVariant.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          meta.descriptionFor(sheetLang),
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.55,
+                            color: cs.onSurface,
+                            fontWeight: FontWeight.w500,
                           ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Text(
+                              '${sheetStrings.tajweedExamplesLabel}: ',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                meta.sampleAr,
+                                textDirection: TextDirection.rtl,
+                                style: GoogleFonts.amiri(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: ruleColor,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                  ),
+                  if (onOpenFullGuide != null) ...[
+                    const SizedBox(height: 14),
+                    FilledButton.tonalIcon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        onOpenFullGuide();
+                      },
+                      icon: const Icon(Icons.palette_outlined, size: 18),
+                      label: Text(sheetStrings.tajweedFullGuideBtn),
+                    ),
                   ],
-                ),
+                ],
               ),
-              if (onOpenFullGuide != null) ...[
-                const SizedBox(height: 14),
-                FilledButton.tonalIcon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    onOpenFullGuide();
-                  },
-                  icon: const Icon(Icons.palette_outlined, size: 18),
-                  label: Text(strings.tajweedFullGuideBtn),
-                ),
-              ],
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     },
   );
@@ -172,110 +204,137 @@ void showTajweedLegendSheet(
     useSafeArea: true,
     showDragHandle: true,
     builder: (ctx) {
-      return Directionality(
-        textDirection: strings.textDirection,
-        child: DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.78,
-          minChildSize: 0.5,
-          maxChildSize: 0.94,
-          builder: (_, scrollCtrl) {
-            return ListView(
-              controller: scrollCtrl,
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-              children: [
-                Row(
+      String sheetLang = 'ml';
+      return StatefulBuilder(
+        builder: (sheetCtx, setSheetState) {
+          final sheetStrings = AppStrings(sheetLang);
+          return Directionality(
+            textDirection: sheetStrings.textDirection,
+            child: DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.78,
+              minChildSize: 0.5,
+              maxChildSize: 0.94,
+              builder: (_, scrollCtrl) {
+                return ListView(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
                   children: [
-                    Icon(Icons.palette_rounded, color: cs.primary, size: 22),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            strings.tajweedGuideTitle,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            strings.tajweedTapHint,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                ...TajweedEngine.legend.map((meta) {
-                  final color = meta.colorFor(isDark);
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: color.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 14,
-                              height: 14,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                meta.titleFor(strings.lang),
-                                style: TextStyle(
-                                  fontSize: 14.5,
+                        Icon(Icons.palette_rounded, color: cs.primary, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                sheetStrings.tajweedGuideTitle,
+                                style: const TextStyle(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: color,
                                 ),
                               ),
-                            ),
-                            Text(
-                              meta.sampleAr,
-                              textDirection: TextDirection.rtl,
-                              style: GoogleFonts.amiri(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w700,
-                                color: color,
+                              Text(
+                                sheetStrings.tajweedTapHint,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: cs.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          meta.descriptionFor(strings.lang),
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.45,
-                            color: cs.onSurface,
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  );
-                }),
-              ],
-            );
-          },
-        ),
+                    const SizedBox(height: 12),
+                    SegmentedButton<String>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(
+                          value: 'ml',
+                          label: Text('മലയാളം', style: TextStyle(fontSize: 12)),
+                        ),
+                        ButtonSegment(
+                          value: 'en',
+                          label: Text('English', style: TextStyle(fontSize: 12)),
+                        ),
+                        ButtonSegment(
+                          value: 'ar',
+                          label: Text('العربية', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                      selected: {sheetLang},
+                      onSelectionChanged: (sel) =>
+                          setSheetState(() => sheetLang = sel.first),
+                    ),
+                    const SizedBox(height: 14),
+                    ...TajweedEngine.legend.map((meta) {
+                      final color = meta.colorFor(isDark);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: color.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    meta.titleFor(sheetLang),
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: color,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  meta.sampleAr,
+                                  textDirection: TextDirection.rtl,
+                                  style: GoogleFonts.amiri(
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w700,
+                                    color: color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              meta.descriptionFor(sheetLang),
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.5,
+                                color: cs.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                );
+              },
+            ),
+          );
+        },
       );
     },
   );
