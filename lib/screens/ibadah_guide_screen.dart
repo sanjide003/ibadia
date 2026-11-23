@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
-import '../models/ibadah_models.dart';
 import '../providers/quran_providers.dart';
 import '../services/ibadah_audio_controller.dart';
 import '../services/ibadah_data_service.dart';

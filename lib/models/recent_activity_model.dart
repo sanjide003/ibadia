@@ -109,18 +109,18 @@ class RecentActivityEntry {
     final mins = diffMs ~/ 60000;
     if (mins < 60) {
       if (lang == 'ml') return '$mins മി.';
-      if (lang == 'ar') return '${mins}د';
+      if (lang == 'ar') return '$minsد';
       return '${mins}m';
     }
     final hours = mins ~/ 60;
     if (hours < 24) {
       if (lang == 'ml') return '$hours മ.';
-      if (lang == 'ar') return '${hours}س';
+      if (lang == 'ar') return '$hoursس';
       return '${hours}h';
     }
     final days = hours ~/ 24;
     if (lang == 'ml') return '$days ദി.';
-    if (lang == 'ar') return '${days}ي';
+    if (lang == 'ar') return '$daysي';
     return '${days}d';
   }
 
