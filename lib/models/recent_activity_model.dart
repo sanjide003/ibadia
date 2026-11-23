@@ -8,6 +8,7 @@ enum RecentActivityType {
   asmaulHusna,
   tajweed,
   autoSilent,
+  ibadah,
   bookmark,
   exportPdf,
   settings;
@@ -35,6 +36,9 @@ enum RecentActivityType {
         return RecentActivityType.tajweed;
       case 'autoSilent':
         return RecentActivityType.autoSilent;
+      case 'ibadah':
+      case 'ibadah_guide':
+        return RecentActivityType.ibadah;
       case 'bookmark':
         return RecentActivityType.bookmark;
       case 'exportPdf':

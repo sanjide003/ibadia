@@ -40,6 +40,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/
+    - assets/data/ibadah/
+    - assets/audio/ibadah/
 
 flutter_launcher_icons:
   android: true

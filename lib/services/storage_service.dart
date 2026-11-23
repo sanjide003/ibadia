@@ -591,6 +591,7 @@ class StorageService {
   static const _adhkarFavoritesKey = 'adhkar_favorites_v1';
   static const _kahfBannerDismissedPrefix = 'kahf_banner_dismissed_v1_';
   static const _tasbihSnapshotKey = 'tasbih_snapshot_v1';
+  static const _ibadahShartCheckedKey = 'ibadah_salah_shart_checked_v1';
 
   Future<Box<dynamic>> _prefsBox() async {
     await HiveDb.instance.ensureInitialized();
@@ -1017,5 +1018,19 @@ class StorageService {
   Future<void> saveRecentActivitiesRaw(List<Map<String, dynamic>> items) async {
     final box = await _prefsBox();
     await box.put(_recentActivityKey, jsonEncode(items));
+  }
+
+  // -------------------------------------------------------------------------
+  // IBADAH SALAH SHART CHECKLIST (HIVE)
+  // -------------------------------------------------------------------------
+
+  Future<Set<String>> loadIbadahCheckedSharts() async {
+    final box = await _prefsBox();
+    return (_readStringList(box, _ibadahShartCheckedKey) ?? const []).toSet();
+  }
+
+  Future<void> saveIbadahCheckedSharts(Set<String> ids) async {
+    final box = await _prefsBox();
+    await box.put(_ibadahShartCheckedKey, ids.toList());
   }
 }

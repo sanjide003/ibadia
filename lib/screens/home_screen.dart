@@ -22,6 +22,7 @@ import 'asmaul_husna_view.dart';
 import 'dashboard_view.dart';
 import 'export_screen.dart';
 import 'features_views.dart';
+import 'ibadah_guide_screen.dart';
 import 'settings_screen.dart';
 import 'surah_reader_screen.dart';
 
@@ -1426,6 +1427,8 @@ class _StandaloneFeatureScreenState
         return t.bookmarksTab;
       case 'export':
         return t.exportTitle;
+      case 'ibadah_guide':
+        return t.ibadahGuideTitle;
       default:
         return t.appTitle;
     }
@@ -1489,6 +1492,11 @@ class _StandaloneFeatureScreenState
         break;
       case 'export':
         body = const ExportScreen(showHeader: false);
+        break;
+      case 'ibadah_guide':
+        body = IbadahGuideScreen(
+          onOpenSurah: (surahNo) => widget.onOpenSurah(surahNo),
+        );
         break;
       default:
         body = const SizedBox.shrink();

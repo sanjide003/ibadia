@@ -149,6 +149,7 @@ class AppStrings {
   String get actionNames99 => _p('99 Names', '99 നാമങ്ങൾ', 'أسماء الله');
   String get actionTajweed => _p('Tajweed Guide', 'തജ്‌വീദ് നിയമം', 'أحكام التجويد');
   String get actionExport => _p('Export PDF / PNG', 'എക്സ്പോർട്ട് PDF / PNG', 'تصدير PDF');
+  String get actionIbadahGuide => _p('Ibadah & Salah', 'ഇബാദത്ത് & നിസ്കാരം', 'دليل الصلاة والعبادات');
   String get actionSettings => _p('Settings', 'സെറ്റിംഗ്സ്', 'الإعدادات');
 
   // Daily Spotlight Cards on Home
@@ -476,4 +477,92 @@ class AppStrings {
     }
     return _p('Medinan', 'മദനി', 'مدنية');
   }
+
+  // Ibadah & Salah Complete Guide (Shafi'i Fiqh)
+  String get ibadahGuideTitle => _p(
+        'Ibadah & Salah Guide',
+        'ഇബാദത്ത് & നിസ്കാര ഗൈഡ്',
+        'دليل الصلاة والعبادات',
+      );
+  String get ibadahFiqhSubtitle => _p(
+        'Shafi\'i Fiqh · Offline + Audio',
+        'ശാഫിഈ മദ്ഹബ് · ഓഫ്‌ലൈൻ + ഓഡിയോ',
+        'الفقه الشافعي · بدون إنترنت',
+      );
+  String get niyyahTabLabel => _p('Niyyah', 'നിയ്യത്ത്', 'النية');
+  String get salahGuideTabLabel => _p('Salah', 'നിസ്കാരം', 'الصلاة');
+  String get rawatibTabLabel => _p('Sunnah & Surahs', 'സുന്നത്ത് & സൂറത്തുകൾ', 'الرواتب والسور');
+  String get mayyithTabLabel => _p('Mayyith', 'മയ്യിത്ത്', 'الجنازة');
+
+  String get fardPrayersSection => _p('Fard Prayers (5 Daily)', 'ഫർള് നിസ്കാരങ്ങൾ (5 നേരം)', 'الصلوات المفروضة');
+  String get sunnahPrayersSection => _p('Major Sunnah Prayers', 'പ്രധാന സുന്നത്ത് നിസ്കാരങ്ങൾ', 'صلوات النوافل');
+  String get roleMunfarid => _p('Individual', 'ഒറ്റയ്ക്ക്', 'منفرداً');
+  String get roleImam => _p('Imam', 'ഇമാം', 'إماماً');
+  String get roleMamoom => _p('Ma\'moom', 'മഅ്മൂം', 'مأموماً');
+
+  String get shartChecklistTitle => _p(
+        'Conditions Before Salah (Shart)',
+        'നിസ്കാരത്തിന്റെ ശർത്വുകൾ (നിബന്ധനകൾ)',
+        'شروط صحة الصلاة',
+      );
+  String get arkanSectionTitle => _p(
+        '13 Pillars of Salah (Fard / Arkan)',
+        'നിസ്കാരത്തിലെ 13 ഫർളുകൾ (അർക്കാൻ)',
+        'أركان الصلاة الثلاثة عشر',
+      );
+  String get stepByStepSalahTitle => _p(
+        'Step-by-Step Salah Order (Takbir to Salam)',
+        'നിസ്കാരത്തിന്റെ പൂർണ്ണ ക്രമം (തക്ബീർ മുതൽ സലാം വരെ)',
+        'صفة الصلاة خطوة بخطوة',
+      );
+  String get resetChecklistLabel => _p('Reset', 'റീസെറ്റ്', 'إعادة ضبط');
+  String get filterAll => _p('All', 'എല്ലാം', 'الكل');
+  String get fardBadgeLabel => _p('Fard Pillar', 'ഫർള്', 'ركن / فرض');
+  String get sunnahBadgeLabel => _p('Sunnah', 'സുന്നത്ത്', 'سنة');
+  String get muakkadahBadgeLabel => _p('Mu\'akkadah', 'മുഅക്കദ', 'مؤكدة');
+  String get ghairMuakkadahBadgeLabel => _p('Ghair Mu\'akkadah', 'ഗൈർ മുഅക്കദ', 'غير مؤكدة');
+
+  String get rawatibScheduleTitle => _p(
+        'Rawatib Sunnah Schedule',
+        'റവാതിബ് സുന്നത്ത് നിസ്കാരങ്ങൾ',
+        'السنن الرواتب',
+      );
+  String get beforePrayerLabel => _p('Before Fard', 'മുമ്പ്', 'قبلية');
+  String get afterPrayerLabel => _p('After Fard', 'ശേഷം', 'بعدية');
+  String get recommendedSurahsTitle => _p(
+        'Recommended Surahs in Salah',
+        'നിസ്കാരങ്ങളിൽ ഓതാൻ ഉത്തമമായ സൂറത്തുകൾ',
+        'السور المستحبة في الصلاة',
+      );
+  String get openInQuranReader => _p('Read in Quran', 'ഖുർആനിൽ വായിക്കുക', 'قراءة في المصحف');
+
+  String get mayyithPrepTitle => _p(
+        'Preparation, Ghusl & Kafan',
+        'തയ്യാറെടുപ്പ്, കുളിപ്പിക്കൽ & കഫൻ',
+        'التجهيز والغسل والتكفين',
+      );
+  String get mayyithNiyyahTitle => _p(
+        'Janazah Prayer Niyyah',
+        'മയ്യിത്ത് നിസ്കാര നിയ്യത്ത്',
+        'نيات صلاة الجنازة',
+      );
+  String get mayyithTakbirsTitle => _p(
+        '4 Takbirs Order & Duas',
+        '4 തക്ബീറുകളുടെ ക്രമവും ദുആകളും',
+        'التكبيرات الأربع والأدعية',
+      );
+  String get mayyithBurialTitle => _p(
+        'Burial (Dafn) & Talqeen Duas',
+        'ഖബറടക്കം & തൽഖീൻ ദുആകൾ',
+        'الدفن والدعاء عند القبر',
+      );
+
+  String get transliterationLabel => _p('Transliteration', 'ഉച്ചാരണം (മലയാളം)', 'النطق');
+  String get meaningLabel => _p('Meaning', 'അർത്ഥം', 'المعنى');
+  String get copiedTextNotice => _p('Copied to clipboard', 'കോപ്പി ചെയ്തു', 'تم النسخ');
+  String get audioNotFoundMessage => _p(
+        'Audio file not found yet. Add the MP3 file under assets/audio/ibadah/ to enable playback.',
+        'ഓഡിയോ ഫയൽ ഇതുവരെ ചേർത്തിട്ടില്ല. പ്ലേ ചെയ്യാൻ MP3 ഫയൽ assets/audio/ibadah/ ഫോൾഡറിൽ ചേർക്കുക.',
+        'ملف الصوت غير موجود بعد. أضف ملف MP3 في assets/audio/ibadah/.',
+      );
 }

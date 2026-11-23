@@ -1,0 +1,254 @@
+{
+  "rawatib": [
+    {
+      "prayerId": "fajr",
+      "prayerEn": "Fajr (Dawn)",
+      "prayerMl": "സ്വുബ്ഹ് (ഫജ്ർ)",
+      "before": [
+        {
+          "rakaat": 2,
+          "isMuakkadah": true,
+          "timingEn": "2 Raka'at Before Fajr",
+          "timingMl": "സ്വുബ്ഹിക്ക് മുമ്പ് 2 റക്അത്ത്",
+          "noteEn": "Strongly emphasized (Sunnah Mu'akkadah); prayed briskly with Al-Kafirun & Al-Ikhlas.",
+          "noteMl": "ഏറ്റവും പ്രബലമായ സുന്നത്ത് മുഅക്കദ. ഖുൽ യാ അയ്യുഹൽ കാഫിറൂനും ഇഖ്‌ലാസും ഓതി നിസ്കരിക്കൽ സുന്നത്ത്.",
+          "arabic": "أُصَلِّي سُنَّةَ الصُّبْحِ رَكْعَتَيْنِ مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതസ്സ്വുബ്ഹി റക്അതൈനി മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി ഖിബ്‌ലയ്ക്ക് മുന്നിട്ട് സ്വുബ്ഹ് സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_fajr_before.mp3"
+        }
+      ],
+      "after": []
+    },
+    {
+      "prayerId": "dhuhr",
+      "prayerEn": "Dhuhr (Noon)",
+      "prayerMl": "ളുഹർ",
+      "before": [
+        {
+          "rakaat": 2,
+          "isMuakkadah": true,
+          "timingEn": "2 Raka'at Before Dhuhr (Mu'akkadah)",
+          "timingMl": "ളുഹറിന് മുമ്പ് 2 റക്അത്ത് (മുഅക്കദ)",
+          "noteEn": "Confirmed Sunnah Mu'akkadah before Dhuhr.",
+          "noteMl": "ളുഹറിന് മുമ്പുള്ള പ്രബലമായ 2 റക്അത്ത് റവാതിബ് സുന്നത്ത്.",
+          "arabic": "أُصَلِّي سُنَّةَ الظُّهْرِ رَكْعَتَيْنِ قَبْلِيَّةً مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതള്ളുഹ്‌രി റക്അതൈനി ഖബ്‌ലിയ്യതൻ മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി ളുഹറിന് മുമ്പുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_dhuhr_before_muakkadah.mp3"
+        },
+        {
+          "rakaat": 2,
+          "isMuakkadah": false,
+          "timingEn": "2 Additional Raka'at Before Dhuhr (Ghair Mu'akkadah)",
+          "timingMl": "ളുഹറിന് മുമ്പ് അധികം 2 റക്അത്ത് (ഗൈർ മുഅക്കദ)",
+          "noteEn": "Prayed in sets of two to complete 4 raka'at before Dhuhr.",
+          "noteMl": "ളുഹറിന് മുമ്പ് 4 റക്അത്ത് പൂർത്തിയാക്കാൻ നിസ്കരിക്കുന്ന 2 റക്അത്ത് ഗൈർ മുഅക്കദ.",
+          "arabic": "أُصَلِّي سُنَّةَ الظُّهْرِ رَكْعَتَيْنِ قَبْلِيَّةً مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതള്ളുഹ്‌രി റക്അതൈനി ഖബ്‌ലിയ്യതൻ മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി ളുഹറിന് മുമ്പുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_dhuhr_before_extra.mp3"
+        }
+      ],
+      "after": [
+        {
+          "rakaat": 2,
+          "isMuakkadah": true,
+          "timingEn": "2 Raka'at After Dhuhr (Mu'akkadah)",
+          "timingMl": "ളുഹറിന് ശേഷം 2 റക്അത്ത് (മുഅക്കദ)",
+          "noteEn": "Confirmed Sunnah Mu'akkadah right after Dhuhr Fard.",
+          "noteMl": "ളുഹറിന് ശേഷമുള്ള പ്രബലമായ 2 റക്അത്ത് സുന്നത്ത് മുഅക്കദ.",
+          "arabic": "أُصَلِّي سُنَّةَ الظُّهْرِ رَكْعَتَيْنِ بَعْدِيَّةً مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതള്ളുഹ്‌രി റക്അതൈനി ബഅ്ദിയ്യതൻ മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി ളുഹറിന് ശേഷമുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_dhuhr_after_muakkadah.mp3"
+        },
+        {
+          "rakaat": 2,
+          "isMuakkadah": false,
+          "timingEn": "2 Additional Raka'at After Dhuhr (Ghair Mu'akkadah)",
+          "timingMl": "ളുഹറിന് ശേഷം അധികം 2 റക്അത്ത് (ഗൈർ മുഅക്കദ)",
+          "noteEn": "Completing 4 after Dhuhr grants special protection from the Fire as narrated in Hadith.",
+          "noteMl": "ളുഹറിന് ശേഷം 4 റക്അത്ത് നിസ്കരിക്കുന്നത് നരകത്തിൽ നിന്നുള്ള കാവലിന് കാരണമാകുമെന്ന് ഹദീസിൽ വന്നിട്ടുണ്ട്.",
+          "arabic": "أُصَلِّي سُنَّةَ الظُّهْرِ رَكْعَتَيْنِ بَعْدِيَّةً مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതള്ളുഹ്‌രി റക്അതൈനി ബഅ്ദിയ്യതൻ മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി ളുഹറിന് ശേഷമുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_dhuhr_after_extra.mp3"
+        }
+      ]
+    },
+    {
+      "prayerId": "asr",
+      "prayerEn": "Asr (Afternoon)",
+      "prayerMl": "അസർ",
+      "before": [
+        {
+          "rakaat": 4,
+          "isMuakkadah": false,
+          "timingEn": "4 Raka'at Before Asr (2 + 2 Ghair Mu'akkadah)",
+          "timingMl": "അസറിന് മുമ്പ് 4 റക്അത്ത് (2+2 ഗൈർ മുഅക്കദ)",
+          "noteEn": "Prayed in two sets of 2 raka'at; the Prophet (SAW) made Dua of mercy for whoever prays 4 before Asr.",
+          "noteMl": "അസറിന് മുമ്പ് 4 റക്അത്ത് (2+2 വീതം) നിസ്കരിക്കുന്നവർക്കായി നബി (സ) അനുഗ്രഹം തേടിയിട്ടുണ്ട്.",
+          "arabic": "أُصَلِّي سُنَّةَ الْعَصْرِ رَكْعَتَيْنِ مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതൽ അസ്വ്‌രി റക്അതൈനി മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി അസറിന് മുമ്പുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_asr_before.mp3"
+        }
+      ],
+      "after": []
+    },
+    {
+      "prayerId": "maghrib",
+      "prayerEn": "Maghrib (Sunset)",
+      "prayerMl": "മഗ്‌രിബ്",
+      "before": [
+        {
+          "rakaat": 2,
+          "isMuakkadah": false,
+          "timingEn": "2 Raka'at Before Maghrib (Ghair Mu'akkadah)",
+          "timingMl": "മഗ്‌രിബിന് മുമ്പ് 2 റക്അത്ത് (ഗൈർ മുഅക്കദ)",
+          "noteEn": "Brief 2 raka'at between Adhan and Iqamah if time permits before sunset prayer.",
+          "noteMl": "മഗ്‌രിബ് ബാങ്കിനും ഇഖാമത്തിനും ഇടയിൽ സമയമുണ്ടെങ്കിൽ വേഗത്തിൽ നിസ്കരിക്കുന്ന 2 റക്അത്ത് സുന്നത്ത്.",
+          "arabic": "أُصَلِّي سُنَّةَ الْمَغْرِبِ رَكْعَتَيْنِ قَبْلِيَّةً مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതൽ മഗ്‌രിബി റക്അതൈനി ഖബ്‌ലിയ്യതൻ മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി മഗ്‌രിബിന് മുമ്പുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_maghrib_before.mp3"
+        }
+      ],
+      "after": [
+        {
+          "rakaat": 2,
+          "isMuakkadah": true,
+          "timingEn": "2 Raka'at After Maghrib (Mu'akkadah)",
+          "timingMl": "മഗ്‌രിബിന് ശേഷം 2 റക്അത്ത് (മുഅക്കദ)",
+          "noteEn": "Confirmed Sunnah Mu'akkadah; Sunnah to recite Al-Kafirun and Al-Ikhlas.",
+          "noteMl": "മഗ്‌രിബിന് ശേഷമുള്ള പ്രബലമായ സുന്നത്ത് മുഅക്കദ. കാഫിറൂനും ഇഖ്‌ലാസും ഓതുന്നത് സുന്നത്ത്.",
+          "arabic": "أُصَلِّي سُنَّةَ الْمَغْرِبِ رَكْعَتَيْنِ بَعْدِيَّةً مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതൽ മഗ്‌രിബി റക്അതൈനി ബഅ്ദിയ്യതൻ മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി മഗ്‌രിബിന് ശേഷമുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_maghrib_after.mp3"
+        }
+      ]
+    },
+    {
+      "prayerId": "isha",
+      "prayerEn": "Isha (Night)",
+      "prayerMl": "ഇശാഅ്",
+      "before": [
+        {
+          "rakaat": 2,
+          "isMuakkadah": false,
+          "timingEn": "2 Raka'at Before Isha (Ghair Mu'akkadah)",
+          "timingMl": "ഇശാഇന് മുമ്പ് 2 റക്അത്ത് (ഗൈർ മുഅക്കദ)",
+          "noteEn": "Prayed between the Isha Adhan and Iqamah.",
+          "noteMl": "ഇശാഅ് ബാങ്കിനും ഇഖാമത്തിനും ഇടയിൽ നിസ്കരിക്കുന്ന 2 റക്അത്ത് സുന്നത്ത്.",
+          "arabic": "أُصَلِّي سُنَّةَ الْعِشَاءِ رَكْعَتَيْنِ قَبْلِيَّةً مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതൽ ഇശാഇ റക്അതൈനി ഖബ്‌ലിയ്യതൻ മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി ഇശാഇന് മുമ്പുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_isha_before.mp3"
+        }
+      ],
+      "after": [
+        {
+          "rakaat": 2,
+          "isMuakkadah": true,
+          "timingEn": "2 Raka'at After Isha (Mu'akkadah)",
+          "timingMl": "ഇശാഇന് ശേഷം 2 റക്അത്ത് (മുഅക്കദ)",
+          "noteEn": "Confirmed Sunnah Mu'akkadah before starting Witr.",
+          "noteMl": "ഇശാഇന് ശേഷമുള്ള പ്രബലമായ 2 റക്അത്ത് സുന്നത്ത് മുഅക്കദ.",
+          "arabic": "أُصَلِّي سُنَّةَ الْعِشَاءِ رَكْعَتَيْنِ بَعْدِيَّةً مُسْتَقْبِلَ الْقِبْلَةِ لِلَّهِ تَعَالَى",
+          "transliterationMl": "ഉസ്വല്ലീ സുന്നതൽ ഇശാഇ റക്അതൈനി ബഅ്ദിയ്യതൻ മുസ്തഖ്ബിലൽ ഖിബ്‌ലതി ലില്ലാഹി തആലാ.",
+          "meaningMl": "അല്ലാഹു തആലായ്ക്ക് വേണ്ടി ഇശാഇന് ശേഷമുള്ള സുന്നത്ത് രണ്ട് റക്അത്ത് ഞാൻ നിസ്കരിക്കുന്നു.",
+          "audioPath": "assets/audio/ibadah/rawatib_isha_after.mp3"
+        }
+      ]
+    }
+  ],
+  "recommendedSurahs": [
+    {
+      "occasionEn": "Fajr Sunnah & Maghrib Sunnah",
+      "occasionMl": "സ്വുബ്ഹ് സുന്നത്തും മഗ്‌രിബ് സുന്നത്തും",
+      "reasonEn": "The Prophet (SAW) consistently paired Surah Al-Kafirun (1st raka'ah) and Al-Ikhlas (2nd raka'ah) to affirm pure Tawhid.",
+      "reasonMl": "തൗഹീദും ഇഖ്‌ലാസും ഉറപ്പിക്കാൻ നബി (സ) ഒന്നാം റക്അത്തിൽ കാഫിറൂനും രണ്ടാമത്തേതിൽ ഇഖ്‌ലാസും ഓതാറുണ്ടായിരുന്നു.",
+      "surahs": [
+        { "surahNumber": 109, "nameEn": "Al-Kafirun", "nameMl": "അൽ-കാഫിറൂൻ", "nameAr": "الكافرون", "rakaahTagEn": "1st Raka'ah", "rakaahTagMl": "1-ാം റക്അത്ത്" },
+        { "surahNumber": 112, "nameEn": "Al-Ikhlas", "nameMl": "അൽ-ഇഖ്‌ലാസ്", "nameAr": "الإخلاص", "rakaahTagEn": "2nd Raka'ah", "rakaahTagMl": "2-ാം റക്അത്ത്" }
+      ]
+    },
+    {
+      "occasionEn": "Friday Fajr Prayer",
+      "occasionMl": "വെള്ളിയാഴ്ച സ്വുബ്ഹ് (ഫജ്ർ)",
+      "reasonEn": "Sunnah in Friday dawn prayer to recite As-Sajdah (with Sujud at-Tilawah) and Al-Insan.",
+      "reasonMl": "വെള്ളിയാഴ്ച സ്വുബ്ഹിൽ സജ്ദ സൂറത്തും ഇൻസാൻ സൂറത്തും ഓതുന്നത് പ്രബല സുന്നത്താണ്.",
+      "surahs": [
+        { "surahNumber": 32, "nameEn": "As-Sajdah", "nameMl": "അസ്-സജ്ദ", "nameAr": "السجدة", "rakaahTagEn": "1st Raka'ah", "rakaahTagMl": "1-ാം റക്അത്ത്" },
+        { "surahNumber": 76, "nameEn": "Al-Insan", "nameMl": "അൽ-ഇൻസാൻ", "nameAr": "الإنسان", "rakaahTagEn": "2nd Raka'ah", "rakaahTagMl": "2-ാം റക്അത്ത്" }
+      ]
+    },
+    {
+      "occasionEn": "Daily Fajr Prayer",
+      "occasionMl": "ദിവസേനയുള്ള ഫജ്ർ (സ്വുബ്ഹ്)",
+      "reasonEn": "Long Mufassal Surahs such as Qaf or Al-Waqi'ah / Al-Fajr are recommended in Fajr.",
+      "reasonMl": "ഫജ്ർ നിസ്കാരത്തിൽ ത്വിവാലുൽ മുഫസ്സ്വലിൽ നിന്നുള്ള സൂറത്തുകൾ (ഉദാ: ഖാഫ്, അൽ-ഫജ്ർ) ഓതൽ സുന്നത്താണ്.",
+      "surahs": [
+        { "surahNumber": 50, "nameEn": "Qaf", "nameMl": "ഖാഫ്", "nameAr": "ق", "rakaahTagEn": "Recommended", "rakaahTagMl": "സുന്നത്ത്" },
+        { "surahNumber": 89, "nameEn": "Al-Fajr", "nameMl": "അൽ-ഫജ്ർ", "nameAr": "الفجر", "rakaahTagEn": "Recommended", "rakaahTagMl": "സുന്നത്ത്" }
+      ]
+    },
+    {
+      "occasionEn": "Maghrib Fard Prayer",
+      "occasionMl": "മഗ്‌രിബ് ഫർള് നിസ്കാരം",
+      "reasonEn": "Short Mufassal Surahs (from Ad-Duha to An-Nas), such as At-Tin and Al-Qadr, are recommended.",
+      "reasonMl": "മഗ്‌രിബിൽ ഖിസ്വാറുൽ മുഫസ്സ്വലിൽ നിന്നുള്ള ചെറിയ സൂറത്തുകൾ ഓതുന്നത് സുന്നത്താണ്.",
+      "surahs": [
+        { "surahNumber": 95, "nameEn": "At-Tin", "nameMl": "അത്ത്വീൻ", "nameAr": "التين", "rakaahTagEn": "1st Raka'ah", "rakaahTagMl": "1-ാം റക്അത്ത്" },
+        { "surahNumber": 97, "nameEn": "Al-Qadr", "nameMl": "അൽ-ഖദ്ർ", "nameAr": "القدر", "rakaahTagEn": "2nd Raka'ah", "rakaahTagMl": "2-ാം റക്അത്ത്" }
+      ]
+    },
+    {
+      "occasionEn": "Dhuhr, Asr & Isha Fard",
+      "occasionMl": "ളുഹർ, അസർ, ഇശാഅ് നിസ്കാരങ്ങൾ",
+      "reasonEn": "Medium Mufassal Surahs (from An-Naba to Ad-Duha) such as Al-A'la, Ash-Shams, and Al-Layl.",
+      "reasonMl": "ളുഹർ, അസർ, ഇശാഅ് എന്നിവയിൽ അൽ-അഅ്‌ല, അശ്ശംസ്, അൽ-ലൈൽ തുടങ്ങിയ അവ്‌സാതുൽ മുഫസ്സ്വൽ സൂറത്തുകൾ ഓതൽ സുന്നത്താണ്.",
+      "surahs": [
+        { "surahNumber": 87, "nameEn": "Al-A'la", "nameMl": "അൽ-അഅ്‌ല", "nameAr": "الأعلى", "rakaahTagEn": "Isha / Dhuhr", "rakaahTagMl": "ഇശാ / ളുഹർ" },
+        { "surahNumber": 91, "nameEn": "Ash-Shams", "nameMl": "അശ്ശംസ്", "nameAr": "الشمس", "rakaahTagEn": "Isha / Asr", "rakaahTagMl": "ഇശാ / അസർ" }
+      ]
+    },
+    {
+      "occasionEn": "Jumu'ah & Eid Prayers",
+      "occasionMl": "ജുമുഅ & പെരുന്നാൾ നിസ്കാരങ്ങൾ",
+      "reasonEn": "Recite Al-Jumu'ah & Al-Munafiqun, or Al-A'la & Al-Ghashiyah during Jumu'ah and Eid.",
+      "reasonMl": "ജുമുഅയിലും പെരുന്നാൾ നിസ്കാരങ്ങളിലും അൽ-ജുമുഅ, അൽ-മുനാഫിഖൂൻ അല്ലെങ്കിൽ അൽ-അഅ്‌ല, അൽ-ഗാശിയ എന്നിവ ഓതൽ സുന്നത്താണ്.",
+      "surahs": [
+        { "surahNumber": 62, "nameEn": "Al-Jumu'ah", "nameMl": "അൽ-ജുമുഅ", "nameAr": "الجمعة", "rakaahTagEn": "1st Raka'ah", "rakaahTagMl": "1-ാം റക്അത്ത്" },
+        { "surahNumber": 63, "nameEn": "Al-Munafiqun", "nameMl": "അൽ-മുനാഫിഖൂൻ", "nameAr": "المنافقون", "rakaahTagEn": "2nd Raka'ah", "rakaahTagMl": "2-ാം റക്അത്ത്" },
+        { "surahNumber": 88, "nameEn": "Al-Ghashiyah", "nameMl": "അൽ-ഗാശിയ", "nameAr": "الغاشية", "rakaahTagEn": "2nd Option", "rakaahTagMl": "പകരം (2-ാം റക്അത്ത്)" }
+      ]
+    },
+    {
+      "occasionEn": "Witr Prayer (3 Raka'at)",
+      "occasionMl": "വിത്ർ നിസ്കാരം (3 റക്അത്ത്)",
+      "reasonEn": "Recite Al-A'la (1st), Al-Kafirun (2nd), and Al-Ikhlas + Al-Falaq + An-Nas (3rd final raka'ah).",
+      "reasonMl": "വിത്റിന്റെ ആദ്യ റക്അത്തിൽ അൽ-അഅ്‌ലയും രണ്ടാം റക്അത്തിൽ അൽ-കാഫിറൂനും മൂന്നാം റക്അത്തിൽ ഇഖ്‌ലാസ്, ഫലഖ്, നാസ് എന്നിവയും ഓതുക.",
+      "surahs": [
+        { "surahNumber": 87, "nameEn": "Al-A'la", "nameMl": "അൽ-അഅ്‌ല", "nameAr": "الأعلى", "rakaahTagEn": "1st Raka'ah", "rakaahTagMl": "1-ാം റക്അത്ത്" },
+        { "surahNumber": 109, "nameEn": "Al-Kafirun", "nameMl": "അൽ-കാഫിറൂൻ", "nameAr": "الكافرون", "rakaahTagEn": "2nd Raka'ah", "rakaahTagMl": "2-ാം റക്അത്ത്" },
+        { "surahNumber": 112, "nameEn": "Al-Ikhlas", "nameMl": "അൽ-ഇഖ്‌ലാസ്", "nameAr": "الإخلاص", "rakaahTagEn": "3rd Raka'ah", "rakaahTagMl": "3-ാം റക്അത്ത്" },
+        { "surahNumber": 113, "nameEn": "Al-Falaq", "nameMl": "അൽ-ഫലഖ്", "nameAr": "الفلق", "rakaahTagEn": "3rd Raka'ah", "rakaahTagMl": "3-ാം റക്അത്ത്" },
+        { "surahNumber": 114, "nameEn": "An-Nas", "nameMl": "അന്നാസ്", "nameAr": "الناس", "rakaahTagEn": "3rd Raka'ah", "rakaahTagMl": "3-ാം റക്അത്ത്" }
+      ]
+    },
+    {
+      "occasionEn": "Thursday Night & Friday Sunnah",
+      "occasionMl": "വ്യാഴാഴ്ച രാത്രിയും വെള്ളിയാഴ്ചയും",
+      "reasonEn": "Reciting Surah Al-Kahf illuminates between two Fridays, and Yaseen / Al-Mulk hold immense daily reward.",
+      "reasonMl": "വെള്ളിയാഴ്ച രാവിലെയോ പകലോ സൂറത്തുൽ കഹ്ഫ് ഓതുന്നത് രണ്ട് ജുമുഅകൾക്കിടയിൽ പ്രകാശം നൽകും.",
+      "surahs": [
+        { "surahNumber": 18, "nameEn": "Al-Kahf", "nameMl": "അൽ-കഹ്ഫ്", "nameAr": "الكهف", "rakaahTagEn": "Friday", "rakaahTagMl": "വെള്ളി" },
+        { "surahNumber": 36, "nameEn": "Yaseen", "nameMl": "യാസീൻ", "nameAr": "يس", "rakaahTagEn": "Blessings", "rakaahTagMl": "അനുഗ്രഹം" },
+        { "surahNumber": 67, "nameEn": "Al-Mulk", "nameMl": "അൽ-മുൽക്ക്", "nameAr": "الملك", "rakaahTagEn": "Before Sleep", "rakaahTagMl": "രാത്രി" }
+      ]
+    }
+  ]
+}

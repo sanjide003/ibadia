@@ -219,6 +219,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       case RecentActivityType.autoSilent:
         showAutoSilentSheet(context, t);
         break;
+      case RecentActivityType.ibadah:
+        widget.onOpenFeature('ibadah_guide');
+        break;
       case RecentActivityType.exportPdf:
         widget.onOpenFeature('export');
         break;
@@ -248,6 +251,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         return Icons.palette_rounded;
       case RecentActivityType.autoSilent:
         return Icons.do_not_disturb_on_rounded;
+      case RecentActivityType.ibadah:
+        return Icons.menu_book_outlined;
       case RecentActivityType.bookmark:
         return Icons.bookmark_rounded;
       case RecentActivityType.exportPdf:
@@ -672,8 +677,49 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
       ),
     ];
 
-    // Remaining 6 tools under Categories grid
+    // Remaining tools under Categories grid
     final categoryTools = <_DashboardQuickAction>[
+      _DashboardQuickAction(
+        id: 'ibadah_guide',
+        icon: Icons.menu_book_outlined,
+        accent: const Color(0xFF047857),
+        titleEn: t.actionIbadahGuide,
+        titleMl: t.actionIbadahGuide,
+        titleAr: t.actionIbadahGuide,
+        subtitleEn: 'Niyyah, Salah, Rawatib & Mayyith',
+        subtitleMl: 'നിയ്യത്ത്, നിസ്കാരം, റവാതിബ്, മയ്യിത്ത്',
+        subtitleAr: 'النية والصلاة والرواتب والجنازة',
+        keywords: const [
+          'ibadah',
+          'salah',
+          'niyyah',
+          'namaz',
+          'rawatib',
+          'mayyith',
+          'janazah',
+          'qunoot',
+          'witr',
+          'shafi',
+          'ഇബാദത്ത്',
+          'നിസ്കാരം',
+          'നിയ്യത്ത്',
+          'മയ്യിത്ത്',
+          'ഖുനൂത്ത്',
+        ],
+        onTap: () {
+          _recordSimpleActivity(
+            id: 'tool:ibadah_guide',
+            type: RecentActivityType.ibadah,
+            titleEn: 'Ibadah & Salah Guide',
+            titleMl: 'ഇബാദത്ത് & നിസ്കാര ഗൈഡ്',
+            titleAr: 'دليل الصلاة والعبادات',
+            subtitleEn: 'Niyyah, Salah, Rawatib & Mayyith',
+            subtitleMl: 'നിയ്യത്ത്, നിസ്കാരം, റവാതിബ്, മയ്യിത്ത്',
+            subtitleAr: 'الفقه الشافعي',
+          );
+          widget.onOpenFeature('ibadah_guide');
+        },
+      ),
       _DashboardQuickAction(
         id: 'juz_index',
         icon: Icons.grid_view_rounded,
