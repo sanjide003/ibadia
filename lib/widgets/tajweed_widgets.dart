@@ -156,6 +156,66 @@ class _TajweedAyahRichTextState extends State<TajweedAyahRichText>
   }
 }
 
+/// Compact floating corner badge showing only Tajweed color dots + palette mark.
+/// Tapping opens the full Tajweed Rules & Explanations sheet.
+class TajweedCornerColorButton extends StatelessWidget {
+  final AppStrings strings;
+
+  const TajweedCornerColorButton({
+    super.key,
+    required this.strings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+    final previewRules = TajweedEngine.legend.take(5).toList();
+
+    return Tooltip(
+      message: strings.tajweedGuideTitle,
+      child: Material(
+        color: (isDark ? const Color(0xFF161F1B) : Colors.white)
+            .withValues(alpha: 0.92),
+        elevation: 3,
+        shadowColor: Colors.black.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: () => showTajweedLegendSheet(context, strings: strings),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: 0.6),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.palette_outlined, size: 14, color: cs.primary),
+                const SizedBox(width: 5),
+                for (int i = 0; i < previewRules.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 3),
+                  Container(
+                    width: 7.5,
+                    height: 7.5,
+                    decoration: BoxDecoration(
+                      color: previewRules[i].colorFor(isDark),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class TajweedLegendMiniBar extends StatelessWidget {
   final AppStrings strings;
   final ColorScheme cs;
@@ -173,7 +233,7 @@ class TajweedLegendMiniBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final lang = strings.lang;
+    final expLang = strings.explanationLang;
 
     return Material(
       color: cardBg,
@@ -230,7 +290,7 @@ class TajweedLegendMiniBar extends StatelessWidget {
                               ),
                               const SizedBox(width: 5),
                               Text(
-                                meta.titleFor(lang).split('(').first.trim(),
+                                meta.titleFor(expLang).split('(').first.trim(),
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -313,7 +373,7 @@ Future<void> showTajweedRuleInspectorSheet(
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      meta.titleFor(strings.lang),
+                      meta.titleFor(strings.explanationLang),
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -360,7 +420,7 @@ Future<void> showTajweedRuleInspectorSheet(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      meta.descriptionFor(strings.lang),
+                      meta.descriptionFor(strings.explanationLang),
                       style: const TextStyle(
                         fontSize: 14,
                         height: 1.55,
@@ -491,7 +551,7 @@ Future<void> showTajweedLegendSheet(
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              meta.titleFor(strings.lang),
+                              meta.titleFor(strings.explanationLang),
                               style: TextStyle(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w800,
@@ -512,7 +572,7 @@ Future<void> showTajweedLegendSheet(
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        meta.descriptionFor(strings.lang),
+                        meta.descriptionFor(strings.explanationLang),
                         style: TextStyle(
                           fontSize: 13,
                           height: 1.5,

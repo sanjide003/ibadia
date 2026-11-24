@@ -1425,64 +1425,84 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         },
         child: Scaffold(
           appBar: AppBar(
-            centerTitle: true,
-            title: ValueListenableBuilder<SurahSummary?>(
-              valueListenable: _headerSummaryNotifier,
-              builder: (_, activeSummary, __) {
-                String headerTitle = '${t.surahLabel} ${widget.initialSurahNumber}';
-                if (activeSummary != null) {
-                  headerTitle = appLanguage == 'ar'
-                      ? activeSummary.nameArabic
-                      : '${activeSummary.number}. ${activeSummary.englishName}';
-                }
-                return Text(
-                  headerTitle,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                );
-              },
-            ),
-            actions: [
-              const TvModeActionButton(),
-              IconButton(
-                tooltip: t.tajweedGuideTitle,
-                icon: const Icon(Icons.palette_outlined),
-                onPressed: () => showTajweedLegendSheet(context, strings: t),
-              ),
-              Builder(
-                builder: (drawerCtx) => IconButton(
-                  tooltip: t.settings,
-                  icon: const Icon(Icons.settings_rounded),
-                  onPressed: () => Scaffold.of(drawerCtx).openEndDrawer(),
-                ),
-              ),
-            ],
+            centerTitle: !tvModeEnabled,
+            titleSpacing: tvModeEnabled ? 4 : null,
+            title: tvModeEnabled
+                ? Row(
+                    children: [
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 190),
+                        child: ValueListenableBuilder<SurahSummary?>(
+                          valueListenable: _headerSummaryNotifier,
+                          builder: (_, activeSummary, __) {
+                            String headerTitle =
+                                '${t.surahLabel} ${widget.initialSurahNumber}';
+                            if (activeSummary != null) {
+                              headerTitle = appLanguage == 'ar'
+                                  ? activeSummary.nameArabic
+                                  : '${activeSummary.number}. ${activeSummary.englishName}';
+                            }
+                            return Text(
+                              headerTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: Builder(
+                            builder: (drawerCtx) => TvHeaderControlsInline(
+                              onOpenSettings: () =>
+                                  Scaffold.of(drawerCtx).openEndDrawer(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : ValueListenableBuilder<SurahSummary?>(
+                    valueListenable: _headerSummaryNotifier,
+                    builder: (_, activeSummary, __) {
+                      String headerTitle =
+                          '${t.surahLabel} ${widget.initialSurahNumber}';
+                      if (activeSummary != null) {
+                        headerTitle = appLanguage == 'ar'
+                            ? activeSummary.nameArabic
+                            : '${activeSummary.number}. ${activeSummary.englishName}';
+                      }
+                      return Text(
+                        headerTitle,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      );
+                    },
+                  ),
+            actions: tvModeEnabled
+                ? const []
+                : [
+                    const TvModeActionButton(),
+                    Builder(
+                      builder: (drawerCtx) => IconButton(
+                        tooltip: t.settings,
+                        icon: const Icon(Icons.settings_rounded),
+                        onPressed: () =>
+                            Scaffold.of(drawerCtx).openEndDrawer(),
+                      ),
+                    ),
+                  ],
           ),
           endDrawer: const CompactSettingsDrawer(),
           body: SafeArea(
             child: Column(
               children: [
-                Builder(
-                  builder: (bodyCtx) => QuickTvControlBar(
-                    onOpenSettings: () =>
-                        Scaffold.of(bodyCtx).openEndDrawer(),
-                  ),
-                ),
                 const ReaderAudioPlayerBar(),
-                if (!_isInitialLoading && _errorText == null)
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      readerHPad,
-                      6,
-                      readerHPad,
-                      2,
-                    ),
-                    child: TajweedLegendMiniBar(
-                      strings: t,
-                      cs: cs,
-                      cardBg: scaffoldBg,
-                      cardBorder: cs.outlineVariant.withValues(alpha: 0.45),
-                    ),
-                  ),
                 Expanded(
                   child: Stack(
                     fit: StackFit.expand,
@@ -1642,6 +1662,13 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                           ),
                       ],
                     ),
+                  ),
+
+                if (!_isInitialLoading && _errorText == null)
+                  Positioned(
+                    top: 8,
+                    right: 10,
+                    child: TajweedCornerColorButton(strings: t),
                   ),
 
                 // Isolated 1:1 Instant Draggable Floating Auto-Scroll & Quick Control Button

@@ -243,6 +243,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
     final lang = settings.appLanguage;
+    final expLang = explanationLangFor(lang);
     final headingLang = settings.ibadahMalayalamHeadings ? 'ml' : lang;
     final hStrings = AppStrings(headingLang);
     final cs = Theme.of(context).colorScheme;
@@ -290,7 +291,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
         sectionBody = _buildNiyyahView(
           t: t,
           hStrings: hStrings,
-          lang: lang,
+          lang: expLang,
           headingLang: headingLang,
           showTransliteration: settings.ibadahShowTransliteration,
           showMeaning: settings.ibadahShowMeaning,
@@ -307,7 +308,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
         sectionBody = _buildSalahGuideView(
           t: t,
           hStrings: hStrings,
-          lang: lang,
+          lang: expLang,
           headingLang: headingLang,
           showTransliteration: settings.ibadahShowTransliteration,
           showMeaning: settings.ibadahShowMeaning,
@@ -324,7 +325,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
         sectionBody = _buildRawatibAndSurahsView(
           t: t,
           hStrings: hStrings,
-          lang: lang,
+          lang: expLang,
           headingLang: headingLang,
           showTransliteration: settings.ibadahShowTransliteration,
           showMeaning: settings.ibadahShowMeaning,
@@ -341,7 +342,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
         sectionBody = _buildMayyithView(
           t: t,
           hStrings: hStrings,
-          lang: lang,
+          lang: expLang,
           headingLang: headingLang,
           showTransliteration: settings.ibadahShowTransliteration,
           showMeaning: settings.ibadahShowMeaning,
@@ -356,60 +357,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
         break;
     }
 
-    return Column(
-      children: [
-        // Compact header strip: Shafi'i Fiqh label + subtle Settings hint
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(hPad, 9, hPad, 9),
-          decoration: BoxDecoration(
-            color: palette.tabBarBg,
-            border: Border(
-              bottom: BorderSide(color: palette.cardBorder),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.verified_rounded, size: 15, color: accentColor),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      hStrings.ibadahFiqhSubtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 3),
-              Row(
-                children: [
-                  Icon(Icons.tune_rounded, size: 13.5, color: accentColor),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      t.ibadahDisplayTip,
-                      style: TextStyle(
-                        fontSize: 11.2,
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Expanded(child: sectionBody),
-      ],
-    );
+    return sectionBody;
   }
 
   // ---------------------------------------------------------------------------
@@ -781,7 +729,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                   .asMap()
                   .entries
                   .map((e) =>
-                      '${e.key + 1}. ${e.value.titleFor(headingLang)} — ${e.value.descFor(headingLang)}')
+                      '${e.key + 1}. ${e.value.titleFor(headingLang)} — ${e.value.descFor(lang)}')
                   .join('\n'),
               footerSource: t.salahGuideTabLabel,
             ),
@@ -1003,7 +951,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                                   ),
                                 ),
                                 subtitle: Text(
-                                  cond.descFor(headingLang),
+                                  cond.descFor(lang),
                                   style: TextStyle(
                                     fontSize: 12 * uiScale,
                                     color: cs.onSurfaceVariant,
@@ -1743,7 +1691,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 transliterationMl: bundle.preparationStages[i].transliterationMl,
                 meaningText: bundle.preparationStages[i].meaningMl,
                 noteText: bundle.preparationStages[i]
-                    .pointsFor(headingLang)
+                    .pointsFor(lang)
                     .map((p) => '• $p')
                     .join('\n'),
                 footerSource: t.mayyithTabLabel,
@@ -2041,7 +1989,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                           footerExtra: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              for (final pt in stage.pointsFor(headingLang))
+                              for (final pt in stage.pointsFor(lang))
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 6),
                                   child: Row(

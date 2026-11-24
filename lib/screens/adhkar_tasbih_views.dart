@@ -48,6 +48,7 @@ class AdhkarDuasView extends ConsumerWidget {
     final notifier = ref.read(adhkarProvider.notifier);
     final t = ref.watch(stringsProvider);
     final appLang = ref.watch(settingsProvider.select((s) => s.appLanguage));
+    final expLang = explanationLangFor(appLang);
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSepia = ref.watch(settingsProvider.select((s) => s.themeMode == 'sepia'));
@@ -278,6 +279,7 @@ class AdhkarDuasView extends ConsumerWidget {
                 count: adhkarState.countFor(entry.id),
                 isFavorite: adhkarState.favoriteIds.contains(entry.id),
                 appLang: appLang,
+                explanationLang: expLang,
                 strings: t,
                 cs: cs,
                 cardBg: cardBg,
@@ -298,7 +300,7 @@ class AdhkarDuasView extends ConsumerWidget {
                 onCopy: () {
                   Clipboard.setData(
                     ClipboardData(
-                      text: '${entry.arabic}\n\n${entry.translationFor(appLang)}\n(${entry.reference})',
+                      text: '${entry.arabic}\n\n${entry.translationFor(expLang)}\n(${entry.reference})',
                     ),
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -320,6 +322,7 @@ class _AdhkarCard extends StatelessWidget {
   final int count;
   final bool isFavorite;
   final String appLang;
+  final String explanationLang;
   final AppStrings strings;
   final ColorScheme cs;
   final Color cardBg;
@@ -337,6 +340,7 @@ class _AdhkarCard extends StatelessWidget {
     required this.count,
     required this.isFavorite,
     required this.appLang,
+    required this.explanationLang,
     required this.strings,
     required this.cs,
     required this.cardBg,
@@ -450,7 +454,7 @@ class _AdhkarCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  entry.translationFor(appLang),
+                  entry.translationFor(explanationLang),
                   style: TextStyle(
                     fontSize: meaningFontSize,
                     height: 1.5,

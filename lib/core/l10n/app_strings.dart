@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart' show TextDirection;
 
+/// Returns `'ml'` for instructional/fiqh/tajweed/adhkar explanations
+/// when the UI language is `'en'`, preserving `'ml'` and `'ar'`.
+String explanationLangFor(String appLanguage) =>
+    appLanguage == 'en' ? 'ml' : appLanguage;
+
 class AppStrings {
   final String lang;
   const AppStrings(this.lang);
 
   bool get isRtl => lang == 'ar';
   TextDirection get textDirection => isRtl ? TextDirection.rtl : TextDirection.ltr;
+  String get explanationLang => explanationLangFor(lang);
 
   String _p(String en, String ml, String ar) {
     if (lang == 'ml') return ml;

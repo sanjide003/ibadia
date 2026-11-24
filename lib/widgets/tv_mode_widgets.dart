@@ -136,12 +136,12 @@ class TvModeActionButton extends ConsumerWidget {
   }
 }
 
-/// Quick classroom TV toolbar mounted below the header whenever TV Mode is ON.
-/// Lets Usthadhs/Teachers adjust Arabic size, overall TV text scale, or exit TV Mode.
-class QuickTvControlBar extends ConsumerWidget {
+/// Compact classroom TV controls rendered directly inside the emerald top header
+/// bar when TV Mode is active (zero extra sub-bar beneath the header).
+class TvHeaderControlsInline extends ConsumerWidget {
   final VoidCallback? onOpenSettings;
 
-  const QuickTvControlBar({
+  const TvHeaderControlsInline({
     super.key,
     this.onOpenSettings,
   });
@@ -153,156 +153,162 @@ class QuickTvControlBar extends ConsumerWidget {
 
     final notifier = ref.read(settingsProvider.notifier);
     final t = ref.watch(stringsProvider);
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final Color barBg =
-        isDark ? const Color(0xFF0E1D17) : const Color(0xFFE7F5EE);
-    final Color borderCol = isDark
-        ? AppBranding.accentGold.withValues(alpha: 0.45)
-        : cs.primary.withValues(alpha: 0.25);
 
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: barBg,
-        border: Border(
-          bottom: BorderSide(color: borderCol, width: 1),
-        ),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppBranding.accentGold,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.connected_tv_rounded,
-                    size: 15,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppBranding.accentGold,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.connected_tv_rounded,
+                  size: 14,
+                  color: Color(0xFF1A1400),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  t.tvLandscapeBadge,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
                     color: Color(0xFF1A1400),
                   ),
-                  const SizedBox(width: 5),
-                  Text(
-                    t.tvLandscapeBadge,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A1400),
-                    ),
-                  ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+
+          // Arabic Font Size Quick Stepper
+          _HeaderTvStepperChip(
+            label: t.tvArabicShort,
+            valueLabel: '${settings.arabicFontSize.round()}',
+            onDecrease: () => notifier.updateWith(
+              (s) => s.copyWith(
+                arabicFontSize: (s.arabicFontSize - 2.0).clamp(20.0, 72.0),
               ),
             ),
-            const SizedBox(width: 10),
-
-            // Arabic Font Size Quick Stepper
-            _TvStepperChip(
-              label: t.tvArabicShort,
-              valueLabel: '${settings.arabicFontSize.round()}',
-              onDecrease: () => notifier.updateWith(
-                (s) => s.copyWith(
-                  arabicFontSize: (s.arabicFontSize - 2.0).clamp(20.0, 72.0),
-                ),
-              ),
-              onIncrease: () => notifier.updateWith(
-                (s) => s.copyWith(
-                  arabicFontSize: (s.arabicFontSize + 2.0).clamp(20.0, 72.0),
-                ),
+            onIncrease: () => notifier.updateWith(
+              (s) => s.copyWith(
+                arabicFontSize: (s.arabicFontSize + 2.0).clamp(20.0, 72.0),
               ),
             ),
-            const SizedBox(width: 8),
+          ),
+          const SizedBox(width: 6),
 
-            // TV Display Text Scale Quick Stepper (Cards, Meanings, Ibadah, UI)
-            _TvStepperChip(
-              label: t.tvTextShort,
-              valueLabel: '${settings.tvFontScale.toStringAsFixed(2)}x',
-              onDecrease: () => notifier.updateWith(
-                (s) => s.copyWith(
-                  tvFontScale: (s.tvFontScale - 0.1).clamp(1.0, 2.2),
-                  translationFontSize:
-                      (s.translationFontSize - 1.5).clamp(13.0, 34.0),
-                ),
-              ),
-              onIncrease: () => notifier.updateWith(
-                (s) => s.copyWith(
-                  tvFontScale: (s.tvFontScale + 0.1).clamp(1.0, 2.2),
-                  translationFontSize:
-                      (s.translationFontSize + 1.5).clamp(13.0, 34.0),
-                ),
+          // TV Display Text Scale Quick Stepper
+          _HeaderTvStepperChip(
+            label: t.tvTextShort,
+            valueLabel: '${settings.tvFontScale.toStringAsFixed(2)}x',
+            onDecrease: () => notifier.updateWith(
+              (s) => s.copyWith(
+                tvFontScale: (s.tvFontScale - 0.1).clamp(1.0, 2.2),
+                translationFontSize:
+                    (s.translationFontSize - 1.5).clamp(13.0, 34.0),
               ),
             ),
+            onIncrease: () => notifier.updateWith(
+              (s) => s.copyWith(
+                tvFontScale: (s.tvFontScale + 0.1).clamp(1.0, 2.2),
+                translationFontSize:
+                    (s.translationFontSize + 1.5).clamp(13.0, 34.0),
+              ),
+            ),
+          ),
 
-            if (onOpenSettings != null) ...[
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
+          if (onOpenSettings != null) ...[
+            const SizedBox(width: 6),
+            Material(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: onOpenSettings,
+                child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                    horizontal: 8,
+                    vertical: 5,
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.tune_rounded,
+                        size: 14.5,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        t.settings,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                onPressed: onOpenSettings,
-                icon: const Icon(Icons.tune_rounded, size: 15),
-                label: Text(
-                  t.settings,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-
-            const SizedBox(width: 8),
-            FilledButton.tonalIcon(
-              style: FilledButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                backgroundColor: cs.errorContainer.withValues(alpha: 0.72),
-                foregroundColor: cs.onErrorContainer,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () =>
-                  unawaited(toggleTvMode(context, ref, forceValue: false)),
-              icon: const Icon(Icons.close_fullscreen_rounded, size: 15),
-              label: Text(
-                t.tvModeExitLabel,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
           ],
-        ),
+
+          const SizedBox(width: 6),
+          Material(
+            color: const Color(0xFFB91C1C).withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () =>
+                  unawaited(toggleTvMode(context, ref, forceValue: false)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 5,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.close_fullscreen_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      t.tvModeExitLabel,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _TvStepperChip extends StatelessWidget {
+class _HeaderTvStepperChip extends StatelessWidget {
   final String label;
   final String valueLabel;
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
 
-  const _TvStepperChip({
+  const _HeaderTvStepperChip({
     required this.label,
     required this.valueLabel,
     required this.onDecrease,
@@ -311,55 +317,53 @@ class _TvStepperChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF14241E) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.65)),
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: cs.onSurfaceVariant,
+                color: Colors.white.withValues(alpha: 0.86),
               ),
             ),
           ),
           InkWell(
             borderRadius: BorderRadius.circular(6),
             onTap: onDecrease,
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(Icons.remove_rounded, size: 17, color: cs.primary),
+            child: const Padding(
+              padding: EdgeInsets.all(3),
+              child: Icon(Icons.remove_rounded, size: 15, color: Colors.white),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
               valueLabel,
-              style: TextStyle(
-                fontSize: 12.5,
+              style: const TextStyle(
+                fontSize: 11.5,
                 fontWeight: FontWeight.w800,
-                color: cs.primary,
-                fontFeatures: const [FontFeature.tabularFigures()],
+                color: Colors.white,
+                fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
           ),
           InkWell(
             borderRadius: BorderRadius.circular(6),
             onTap: onIncrease,
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(Icons.add_rounded, size: 17, color: cs.primary),
+            child: const Padding(
+              padding: EdgeInsets.all(3),
+              child: Icon(Icons.add_rounded, size: 15, color: Colors.white),
             ),
           ),
         ],

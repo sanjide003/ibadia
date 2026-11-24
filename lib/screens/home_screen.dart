@@ -343,80 +343,132 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         backgroundColor: canvasBg,
         appBar: _tabIndex == 1
             ? null
-            : AppBar(
-                centerTitle: true,
+              : AppBar(
+                centerTitle: !settings.tvModeEnabled,
+                titleSpacing: settings.tvModeEnabled ? 12 : null,
                 backgroundColor: headerBg,
                 foregroundColor: Colors.white,
                 surfaceTintColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 scrolledUnderElevation: 0,
                 elevation: 0,
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.28),
-                          width: 1,
-                        ),
+                title: settings.tvModeEnabled
+                    ? Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.28),
+                                width: 1,
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.asset(
+                              AppBranding.logoAsset,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 9),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 165),
+                            child: Text(
+                              _tabIndex == 0 ? t.appTitle : t.settingsTab,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 19,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Align(
+                              alignment: AlignmentDirectional.centerEnd,
+                              child: Builder(
+                                builder: (drawerCtx) => TvHeaderControlsInline(
+                                  onOpenSettings: _tabIndex == 2
+                                      ? null
+                                      : () => Scaffold.of(drawerCtx)
+                                          .openEndDrawer(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.28),
+                                width: 1,
+                              ),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Image.asset(
+                              AppBranding.logoAsset,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 9),
+                          Text(
+                            _tabIndex == 0 ? t.appTitle : t.settingsTab,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 20,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.asset(
-                        AppBranding.logoAsset,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(width: 9),
-                    Text(
-                      _tabIndex == 0 ? t.appTitle : t.settingsTab,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-                actions: _tabIndex == 2
-                    ? const [TvModeActionButton(), SizedBox(width: 6)]
-                    : [
-                        const TvModeActionButton(),
-                        Builder(
-                          builder: (drawerCtx) => IconButton(
-                            tooltip: t.settings,
-                            icon: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                const Icon(Icons.settings_rounded,
-                                    color: Colors.white),
-                                if (updateState.updateAvailable)
-                                  Positioned(
-                                    right: -2,
-                                    top: -2,
-                                    child: Container(
-                                      width: 9,
-                                      height: 9,
-                                      decoration: BoxDecoration(
-                                        color: AppBranding.accentGold,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: headerBg,
-                                          width: 1.5,
+                actions: settings.tvModeEnabled
+                    ? const []
+                    : (_tabIndex == 2
+                        ? const [TvModeActionButton(), SizedBox(width: 6)]
+                        : [
+                            const TvModeActionButton(),
+                            Builder(
+                              builder: (drawerCtx) => IconButton(
+                                tooltip: t.settings,
+                                icon: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    const Icon(Icons.settings_rounded,
+                                        color: Colors.white),
+                                    if (updateState.updateAvailable)
+                                      Positioned(
+                                        right: -2,
+                                        top: -2,
+                                        child: Container(
+                                          width: 9,
+                                          height: 9,
+                                          decoration: BoxDecoration(
+                                            color: AppBranding.accentGold,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: headerBg,
+                                              width: 1.5,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                              ],
+                                  ],
+                                ),
+                                onPressed: () =>
+                                    Scaffold.of(drawerCtx).openEndDrawer(),
+                              ),
                             ),
-                            onPressed: () =>
-                                Scaffold.of(drawerCtx).openEndDrawer(),
-                          ),
-                        ),
-                      ],
+                          ]),
               ),
         endDrawer: _tabIndex == 2
             ? null
@@ -433,10 +485,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+                    padding: EdgeInsets.fromLTRB(
+                      12,
+                      8,
+                      settings.tvModeEnabled ? 12 : 6,
+                      8,
+                    ),
                     child: Row(
                       children: [
                         Expanded(
+                          flex: settings.tvModeEnabled ? 2 : 1,
                           child: _buildQuranSubTabBar(
                             controller: _quranTabController,
                             tabs: [
@@ -459,52 +517,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             ],
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        const TvModeActionButton(),
-                        Builder(
-                          builder: (drawerCtx) => IconButton(
-                            tooltip: t.quranSettingsTitle,
-                            icon: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                const Icon(Icons.settings_rounded,
-                                    color: Colors.white),
-                                if (updateState.updateAvailable)
-                                  Positioned(
-                                    right: -2,
-                                    top: -2,
-                                    child: Container(
-                                      width: 9,
-                                      height: 9,
-                                      decoration: BoxDecoration(
-                                        color: AppBranding.accentGold,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: headerBg,
-                                          width: 1.5,
+                        if (settings.tvModeEnabled) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 3,
+                            child: Align(
+                              alignment: AlignmentDirectional.centerEnd,
+                              child: Builder(
+                                builder: (drawerCtx) => TvHeaderControlsInline(
+                                  onOpenSettings: () =>
+                                      Scaffold.of(drawerCtx).openEndDrawer(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(width: 6),
+                          const TvModeActionButton(),
+                          Builder(
+                            builder: (drawerCtx) => IconButton(
+                              tooltip: t.quranSettingsTitle,
+                              icon: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  const Icon(Icons.settings_rounded,
+                                      color: Colors.white),
+                                  if (updateState.updateAvailable)
+                                    Positioned(
+                                      right: -2,
+                                      top: -2,
+                                      child: Container(
+                                        width: 9,
+                                        height: 9,
+                                        decoration: BoxDecoration(
+                                          color: AppBranding.accentGold,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: headerBg,
+                                            width: 1.5,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
+                              onPressed: () =>
+                                  Scaffold.of(drawerCtx).openEndDrawer(),
                             ),
-                            onPressed: () =>
-                                Scaffold.of(drawerCtx).openEndDrawer(),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
                 ),
               ),
             OfflineStatusBanner(strings: t),
-            Builder(
-              builder: (bodyCtx) => QuickTvControlBar(
-                onOpenSettings: _tabIndex == 2
-                    ? null
-                    : () => Scaffold.of(bodyCtx).openEndDrawer(),
-              ),
-            ),
             Expanded(
               child: _tabIndex == 0
                   ? DashboardView(
@@ -1568,6 +1635,8 @@ class _StandaloneFeatureScreenState
       child: Scaffold(
         backgroundColor: canvasBg,
         appBar: AppBar(
+          centerTitle: false,
+          titleSpacing: settings.tvModeEnabled ? 4 : null,
           backgroundColor: headerBg,
           foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
@@ -1579,39 +1648,67 @@ class _StandaloneFeatureScreenState
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          title: Text(
-            _titleFor(t),
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 18.5,
-              color: Colors.white,
-            ),
-          ),
-          actions: [
-            const TvModeActionButton(),
-            if (scope != null)
-              Builder(
-                builder: (drawerCtx) => IconButton(
-                  tooltip: t.settings,
-                  icon: const Icon(Icons.settings_rounded, color: Colors.white),
-                  onPressed: () => Scaffold.of(drawerCtx).openEndDrawer(),
+          title: settings.tvModeEnabled
+              ? Row(
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 200),
+                      child: Text(
+                        _titleFor(t),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: Builder(
+                          builder: (drawerCtx) => TvHeaderControlsInline(
+                            onOpenSettings: scope == null
+                                ? null
+                                : () => Scaffold.of(drawerCtx).openEndDrawer(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  _titleFor(t),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18.5,
+                    color: Colors.white,
+                  ),
                 ),
-              )
-            else
-              const SizedBox(width: 6),
-          ],
+          actions: settings.tvModeEnabled
+              ? const []
+              : [
+                  const TvModeActionButton(),
+                  if (scope != null)
+                    Builder(
+                      builder: (drawerCtx) => IconButton(
+                        tooltip: t.settings,
+                        icon: const Icon(Icons.settings_rounded,
+                            color: Colors.white),
+                        onPressed: () =>
+                            Scaffold.of(drawerCtx).openEndDrawer(),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 6),
+                ],
         ),
         endDrawer: scope == null ? null : CompactSettingsDrawer(scope: scope),
         body: Column(
           children: [
             OfflineStatusBanner(strings: t),
-            Builder(
-              builder: (bodyCtx) => QuickTvControlBar(
-                onOpenSettings: scope == null
-                    ? null
-                    : () => Scaffold.of(bodyCtx).openEndDrawer(),
-              ),
-            ),
             Expanded(child: body),
           ],
         ),
