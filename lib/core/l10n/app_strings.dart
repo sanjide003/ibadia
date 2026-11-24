@@ -720,4 +720,19 @@ class AppStrings {
         'Ultra-HD ഹൈ ക്വാളിറ്റി',
         'جودة فائقة Ultra-HD',
       );
+
+  // Focused Index List & Single-Item Reader Navigation
+  String get previousLabel => _p('Previous', 'മുമ്പത്തേത്', 'السابق');
+  String get nextLabel => _p('Next', 'അടുത്തത്', 'التالي');
+  String get searchItemsHint => _p(
+        'Search by title or topic...',
+        'പേര് അല്ലെങ്കിൽ വിഷയം തിരയുക...',
+        'ابحث بالعنوان أو الموضوع...',
+      );
+  String get noMatchingItems => _p(
+        'No matching items found',
+        'തിരഞ്ഞവയൊന്നും കണ്ടെത്താനായില്ല',
+        'لا توجد نتائج مطابقة',
+      );
+  String get clearSearchLabel => _p('Clear search', 'തിരച്ചിൽ മായ്ക്കുക', 'مسح البحث');
 }

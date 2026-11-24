@@ -1549,6 +1549,8 @@ class _StandaloneFeatureScreenState
       case 'ibadah_mayyith':
       case 'ibadah_guide':
         return SettingsScope.ibadah;
+      case 'adhkar':
+        return SettingsScope.all;
       default:
         return null;
     }

@@ -11,12 +11,28 @@ import '../data/adhkar_data.dart';
 import '../models/adhkar_tasbih_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
+import '../widgets/focused_index_scaffold.dart';
 import '../widgets/tv_mode_widgets.dart';
+import 'settings_screen.dart';
 
-class AdhkarDuasView extends ConsumerWidget {
+class AdhkarDuasView extends ConsumerStatefulWidget {
   const AdhkarDuasView({super.key});
 
-  String _categoryLabel(String cat, AppStrings t) {
+  @override
+  ConsumerState<AdhkarDuasView> createState() => _AdhkarDuasViewState();
+}
+
+class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  static String _categoryLabel(String cat, AppStrings t) {
     switch (cat) {
       case 'morning':
         return t.morningAdhkar;
@@ -29,18 +45,159 @@ class AdhkarDuasView extends ConsumerWidget {
     }
   }
 
-  IconData _categoryIcon(String cat) {
-    switch (cat) {
-      case 'morning':
-        return Icons.wb_sunny_rounded;
-      case 'evening':
-        return Icons.nights_stay_rounded;
-      case 'after_salah':
-        return Icons.mosque_rounded;
-      default:
-        return Icons.menu_book_rounded;
-    }
+  @override
+  Widget build(BuildContext context) {
+    final adhkarState = ref.watch(adhkarProvider);
+    final t = ref.watch(stringsProvider);
+    final appLang = ref.watch(settingsProvider.select((s) => s.appLanguage));
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSepia =
+        ref.watch(settingsProvider.select((s) => s.themeMode == 'sepia'));
+
+    final Color cardBg = isDark
+        ? const Color(0xFF141A17)
+        : (isSepia ? const Color(0xFFFFFDF7) : Colors.white);
+    final Color cardBorder = isDark
+        ? const Color(0xFF23302A)
+        : (isSepia ? const Color(0xFFE7DEC9) : const Color(0xFFE2EBE6));
+
+    final (tvMode, tvScale) = ref.watch(
+      settingsProvider.select((s) => (s.tvModeEnabled, s.tvFontScale)),
+    );
+    final double uiScale = tvMode ? tvScale.clamp(1.0, 1.5) : 1.0;
+    final Color accentColor = isDark ? AppBranding.accentGold : cs.primary;
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: tvMode,
+      normalMaxWidth: 880,
+      minPad: 14.0,
+    );
+
+    const allEntries = AdhkarCatalog.entries;
+    final q = _query.trim().toLowerCase();
+    final filteredIndices = <int>[
+      for (int i = 0; i < allEntries.length; i++)
+        if (q.isEmpty ||
+            allEntries[i].titleEn.toLowerCase().contains(q) ||
+            allEntries[i].titleMl.toLowerCase().contains(q) ||
+            allEntries[i].reference.toLowerCase().contains(q) ||
+            _categoryLabel(allEntries[i].category, t)
+                .toLowerCase()
+                .contains(q) ||
+            allEntries[i].arabic.contains(_query.trim()))
+          i,
+    ];
+
+    return Directionality(
+      textDirection: t.textDirection,
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 8),
+            child: FeatureIndexSearchBar(
+              controller: _searchCtrl,
+              query: _query,
+              onChanged: (v) => setState(() => _query = v),
+              onClear: () {
+                _searchCtrl.clear();
+                setState(() => _query = '');
+              },
+              hintText: t.searchItemsHint,
+              clearTooltip: t.clearSearchLabel,
+              cardBg: cardBg,
+              cardBorder: cardBorder,
+              uiScale: uiScale,
+            ),
+          ),
+          Expanded(
+            child: filteredIndices.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.search_off_rounded,
+                            size: 40,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            t.noMatchingItems,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14.5 * uiScale.clamp(1.0, 1.3),
+                              color: cs.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 28),
+                    itemCount: filteredIndices.length,
+                    itemBuilder: (ctx, pos) {
+                      final fullIdx = filteredIndices[pos];
+                      final entry = allEntries[fullIdx];
+                      final count = adhkarState.countFor(entry.id);
+                      final completed = count >= entry.targetCount;
+                      final isFav = adhkarState.favoriteIds.contains(entry.id);
+                      final catLabel = _categoryLabel(entry.category, t);
+
+                      return FeatureIndexTile(
+                        indexNumber: fullIdx + 1,
+                        title: entry.titleFor(appLang),
+                        subtitleMeta: '$catLabel · ${entry.reference}',
+                        trailingLabel:
+                            '${isFav ? "★ " : ""}$count/${entry.targetCount}',
+                        isHighlighted: completed,
+                        cardBg: cardBg,
+                        cardBorder: cardBorder,
+                        accentColor: accentColor,
+                        uiScale: uiScale,
+                        onTap: () {
+                          Navigator.of(ctx).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => FocusedDetailPage(
+                                initialIndex: fullIdx,
+                                itemCount: allEntries.length,
+                                settingsScope: SettingsScope.all,
+                                titleBuilder: (idx, strings, _) =>
+                                    allEntries[idx].titleFor(strings.lang),
+                                itemBuilder: (_, idx, strings, __, expLang) {
+                                  final item = allEntries[idx];
+                                  return _AdhkarFocusedDetailBody(
+                                    entry: item,
+                                    categoryLabel:
+                                        _categoryLabel(item.category, strings),
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
   }
+}
+
+class _AdhkarFocusedDetailBody extends ConsumerWidget {
+  final AdhkarEntry entry;
+  final String categoryLabel;
+
+  const _AdhkarFocusedDetailBody({
+    required this.entry,
+    required this.categoryLabel,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,7 +208,8 @@ class AdhkarDuasView extends ConsumerWidget {
     final expLang = explanationLangFor(appLang);
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isSepia = ref.watch(settingsProvider.select((s) => s.themeMode == 'sepia'));
+    final isSepia =
+        ref.watch(settingsProvider.select((s) => s.themeMode == 'sepia'));
 
     final Color cardBg = isDark
         ? const Color(0xFF141A17)
@@ -59,22 +217,6 @@ class AdhkarDuasView extends ConsumerWidget {
     final Color cardBorder = isDark
         ? const Color(0xFF23302A)
         : (isSepia ? const Color(0xFFE7DEC9) : const Color(0xFFE2EBE6));
-
-    final items = AdhkarCatalog.entries.where((entry) {
-      if (adhkarState.favoritesOnly) {
-        return adhkarState.favoriteIds.contains(entry.id);
-      }
-      return entry.category == adhkarState.selectedCategory;
-    }).toList();
-
-    final categoryItems = AdhkarCatalog.entries
-        .where((e) => e.category == adhkarState.selectedCategory)
-        .toList();
-    final completedCount = categoryItems
-        .where((e) => adhkarState.countFor(e.id) >= e.targetCount)
-        .length;
-    final totalInCat = categoryItems.length;
-    final catProgress = totalInCat == 0 ? 0.0 : completedCount / totalInCat;
 
     final (tvMode, tvScale, settingsArabicSize, settingsTransSize) = ref.watch(
       settingsProvider.select(
@@ -86,297 +228,43 @@ class AdhkarDuasView extends ConsumerWidget {
         ),
       ),
     );
-    final double uiScale = tvMode ? tvScale.clamp(1.0, 1.6) : 1.0;
+    final double uiScale = tvMode ? tvScale.clamp(1.0, 1.55) : 1.0;
     final double arabicPx =
-        tvMode ? math.max(22.0 * tvScale, settingsArabicSize) : 22.0;
+        tvMode ? math.max(24.0 * tvScale, settingsArabicSize) : 24.0;
     final double meaningPx =
-        tvMode ? math.max(13.5 * tvScale, settingsTransSize) : 13.5;
+        tvMode ? math.max(14.0 * tvScale, settingsTransSize) : 14.0;
 
-    final hPad = responsivePageHorizontalPadding(
-      context,
-      tvModeEnabled: tvMode,
-      normalMaxWidth: 860,
-      minPad: 14.0,
-    );
-
-    return Directionality(
-      textDirection: t.textDirection,
-      child: ListView(
-        padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
-        children: [
-          // Header banner + progress
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: cardBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.auto_awesome_rounded, color: cs.primary),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            t.actionAdhkar,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            t.hisnulMuslimNote,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!adhkarState.favoritesOnly && totalInCat > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: cs.primaryContainer.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$completedCount / $totalInCat',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                            color: cs.primary,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                if (!adhkarState.favoritesOnly && totalInCat > 0) ...[
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: catProgress,
-                      minHeight: 6,
-                      backgroundColor: cs.outlineVariant.withValues(alpha: 0.3),
-                      color: cs.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: TextButton.icon(
-                      onPressed: () =>
-                          notifier.resetCategory(adhkarState.selectedCategory),
-                      icon: const Icon(Icons.refresh_rounded, size: 16),
-                      label: Text(t.resetTodayProgress),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Category selector + Favorites filter
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final cat in AdhkarCatalog.categoryKeys) ...[
-                  ChoiceChip(
-                    avatar: Icon(
-                      _categoryIcon(cat),
-                      size: 16,
-                      color: !adhkarState.favoritesOnly &&
-                              adhkarState.selectedCategory == cat
-                          ? cs.onPrimary
-                          : cs.primary,
-                    ),
-                    label: Text(_categoryLabel(cat, t)),
-                    selected: !adhkarState.favoritesOnly &&
-                        adhkarState.selectedCategory == cat,
-                    onSelected: (_) => notifier.selectCategory(cat),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                FilterChip(
-                  avatar: Icon(
-                    adhkarState.favoritesOnly
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    size: 16,
-                    color: adhkarState.favoritesOnly ? cs.error : cs.primary,
-                  ),
-                  label: Text(
-                    '${t.favoritesOnlyLabel} (${adhkarState.favoriteIds.length})',
-                  ),
-                  selected: adhkarState.favoritesOnly,
-                  onSelected: (_) => notifier.toggleFavoritesOnly(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          if (items.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: cardBorder),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.favorite_outline_rounded,
-                    size: 40,
-                    color: cs.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    t.favoritesOnlyLabel,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    t.hisnulMuslimNote,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-                  ),
-                ],
-              ),
-            )
-          else
-            for (final entry in items)
-              _AdhkarCard(
-                entry: entry,
-                count: adhkarState.countFor(entry.id),
-                isFavorite: adhkarState.favoriteIds.contains(entry.id),
-                appLang: appLang,
-                explanationLang: expLang,
-                strings: t,
-                cs: cs,
-                cardBg: cardBg,
-                cardBorder: cardBorder,
-                arabicFontSize: arabicPx,
-                meaningFontSize: meaningPx,
-                uiScale: uiScale,
-                onTapCount: () async {
-                  final completedNow = await notifier.incrementEntry(entry);
-                  if (completedNow) {
-                    HapticFeedback.mediumImpact();
-                  } else {
-                    HapticFeedback.selectionClick();
-                  }
-                },
-                onReset: () => notifier.resetEntry(entry.id),
-                onToggleFav: () => notifier.toggleFavorite(entry.id),
-                onCopy: () {
-                  Clipboard.setData(
-                    ClipboardData(
-                      text: '${entry.arabic}\n\n${entry.translationFor(expLang)}\n(${entry.reference})',
-                    ),
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(t.copiedNameNotice),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
-              ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AdhkarCard extends StatelessWidget {
-  final AdhkarEntry entry;
-  final int count;
-  final bool isFavorite;
-  final String appLang;
-  final String explanationLang;
-  final AppStrings strings;
-  final ColorScheme cs;
-  final Color cardBg;
-  final Color cardBorder;
-  final double arabicFontSize;
-  final double meaningFontSize;
-  final double uiScale;
-  final VoidCallback onTapCount;
-  final VoidCallback onReset;
-  final VoidCallback onToggleFav;
-  final VoidCallback onCopy;
-
-  const _AdhkarCard({
-    required this.entry,
-    required this.count,
-    required this.isFavorite,
-    required this.appLang,
-    required this.explanationLang,
-    required this.strings,
-    required this.cs,
-    required this.cardBg,
-    required this.cardBorder,
-    this.arabicFontSize = 22.0,
-    this.meaningFontSize = 13.5,
-    this.uiScale = 1.0,
-    required this.onTapCount,
-    required this.onReset,
-    required this.onToggleFav,
-    required this.onCopy,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final completed = count >= entry.targetCount;
-    final progress = entry.targetCount > 0
+    final int count = adhkarState.countFor(entry.id);
+    final bool isFavorite = adhkarState.favoriteIds.contains(entry.id);
+    final bool completed = count >= entry.targetCount;
+    final double progress = entry.targetCount > 0
         ? (count / entry.targetCount).clamp(0.0, 1.0)
         : 0.0;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: completed ? cs.primaryContainer.withValues(alpha: 0.25) : cardBg,
+        color:
+            completed ? cs.primaryContainer.withValues(alpha: 0.25) : cardBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: completed ? cs.primary.withValues(alpha: 0.55) : cardBorder,
+          color:
+              completed ? cs.primary.withValues(alpha: 0.55) : cardBorder,
         ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: onTapCount,
+          onTap: () async {
+            final completedNow = await notifier.incrementEntry(entry);
+            if (completedNow) {
+              HapticFeedback.mediumImpact();
+            } else {
+              HapticFeedback.selectionClick();
+            }
+          },
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -389,15 +277,15 @@ class _AdhkarCard extends StatelessWidget {
                           Text(
                             entry.titleFor(appLang),
                             style: TextStyle(
-                              fontSize: 15 * uiScale,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 16.5 * uiScale,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
                           Text(
-                            entry.reference,
+                            '$categoryLabel · ${entry.reference}',
                             style: TextStyle(
-                              fontSize: 11.5 * uiScale,
+                              fontSize: 12 * uiScale,
                               color: cs.onSurfaceVariant,
                             ),
                           ),
@@ -406,62 +294,87 @@ class _AdhkarCard extends StatelessWidget {
                     ),
                     IconButton(
                       visualDensity: VisualDensity.compact,
-                      tooltip: strings.favoritesOnlyLabel,
+                      tooltip: t.favoritesOnlyLabel,
                       icon: Icon(
                         isFavorite
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
                         color: isFavorite ? cs.error : cs.onSurfaceVariant,
-                        size: 20,
+                        size: 21,
                       ),
-                      onPressed: onToggleFav,
+                      onPressed: () => notifier.toggleFavorite(entry.id),
                     ),
                     IconButton(
                       visualDensity: VisualDensity.compact,
+                      tooltip: t.copiedTextNotice,
                       icon: Icon(
                         Icons.copy_rounded,
                         color: cs.onSurfaceVariant,
-                        size: 18,
+                        size: 19,
                       ),
-                      onPressed: onCopy,
+                      onPressed: () {
+                        Clipboard.setData(
+                          ClipboardData(
+                            text:
+                                '${entry.arabic}\n\n${entry.translationFor(expLang)}\n(${entry.reference})',
+                          ),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(t.copiedNameNotice),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
                     ),
                     if (count > 0)
                       IconButton(
                         visualDensity: VisualDensity.compact,
-                        tooltip: strings.resetCycleLabel,
+                        tooltip: t.resetCycleLabel,
                         icon: Icon(
                           Icons.refresh_rounded,
                           color: cs.onSurfaceVariant,
-                          size: 19,
+                          size: 20,
                         ),
-                        onPressed: onReset,
+                        onPressed: () => notifier.resetEntry(entry.id),
                       ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Directionality(
-                  textDirection: TextDirection.rtl,
-                  child: Text(
-                    entry.arabic,
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.amiri(
-                      fontSize: arabicFontSize,
-                      height: 1.85,
-                      fontWeight: FontWeight.w600,
-                      color: cs.onSurface,
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF101915)
+                        : (isSepia
+                            ? const Color(0xFFF6EFE0)
+                            : const Color(0xFFF1F7F4)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Directionality(
+                    textDirection: TextDirection.rtl,
+                    child: Text(
+                      entry.arabic,
+                      textAlign: TextAlign.right,
+                      style: GoogleFonts.amiri(
+                        fontSize: arabicPx,
+                        height: 1.9,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Text(
-                  entry.translationFor(explanationLang),
+                  entry.translationFor(expLang),
                   style: TextStyle(
-                    fontSize: meaningFontSize,
-                    height: 1.5,
+                    fontSize: meaningPx,
+                    height: 1.6,
                     color: cs.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
@@ -469,7 +382,7 @@ class _AdhkarCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                         child: LinearProgressIndicator(
                           value: progress,
-                          minHeight: 7,
+                          minHeight: 8,
                           backgroundColor:
                               cs.outlineVariant.withValues(alpha: 0.35),
                           color: completed
@@ -481,13 +394,13 @@ class _AdhkarCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 14,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: completed
                             ? AppBranding.primaryEmerald
-                            : cs.primary.withValues(alpha: 0.12),
+                            : cs.primary.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -496,18 +409,20 @@ class _AdhkarCard extends StatelessWidget {
                           if (completed) ...[
                             const Icon(
                               Icons.check_circle_rounded,
-                              size: 15,
+                              size: 16,
                               color: Colors.white,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 5),
                           ],
                           Text(
                             '$count / ${entry.targetCount}',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 13.5 * uiScale,
                               fontWeight: FontWeight.w800,
                               color: completed ? Colors.white : cs.primary,
-                              fontFeatures: const [FontFeature.tabularFigures()],
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
                             ),
                           ),
                         ],
