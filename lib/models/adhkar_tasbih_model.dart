@@ -1,5 +1,6 @@
 class AdhkarEntry {
   final String id;
+  final String source; // 'quran' | 'hadith'
   final String category; // 'morning' | 'evening' | 'after_salah' | 'daily_duas'
   final String titleEn;
   final String titleMl;
@@ -11,6 +12,7 @@ class AdhkarEntry {
 
   const AdhkarEntry({
     required this.id,
+    this.source = 'hadith',
     required this.category,
     required this.titleEn,
     required this.titleMl,

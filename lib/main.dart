@@ -84,8 +84,10 @@ class IbadiaApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (themeModeKey, appLang, tvModeEnabled) = ref.watch(
-      settingsProvider.select((s) => (s.themeMode, s.appLanguage, s.tvModeEnabled)),
+    final (themeModeKey, appLang, tvModeEnabled, tvFontScale) = ref.watch(
+      settingsProvider.select(
+        (s) => (s.themeMode, s.appLanguage, s.tvModeEnabled, s.tvFontScale),
+      ),
     );
     ref.listen<bool>(
       settingsProvider.select((s) => s.tvModeEnabled),
@@ -137,6 +139,15 @@ class IbadiaApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: (ctx, child) {
+        final mq = MediaQuery.of(ctx);
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: TextScaler.linear(tvFontScale.clamp(0.85, 2.2)),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const HomeScreen(),
     );
   }

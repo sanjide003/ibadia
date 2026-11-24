@@ -137,7 +137,7 @@ class AppSettings {
   final double? _tvFontScale;
 
   bool get tvModeEnabled => _tvModeEnabled ?? false;
-  double get tvFontScale => (_tvFontScale ?? 1.35).clamp(1.0, 2.2);
+  double get tvFontScale => (_tvFontScale ?? 1.0).clamp(0.85, 2.2);
 
   PrayerAlarmConfig alarmConfigFor(String prayerKey) =>
       prayerConfigs[prayerKey] ?? PrayerAlarmConfig(prayerKey: prayerKey);
@@ -197,7 +197,7 @@ class AppSettings {
     bool? ibadahShowAudio = false,
     bool? ibadahMalayalamHeadings = true,
     bool? tvModeEnabled = false,
-    double? tvFontScale = 1.35,
+    double? tvFontScale = 1.0,
   })  : _prayerLocationMode = prayerLocationMode,
         _prayerCity = prayerCity,
         _prayerCountry = prayerCountry,
@@ -430,7 +430,7 @@ class AppSettings {
       ibadahMalayalamHeadings:
           ibadahMalayalamHeadings ?? this.ibadahMalayalamHeadings,
       tvModeEnabled: tvModeEnabled ?? this.tvModeEnabled,
-      tvFontScale: (tvFontScale ?? this.tvFontScale).clamp(1.0, 2.2),
+      tvFontScale: (tvFontScale ?? this.tvFontScale).clamp(0.85, 2.2),
     );
   }
 }
@@ -835,7 +835,7 @@ class StorageService {
           _readTyped<bool>(box, _ibadahMlHeadingsKey) ?? true,
       tvModeEnabled: _readTyped<bool>(box, _tvModeEnabledKey) ?? false,
       tvFontScale:
-          (_readDouble(box, _tvFontScaleKey) ?? 1.35).clamp(1.0, 2.2),
+          (_readDouble(box, _tvFontScaleKey) ?? 1.0).clamp(0.85, 2.2),
     );
   }
 

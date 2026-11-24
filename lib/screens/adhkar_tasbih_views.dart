@@ -26,6 +26,8 @@ class AdhkarDuasView extends ConsumerStatefulWidget {
 class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = '';
+  String _activeSource = 'quran'; // 'quran' | 'hadith'
+  String _hadithFilter = 'all'; // 'all' | 'morning' | 'evening' | 'after_salah' | 'daily_duas' | 'favorites'
 
   @override
   void dispose() {
@@ -63,10 +65,7 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
         ? const Color(0xFF23302A)
         : (isSepia ? const Color(0xFFE7DEC9) : const Color(0xFFE2EBE6));
 
-    final (tvMode, tvScale) = ref.watch(
-      settingsProvider.select((s) => (s.tvModeEnabled, s.tvFontScale)),
-    );
-    final double uiScale = tvMode ? tvScale.clamp(1.0, 1.5) : 1.0;
+    final tvMode = ref.watch(settingsProvider.select((s) => s.tvModeEnabled));
     final Color accentColor = isDark ? AppBranding.accentGold : cs.primary;
     final hPad = responsivePageHorizontalPadding(
       context,
@@ -75,32 +74,91 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
       minPad: 14.0,
     );
 
-    const allEntries = AdhkarCatalog.entries;
     final listLang = contentLangFor(appLang);
     final listStrings = AppStrings(listLang);
     final q = _query.trim().toLowerCase();
-    final filteredIndices = <int>[
-      for (int i = 0; i < allEntries.length; i++)
-        if (q.isEmpty ||
-            allEntries[i].titleEn.toLowerCase().contains(q) ||
-            allEntries[i].titleMl.toLowerCase().contains(q) ||
-            allEntries[i].reference.toLowerCase().contains(q) ||
-            _categoryLabel(allEntries[i].category, listStrings)
-                .toLowerCase()
-                .contains(q) ||
-            _categoryLabel(allEntries[i].category, t)
-                .toLowerCase()
-                .contains(q) ||
-            allEntries[i].arabic.contains(_query.trim()))
-          i,
+
+    final sourceEntries = AdhkarCatalog.entries
+        .where((e) => e.source == _activeSource)
+        .toList();
+
+    final visibleEntries = <AdhkarEntry>[
+      for (final entry in sourceEntries)
+        if ((_activeSource == 'quran' ||
+                _hadithFilter == 'all' ||
+                (_hadithFilter == 'favorites' &&
+                    adhkarState.favoriteIds.contains(entry.id)) ||
+                entry.category == _hadithFilter) &&
+            (q.isEmpty ||
+                entry.titleEn.toLowerCase().contains(q) ||
+                entry.titleMl.toLowerCase().contains(q) ||
+                entry.reference.toLowerCase().contains(q) ||
+                _categoryLabel(entry.category, listStrings)
+                    .toLowerCase()
+                    .contains(q) ||
+                _categoryLabel(entry.category, t).toLowerCase().contains(q) ||
+                entry.arabic.contains(_query.trim())))
+          entry,
+    ];
+
+    final hadithFilters = <(String key, String label)>[
+      ('all', t.allAdhkarLabel),
+      ('morning', t.morningAdhkar),
+      ('evening', t.eveningAdhkar),
+      ('after_salah', t.afterSalahAdhkar),
+      ('daily_duas', t.dailyDuasCategory),
+      ('favorites', t.favoritesOnlyLabel),
     ];
 
     return Directionality(
       textDirection: t.textDirection,
       child: Column(
         children: [
+          // Top 2 Sub-Tabs: From the Quran | From the Hadith
           Padding(
-            padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 8),
+            padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 6),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF141A17)
+                    : (isSepia
+                        ? const Color(0xFFF3EBD8)
+                        : const Color(0xFFE7F0EC)),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: cardBorder),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _SourceSubTabButton(
+                      icon: Icons.menu_book_rounded,
+                      label: t.quranAdhkarTab,
+                      selected: _activeSource == 'quran',
+                      accentColor: AppBranding.primaryEmerald,
+                      isDark: isDark,
+                      onTap: () => setState(() => _activeSource = 'quran'),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: _SourceSubTabButton(
+                      icon: Icons.auto_stories_rounded,
+                      label: t.hadithAdhkarTab,
+                      selected: _activeSource == 'hadith',
+                      accentColor: AppBranding.primaryEmerald,
+                      isDark: isDark,
+                      onTap: () => setState(() => _activeSource = 'hadith'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Search Bar
+          Padding(
+            padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 6),
             child: FeatureIndexSearchBar(
               controller: _searchCtrl,
               query: _query,
@@ -113,11 +171,38 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
               clearTooltip: t.clearSearchLabel,
               cardBg: cardBg,
               cardBorder: cardBorder,
-              uiScale: uiScale,
             ),
           ),
+
+          // Hadith Category Filter Chips (only on From Hadith sub-tab)
+          if (_activeSource == 'hadith')
+            SizedBox(
+              height: 44,
+              child: ListView.separated(
+                padding: EdgeInsets.fromLTRB(hPad, 2, hPad, 6),
+                scrollDirection: Axis.horizontal,
+                itemCount: hadithFilters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (ctx, idx) {
+                  final (key, label) = hadithFilters[idx];
+                  final selected = _hadithFilter == key;
+                  return ChoiceChip(
+                    label: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _hadithFilter = key),
+                  );
+                },
+              ),
+            ),
+
           Expanded(
-            child: filteredIndices.isEmpty
+            child: visibleEntries.isEmpty
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
@@ -134,7 +219,7 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
                             t.noMatchingItems,
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 14.5 * uiScale.clamp(1.0, 1.3),
+                              fontSize: 14.5,
                               color: cs.onSurfaceVariant,
                               fontWeight: FontWeight.w600,
                             ),
@@ -145,17 +230,18 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
                   )
                 : ListView.builder(
                     padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 28),
-                    itemCount: filteredIndices.length,
+                    itemCount: visibleEntries.length,
                     itemBuilder: (ctx, pos) {
-                      final fullIdx = filteredIndices[pos];
-                      final entry = allEntries[fullIdx];
+                      final entry = visibleEntries[pos];
                       final count = adhkarState.countFor(entry.id);
                       final completed = count >= entry.targetCount;
                       final isFav = adhkarState.favoriteIds.contains(entry.id);
-                      final catLabel = _categoryLabel(entry.category, listStrings);
+                      final catLabel = entry.source == 'quran'
+                          ? listStrings.quranAdhkarTab
+                          : _categoryLabel(entry.category, listStrings);
 
                       return FeatureIndexTile(
-                        indexNumber: fullIdx + 1,
+                        indexNumber: pos + 1,
                         title: entry.titleFor(listLang),
                         subtitleMeta: '$catLabel · ${entry.reference}',
                         trailingLabel:
@@ -164,24 +250,25 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
                         cardBg: cardBg,
                         cardBorder: cardBorder,
                         accentColor: accentColor,
-                        uiScale: uiScale,
                         onTap: () {
                           Navigator.of(ctx).push<void>(
                             MaterialPageRoute(
                               builder: (_) => FocusedDetailPage(
-                                initialIndex: fullIdx,
-                                itemCount: allEntries.length,
+                                initialIndex: pos,
+                                itemCount: visibleEntries.length,
                                 settingsScope: SettingsScope.all,
                                 titleBuilder: (idx, _, hLang) =>
-                                    allEntries[idx].titleFor(hLang),
+                                    visibleEntries[idx].titleFor(hLang),
                                 itemBuilder: (_, idx, __, hLang, expLang) {
-                                  final item = allEntries[idx];
+                                  final item = visibleEntries[idx];
                                   return _AdhkarFocusedDetailBody(
                                     entry: item,
-                                    categoryLabel: _categoryLabel(
-                                      item.category,
-                                      AppStrings(hLang),
-                                    ),
+                                    categoryLabel: item.source == 'quran'
+                                        ? AppStrings(hLang).quranAdhkarTab
+                                        : _categoryLabel(
+                                            item.category,
+                                            AppStrings(hLang),
+                                          ),
                                   );
                                 },
                               ),
@@ -193,6 +280,65 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SourceSubTabButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final Color accentColor;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _SourceSubTabButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.accentColor,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: selected ? accentColor : Colors.transparent,
+      borderRadius: BorderRadius.circular(11),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(11),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 17,
+                color: selected ? Colors.white : cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: selected
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : cs.onSurface),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -226,21 +372,13 @@ class _AdhkarFocusedDetailBody extends ConsumerWidget {
         ? const Color(0xFF23302A)
         : (isSepia ? const Color(0xFFE7DEC9) : const Color(0xFFE2EBE6));
 
-    final (tvMode, tvScale, settingsArabicSize, settingsTransSize) = ref.watch(
+    final (settingsArabicSize, settingsTransSize) = ref.watch(
       settingsProvider.select(
-        (s) => (
-          s.tvModeEnabled,
-          s.tvFontScale,
-          s.arabicFontSize,
-          s.translationFontSize,
-        ),
+        (s) => (s.arabicFontSize, s.translationFontSize),
       ),
     );
-    final double uiScale = tvMode ? tvScale.clamp(1.0, 1.55) : 1.0;
-    final double arabicPx =
-        tvMode ? math.max(24.0 * tvScale, settingsArabicSize) : 24.0;
-    final double meaningPx =
-        tvMode ? math.max(14.0 * tvScale, settingsTransSize) : 14.0;
+    final double arabicPx = settingsArabicSize;
+    final double meaningPx = settingsTransSize;
 
     final int count = adhkarState.countFor(entry.id);
     final bool isFavorite = adhkarState.favoriteIds.contains(entry.id);
@@ -279,8 +417,8 @@ class _AdhkarFocusedDetailBody extends ConsumerWidget {
                 // Tier 1: Full-width Title & Reference
                 Text(
                   entry.titleFor(contentLangFor(appLang)),
-                  style: TextStyle(
-                    fontSize: 16.5 * uiScale,
+                  style: const TextStyle(
+                    fontSize: 16.5,
                     fontWeight: FontWeight.w800,
                     height: 1.3,
                   ),
@@ -289,7 +427,7 @@ class _AdhkarFocusedDetailBody extends ConsumerWidget {
                 Text(
                   '$categoryLabel · ${entry.reference}',
                   style: TextStyle(
-                    fontSize: 12.2 * uiScale,
+                    fontSize: 12.2,
                     color: cs.onSurfaceVariant,
                   ),
                 ),
@@ -366,25 +504,29 @@ class _AdhkarFocusedDetailBody extends ConsumerWidget {
                   ),
                   child: Directionality(
                     textDirection: TextDirection.rtl,
-                    child: Text(
-                      entry.arabic,
-                      textAlign: TextAlign.right,
-                      style: GoogleFonts.amiri(
-                        fontSize: arabicPx,
-                        height: 1.9,
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurface,
+                    child: NoTextScaling(
+                      child: Text(
+                        entry.arabic,
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.amiri(
+                          fontSize: arabicPx,
+                          height: 1.9,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  entry.translationFor(expLang),
-                  style: TextStyle(
-                    fontSize: meaningPx,
-                    height: 1.6,
-                    color: cs.onSurfaceVariant,
+                NoTextScaling(
+                  child: Text(
+                    entry.translationFor(expLang),
+                    style: TextStyle(
+                      fontSize: meaningPx,
+                      height: 1.6,
+                      color: cs.onSurfaceVariant,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -430,7 +572,7 @@ class _AdhkarFocusedDetailBody extends ConsumerWidget {
                           Text(
                             '$count / ${entry.targetCount}',
                             style: TextStyle(
-                              fontSize: 13.5 * uiScale,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w800,
                               color: completed ? Colors.white : cs.primary,
                               fontFeatures: const [
@@ -603,14 +745,12 @@ class DigitalTasbihView extends ConsumerWidget {
         ? const Color(0xFF23302A)
         : (isSepia ? const Color(0xFFE7DEC9) : const Color(0xFFE2EBE6));
 
-    final (tvMode, tvScale, settingsArabicSize) = ref.watch(
+    final (tvMode, settingsArabicSize) = ref.watch(
       settingsProvider.select(
-        (s) => (s.tvModeEnabled, s.tvFontScale, s.arabicFontSize),
+        (s) => (s.tvModeEnabled, s.arabicFontSize),
       ),
     );
-    final double uiScale = tvMode ? tvScale.clamp(1.0, 1.55) : 1.0;
-    final double tasbihArabicPx =
-        tvMode ? math.max(30.0 * tvScale, settingsArabicSize) : 30.0;
+    final double tasbihArabicPx = math.max(30.0, settingsArabicSize);
     final preset = tasbih.activePreset;
     final cycle = tasbih.activeCycleCount;
     final target = tasbih.activeTarget;
@@ -671,14 +811,16 @@ class DigitalTasbihView extends ConsumerWidget {
                 children: [
                   Directionality(
                     textDirection: TextDirection.rtl,
-                    child: Text(
-                      preset.arabic,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.amiri(
-                        fontSize: tasbihArabicPx,
-                        fontWeight: FontWeight.w700,
-                        height: 1.5,
-                        color: cs.primary,
+                    child: NoTextScaling(
+                      child: Text(
+                        preset.arabic,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.amiri(
+                          fontSize: tasbihArabicPx,
+                          fontWeight: FontWeight.w700,
+                          height: 1.5,
+                          color: cs.primary,
+                        ),
                       ),
                     ),
                   ),
@@ -686,8 +828,8 @@ class DigitalTasbihView extends ConsumerWidget {
                   Text(
                     preset.titleFor(listLang),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16 * uiScale,
+                    style: const TextStyle(
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -771,39 +913,41 @@ class DigitalTasbihView extends ConsumerWidget {
                                 width: 1.5,
                               ),
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '$cycle',
-                                  style: TextStyle(
-                                    fontSize: 50,
-                                    fontWeight: FontWeight.w900,
-                                    color: cs.primary,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
+                            child: NoTextScaling(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '$cycle',
+                                    style: TextStyle(
+                                      fontSize: 50,
+                                      fontWeight: FontWeight.w900,
+                                      color: cs.primary,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures(),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  target == 0
-                                      ? t.unlimitedLabel
-                                      : '/ $target',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: cs.onSurfaceVariant,
+                                  Text(
+                                    target == 0
+                                        ? t.unlimitedLabel
+                                        : '/ $target',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: cs.onSurfaceVariant,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  t.tapToCount,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: cs.onSurfaceVariant,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    t.tapToCount,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: cs.onSurfaceVariant,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ],

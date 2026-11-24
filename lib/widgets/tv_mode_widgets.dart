@@ -31,6 +31,22 @@ Future<void> applyTvModePlatformState(bool enabled) async {
   }
 }
 
+/// Prevents double-scaling on explicit pixel-sized typography (Arabic / Translation)
+/// when the root MaterialApp TextScaler is active.
+class NoTextScaling extends StatelessWidget {
+  final Widget child;
+
+  const NoTextScaling({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+      child: child,
+    );
+  }
+}
+
 /// Toggles TV / Classroom Mode, persists preference, applies landscape/fullscreen,
 /// and displays a sleek top banner without overlapping drawers.
 Future<void> toggleTvMode(
@@ -51,10 +67,19 @@ Future<void> toggleTvMode(
         next && cur.arabicFontSize < 34.0 ? 38.0 : cur.arabicFontSize;
     final double nextTrans =
         next && cur.translationFontSize < 19.0 ? 20.0 : cur.translationFontSize;
+    final double nextTextScale;
+    if (next && cur.tvFontScale < 1.25) {
+      nextTextScale = 1.35;
+    } else if (!next && (cur.tvFontScale - 1.35).abs() < 0.02) {
+      nextTextScale = 1.0;
+    } else {
+      nextTextScale = cur.tvFontScale;
+    }
     return cur.copyWith(
       tvModeEnabled: next,
       arabicFontSize: nextArabic,
       translationFontSize: nextTrans,
+      tvFontScale: nextTextScale,
     );
   });
 
@@ -154,11 +179,12 @@ class TvHeaderControlsInline extends ConsumerWidget {
     final notifier = ref.read(settingsProvider.notifier);
     final t = ref.watch(stringsProvider);
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    return NoTextScaling(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -210,16 +236,16 @@ class TvHeaderControlsInline extends ConsumerWidget {
             valueLabel: '${settings.tvFontScale.toStringAsFixed(2)}x',
             onDecrease: () => notifier.updateWith(
               (s) => s.copyWith(
-                tvFontScale: (s.tvFontScale - 0.1).clamp(1.0, 2.2),
+                tvFontScale: (s.tvFontScale - 0.05).clamp(0.85, 2.2),
                 translationFontSize:
-                    (s.translationFontSize - 1.5).clamp(13.0, 34.0),
+                    (s.translationFontSize - 1.0).clamp(13.0, 34.0),
               ),
             ),
             onIncrease: () => notifier.updateWith(
               (s) => s.copyWith(
-                tvFontScale: (s.tvFontScale + 0.1).clamp(1.0, 2.2),
+                tvFontScale: (s.tvFontScale + 0.05).clamp(0.85, 2.2),
                 translationFontSize:
-                    (s.translationFontSize + 1.5).clamp(13.0, 34.0),
+                    (s.translationFontSize + 1.0).clamp(13.0, 34.0),
               ),
             ),
           ),
@@ -297,6 +323,7 @@ class TvHeaderControlsInline extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -426,7 +453,7 @@ class TvDisplaySettingsSection extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
 
-        // Classroom Text / Card Scale (1.0x - 2.2x)
+        // Global Card / Text Scale (0.85x - 2.20x)
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -457,16 +484,16 @@ class TvDisplaySettingsSection extends ConsumerWidget {
               icon: const Icon(Icons.remove_rounded, size: 18),
               onPressed: () => notifier.updateWith(
                 (s) => s.copyWith(
-                  tvFontScale: (s.tvFontScale - 0.1).clamp(1.0, 2.2),
+                  tvFontScale: (s.tvFontScale - 0.05).clamp(0.85, 2.2),
                 ),
               ),
             ),
             Expanded(
               child: Slider(
-                min: 1.0,
+                min: 0.85,
                 max: 2.2,
-                divisions: 12,
-                value: settings.tvFontScale.clamp(1.0, 2.2),
+                divisions: 27,
+                value: settings.tvFontScale.clamp(0.85, 2.2),
                 onChanged: (v) =>
                     notifier.updateWith((s) => s.copyWith(tvFontScale: v)),
               ),
@@ -476,7 +503,7 @@ class TvDisplaySettingsSection extends ConsumerWidget {
               icon: const Icon(Icons.add_rounded, size: 18),
               onPressed: () => notifier.updateWith(
                 (s) => s.copyWith(
-                  tvFontScale: (s.tvFontScale + 0.1).clamp(1.0, 2.2),
+                  tvFontScale: (s.tvFontScale + 0.05).clamp(0.85, 2.2),
                 ),
               ),
             ),

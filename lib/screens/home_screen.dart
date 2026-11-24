@@ -432,7 +432,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ],
                       ),
                 actions: settings.tvModeEnabled
-                    ? const []
+                    ? const [SizedBox.shrink()]
                     : (_tabIndex == 2
                         ? const [TvModeActionButton(), SizedBox(width: 6)]
                         : [
@@ -491,83 +491,129 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       settings.tvModeEnabled ? 12 : 6,
                       8,
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: settings.tvModeEnabled ? 2 : 1,
-                          child: _buildQuranSubTabBar(
-                            controller: _quranTabController,
-                            tabs: [
-                              _HeaderIconTab(
-                                icon: Icons.menu_book_rounded,
-                                label: t.surahTabLabel,
-                              ),
-                              _HeaderIconTab(
-                                icon: Icons.grid_view_rounded,
-                                label: t.juzTabLabel,
-                              ),
-                              _HeaderIconTab(
-                                icon: Icons.bookmark_rounded,
-                                label: t.bookmarksTab,
-                              ),
-                              _HeaderIconTab(
-                                icon: Icons.ios_share_rounded,
-                                label: t.exportTab,
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (settings.tvModeEnabled) ...[
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 3,
-                            child: Align(
-                              alignment: AlignmentDirectional.centerEnd,
-                              child: Builder(
+                    child: settings.tvModeEnabled
+                        ? LayoutBuilder(
+                            builder: (ctx, constraints) {
+                              final quranTabs = NoTextScaling(
+                                child: _buildQuranSubTabBar(
+                                  controller: _quranTabController,
+                                  tabs: [
+                                    _HeaderIconTab(
+                                      icon: Icons.menu_book_rounded,
+                                      label: t.surahTabLabel,
+                                    ),
+                                    _HeaderIconTab(
+                                      icon: Icons.grid_view_rounded,
+                                      label: t.juzTabLabel,
+                                    ),
+                                    _HeaderIconTab(
+                                      icon: Icons.bookmark_rounded,
+                                      label: t.bookmarksTab,
+                                    ),
+                                    _HeaderIconTab(
+                                      icon: Icons.ios_share_rounded,
+                                      label: t.exportTab,
+                                    ),
+                                  ],
+                                ),
+                              );
+                              final tvControls = Builder(
                                 builder: (drawerCtx) => TvHeaderControlsInline(
                                   onOpenSettings: () =>
                                       Scaffold.of(drawerCtx).openEndDrawer(),
                                 ),
-                              ),
-                            ),
-                          ),
-                        ] else ...[
-                          const SizedBox(width: 6),
-                          const TvModeActionButton(),
-                          Builder(
-                            builder: (drawerCtx) => IconButton(
-                              tooltip: t.quranSettingsTitle,
-                              icon: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  const Icon(Icons.settings_rounded,
-                                      color: Colors.white),
-                                  if (updateState.updateAvailable)
-                                    Positioned(
-                                      right: -2,
-                                      top: -2,
-                                      child: Container(
-                                        width: 9,
-                                        height: 9,
-                                        decoration: BoxDecoration(
-                                          color: AppBranding.accentGold,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: headerBg,
-                                            width: 1.5,
-                                          ),
-                                        ),
+                              );
+                              if (constraints.maxWidth >= 980) {
+                                return Row(
+                                  children: [
+                                    Expanded(flex: 3, child: quranTabs),
+                                    const SizedBox(width: 12),
+                                    Flexible(
+                                      flex: 4,
+                                      child: Align(
+                                        alignment:
+                                            AlignmentDirectional.centerEnd,
+                                        child: tvControls,
                                       ),
                                     ),
+                                  ],
+                                );
+                              }
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  quranTabs,
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: AlignmentDirectional.centerEnd,
+                                    child: tvControls,
+                                  ),
                                 ],
+                              );
+                            },
+                          )
+                        : Row(
+                            children: [
+                              Expanded(
+                                child: NoTextScaling(
+                                  child: _buildQuranSubTabBar(
+                                    controller: _quranTabController,
+                                    tabs: [
+                                      _HeaderIconTab(
+                                        icon: Icons.menu_book_rounded,
+                                        label: t.surahTabLabel,
+                                      ),
+                                      _HeaderIconTab(
+                                        icon: Icons.grid_view_rounded,
+                                        label: t.juzTabLabel,
+                                      ),
+                                      _HeaderIconTab(
+                                        icon: Icons.bookmark_rounded,
+                                        label: t.bookmarksTab,
+                                      ),
+                                      _HeaderIconTab(
+                                        icon: Icons.ios_share_rounded,
+                                        label: t.exportTab,
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              onPressed: () =>
-                                  Scaffold.of(drawerCtx).openEndDrawer(),
-                            ),
+                              const SizedBox(width: 6),
+                              Builder(
+                                builder: (drawerCtx) => IconButton(
+                                  tooltip: t.quranSettingsTitle,
+                                  icon: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      const Icon(Icons.settings_rounded,
+                                          color: Colors.white),
+                                      if (updateState.updateAvailable)
+                                        Positioned(
+                                          right: -2,
+                                          top: -2,
+                                          child: Container(
+                                            width: 9,
+                                            height: 9,
+                                            decoration: BoxDecoration(
+                                              color: AppBranding.accentGold,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: headerBg,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  onPressed: () =>
+                                      Scaffold.of(drawerCtx).openEndDrawer(),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ],
-                    ),
                   ),
                 ),
               ),
@@ -736,9 +782,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ],
         ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _tabIndex.clamp(0, 2),
-          onDestinationSelected: (i) {
+        bottomNavigationBar: MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(
+              settings.tvFontScale.clamp(0.85, 1.25),
+            ),
+          ),
+          child: NavigationBar(
+            selectedIndex: _tabIndex.clamp(0, 2),
+            onDestinationSelected: (i) {
             setState(() => _tabIndex = i);
             _persistHomeState(forceHomeActive: true);
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -780,6 +832,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               label: t.settingsTab,
             ),
           ],
+          ),
         ),
       ),
     );
@@ -1084,7 +1137,10 @@ class _SurahTabView extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
-                      height: 98,
+                      height: 102 *
+                          MediaQuery.textScalerOf(context)
+                              .scale(1.0)
+                              .clamp(0.85, 1.85),
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: ApiConfig.featuredSurahs.length,
@@ -1095,6 +1151,9 @@ class _SurahTabView extends StatelessWidget {
                           final label = (item[contentLangFor(appLanguage)] ??
                               item['en']) as String;
                           final arabicCalligraphy = item['ar'] as String;
+                          final boxScale = MediaQuery.textScalerOf(context)
+                              .scale(1.0)
+                              .clamp(0.85, 1.55);
 
                           return Material(
                             color: cardBg,
@@ -1103,7 +1162,7 @@ class _SurahTabView extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                               onTap: () => onOpenSurah(surahNo),
                               child: Container(
-                                width: 104,
+                                width: 108 * boxScale,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 10,
@@ -1115,16 +1174,20 @@ class _SurahTabView extends StatelessWidget {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      arabicCalligraphy,
-                                      textDirection: TextDirection.rtl,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.amiri(
-                                        fontSize: 25,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.25,
-                                        color: cs.primary,
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          arabicCalligraphy,
+                                          textDirection: TextDirection.rtl,
+                                          maxLines: 1,
+                                          style: GoogleFonts.amiri(
+                                            fontSize: 25,
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.25,
+                                            color: cs.primary,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(height: 6),
@@ -1240,12 +1303,15 @@ class _JuzTabView extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         alignment: Alignment.center,
-                        child: Text(
-                          ApiConfig.toArabicNumber(juz.number),
-                          style: GoogleFonts.amiri(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            ApiConfig.toArabicNumber(juz.number),
+                            style: GoogleFonts.amiri(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
@@ -1426,13 +1492,16 @@ class _IslamicStarNumberBadge extends StatelessWidget {
       child: CustomPaint(
         painter: _RubElHizbPainter(color: color),
         child: Center(
-          child: Text(
-            numberText,
-            style: GoogleFonts.amiri(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w700,
-              color: color,
-              height: 1.0,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              numberText,
+              style: GoogleFonts.amiri(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+                color: color,
+                height: 1.0,
+              ),
             ),
           ),
         ),
@@ -1692,7 +1761,7 @@ class _StandaloneFeatureScreenState
                   ),
                 ),
           actions: settings.tvModeEnabled
-              ? const []
+              ? const [SizedBox.shrink()]
               : [
                   const TvModeActionButton(),
                   if (scope != null)

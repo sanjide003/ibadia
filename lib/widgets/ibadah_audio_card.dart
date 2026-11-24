@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +12,7 @@ import '../providers/quran_providers.dart';
 import '../services/export_service.dart';
 import '../services/ibadah_audio_controller.dart';
 import '../services/ibadah_export_service.dart';
+import 'tv_mode_widgets.dart';
 
 class IbadahAudioCard extends ConsumerWidget {
   final String title;
@@ -65,14 +65,11 @@ class IbadahAudioCard extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final audioState = ref.watch(ibadahAudioProvider);
-    final (tvMode, tvScale, settingsArabicSize) = ref.watch(
+    final (arabicFontPx, transFontPx) = ref.watch(
       settingsProvider.select(
-        (s) => (s.tvModeEnabled, s.tvFontScale, s.arabicFontSize),
+        (s) => (s.arabicFontSize, s.translationFontSize),
       ),
     );
-    final double scale = tvMode ? tvScale : 1.0;
-    final double arabicFontPx =
-        tvMode ? math.max(22.5 * scale, settingsArabicSize) : 22.5;
     final bool hasExportableContent =
         (arabicText != null && arabicText!.trim().isNotEmpty) ||
             (meaningText != null && meaningText!.trim().isNotEmpty);
@@ -146,12 +143,15 @@ class IbadahAudioCard extends ConsumerWidget {
                       color: effectiveBadgeColor.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(9),
                     ),
-                    child: Text(
-                      orderBadge!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: effectiveBadgeColor,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        orderBadge!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: effectiveBadgeColor,
+                        ),
                       ),
                     ),
                   ),
@@ -164,7 +164,7 @@ class IbadahAudioCard extends ConsumerWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 15.5 * scale,
+                          fontSize: 15.5,
                           fontWeight: FontWeight.w800,
                           color: cs.onSurface,
                           height: 1.3,
@@ -175,7 +175,7 @@ class IbadahAudioCard extends ConsumerWidget {
                         Text(
                           subtitle!,
                           style: TextStyle(
-                            fontSize: 12.2 * scale,
+                            fontSize: 12.2,
                             fontWeight: FontWeight.w600,
                             color: cs.onSurfaceVariant,
                           ),
@@ -213,7 +213,7 @@ class IbadahAudioCard extends ConsumerWidget {
                       child: Text(
                         badgeText!,
                         style: TextStyle(
-                          fontSize: 11.2 * scale.clamp(1.0, 1.35),
+                          fontSize: 11.2,
                           fontWeight: FontWeight.w800,
                           color: effectiveBadgeColor,
                         ),
@@ -225,7 +225,6 @@ class IbadahAudioCard extends ConsumerWidget {
                       label: strings.download,
                       color: accentColor,
                       borderColor: cardBorder,
-                      scale: scale,
                       onTap: () => _showExportSheet(context, shareFocused: false),
                     ),
                   if (hasExportableContent || _hasCopyableText)
@@ -234,7 +233,6 @@ class IbadahAudioCard extends ConsumerWidget {
                       label: strings.share,
                       color: cs.onSurface,
                       borderColor: cardBorder,
-                      scale: scale,
                       onTap: () => _showExportSheet(context, shareFocused: true),
                     ),
                   if (_hasCopyableText)
@@ -243,7 +241,6 @@ class IbadahAudioCard extends ConsumerWidget {
                       label: strings.copyLabel,
                       color: cs.onSurfaceVariant,
                       borderColor: cardBorder,
-                      scale: scale,
                       onTap: () {
                         Clipboard.setData(
                           ClipboardData(text: _buildShareOrCopyText()),
@@ -276,14 +273,16 @@ class IbadahAudioCard extends ConsumerWidget {
                 ),
                 child: Directionality(
                   textDirection: TextDirection.rtl,
-                  child: SelectableText(
-                    arabicText!,
-                    textAlign: TextAlign.right,
-                    style: GoogleFonts.amiri(
-                      fontSize: arabicFontPx,
-                      height: 1.9,
-                      fontWeight: FontWeight.w700,
-                      color: cs.onSurface,
+                  child: NoTextScaling(
+                    child: SelectableText(
+                      arabicText!,
+                      textAlign: TextAlign.right,
+                      style: GoogleFonts.amiri(
+                        fontSize: arabicFontPx,
+                        height: 1.9,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                      ),
                     ),
                   ),
                 ),
@@ -298,20 +297,22 @@ class IbadahAudioCard extends ConsumerWidget {
               Text(
                 strings.transliterationLabel.toUpperCase(),
                 style: TextStyle(
-                  fontSize: 10.5 * scale.clamp(1.0, 1.4),
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.4,
                   color: accentColor,
                 ),
               ),
               const SizedBox(height: 3),
-              Text(
-                transliterationMl!,
-                style: TextStyle(
-                  fontSize: 13.8 * scale,
-                  height: 1.55,
-                  fontWeight: FontWeight.w600,
-                  color: cs.onSurface,
+              NoTextScaling(
+                child: Text(
+                  transliterationMl!,
+                  style: TextStyle(
+                    fontSize: transFontPx + 0.5,
+                    height: 1.55,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface,
+                  ),
                 ),
               ),
             ],
@@ -324,19 +325,21 @@ class IbadahAudioCard extends ConsumerWidget {
               Text(
                 strings.meaningLabel.toUpperCase(),
                 style: TextStyle(
-                  fontSize: 10.5 * scale.clamp(1.0, 1.4),
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.4,
                   color: cs.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                meaningText!,
-                style: TextStyle(
-                  fontSize: 13.2 * scale,
-                  height: 1.5,
-                  color: cs.onSurfaceVariant,
+              NoTextScaling(
+                child: Text(
+                  meaningText!,
+                  style: TextStyle(
+                    fontSize: transFontPx,
+                    height: 1.5,
+                    color: cs.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
@@ -360,17 +363,19 @@ class IbadahAudioCard extends ConsumerWidget {
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
-                      size: 15 * scale.clamp(1.0, 1.4),
+                      size: 15,
                       color: cs.onSurfaceVariant,
                     ),
                     const SizedBox(width: 7),
                     Expanded(
-                      child: Text(
-                        noteText!,
-                        style: TextStyle(
-                          fontSize: 12.2 * scale,
-                          height: 1.45,
-                          color: cs.onSurfaceVariant,
+                      child: NoTextScaling(
+                        child: Text(
+                          noteText!,
+                          style: TextStyle(
+                            fontSize: (transFontPx - 1.0).clamp(12.0, 32.0),
+                            height: 1.45,
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ),
@@ -801,7 +806,6 @@ class _CardActionButton extends StatelessWidget {
   final String label;
   final Color color;
   final Color borderColor;
-  final double scale;
   final VoidCallback onTap;
 
   const _CardActionButton({
@@ -809,7 +813,6 @@ class _CardActionButton extends StatelessWidget {
     required this.label,
     required this.color,
     required this.borderColor,
-    required this.scale,
     required this.onTap,
   });
 
@@ -835,7 +838,7 @@ class _CardActionButton extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11.8 * scale.clamp(1.0, 1.25),
+                  fontSize: 11.8,
                   fontWeight: FontWeight.w700,
                   color: color,
                 ),

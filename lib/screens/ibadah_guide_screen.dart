@@ -117,8 +117,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
       tvModeEnabled: settings.tvModeEnabled,
       normalMaxWidth: 880,
     );
-    final double uiScale =
-        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.5) : 1.0;
 
     // Stop playback automatically if audio bar visibility is toggled off in Settings.
     ref.listen<bool>(
@@ -155,7 +153,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           headingLang: headingLang,
           palette: palette,
           hPad: hPad,
-          uiScale: uiScale,
           accentColor: accentColor,
           cs: cs,
         );
@@ -166,7 +163,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           headingLang: headingLang,
           palette: palette,
           hPad: hPad,
-          uiScale: uiScale,
           accentColor: accentColor,
           cs: cs,
         );
@@ -177,7 +173,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           headingLang: headingLang,
           palette: palette,
           hPad: hPad,
-          uiScale: uiScale,
           accentColor: accentColor,
           cs: cs,
         );
@@ -188,7 +183,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           headingLang: headingLang,
           palette: palette,
           hPad: hPad,
-          uiScale: uiScale,
           accentColor: accentColor,
           cs: cs,
         );
@@ -199,7 +193,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required AppStrings t,
     required ({Color cardBg, Color cardBorder}) palette,
     required double hPad,
-    required double uiScale,
     required ColorScheme cs,
     required int itemCount,
     required IndexedWidgetBuilder itemBuilder,
@@ -220,7 +213,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
             clearTooltip: t.clearSearchLabel,
             cardBg: palette.cardBg,
             cardBorder: palette.cardBorder,
-            uiScale: uiScale,
           ),
         ),
         Expanded(
@@ -241,7 +233,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                           t.noMatchingItems,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 14.5 * uiScale.clamp(1.0, 1.3),
+                            fontSize: 14.5,
                             color: cs.onSurfaceVariant,
                             fontWeight: FontWeight.w600,
                           ),
@@ -269,7 +261,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required String headingLang,
     required ({Color cardBg, Color cardBorder}) palette,
     required double hPad,
-    required double uiScale,
     required Color accentColor,
     required ColorScheme cs,
   }) {
@@ -301,7 +292,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           t: t,
           palette: palette,
           hPad: hPad,
-          uiScale: uiScale,
           cs: cs,
           itemCount: filteredIndices.length,
           itemBuilder: (_, pos) {
@@ -327,7 +317,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
               cardBorder: palette.cardBorder,
               accentColor:
                   entry.fard != null ? accentColor : AppBranding.accentGold,
-              uiScale: uiScale,
               onTap: () => _openFocusedDetail(
                 initialIndex: fullIdx,
                 itemCount: entries.length,
@@ -361,7 +350,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required String headingLang,
     required ({Color cardBg, Color cardBorder}) palette,
     required double hPad,
-    required double uiScale,
     required Color accentColor,
     required ColorScheme cs,
   }) {
@@ -394,7 +382,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           t: t,
           palette: palette,
           hPad: hPad,
-          uiScale: uiScale,
           cs: cs,
           itemCount: filteredIndices.length,
           itemBuilder: (_, pos) {
@@ -432,7 +419,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
               cardBg: palette.cardBg,
               cardBorder: palette.cardBorder,
               accentColor: rowAccent,
-              uiScale: uiScale,
               onTap: () => _openFocusedDetail(
                 initialIndex: fullIdx,
                 itemCount: entries.length,
@@ -474,7 +460,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required String headingLang,
     required ({Color cardBg, Color cardBorder}) palette,
     required double hPad,
-    required double uiScale,
     required Color accentColor,
     required ColorScheme cs,
   }) {
@@ -515,7 +500,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           t: t,
           palette: palette,
           hPad: hPad,
-          uiScale: uiScale,
           cs: cs,
           itemCount: filteredIndices.length,
           itemBuilder: (_, pos) {
@@ -555,7 +539,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
               cardBg: palette.cardBg,
               cardBorder: palette.cardBorder,
               accentColor: rowAccent,
-              uiScale: uiScale,
               onTap: () => _openFocusedDetail(
                 initialIndex: fullIdx,
                 itemCount: entries.length,
@@ -598,7 +581,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required String headingLang,
     required ({Color cardBg, Color cardBorder}) palette,
     required double hPad,
-    required double uiScale,
     required Color accentColor,
     required ColorScheme cs,
   }) {
@@ -629,7 +611,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           t: t,
           palette: palette,
           hPad: hPad,
-          uiScale: uiScale,
           cs: cs,
           itemCount: filteredIndices.length,
           itemBuilder: (_, pos) {
@@ -666,7 +647,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
               cardBg: palette.cardBg,
               cardBorder: palette.cardBorder,
               accentColor: rowAccent,
-              uiScale: uiScale,
               onTap: () => _openFocusedDetail(
                 initialIndex: fullIdx,
                 itemCount: entries.length,
@@ -957,8 +937,6 @@ class _SalahShartFocusedBody extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = isDark ? AppBranding.accentGold : cs.primary;
-    final double uiScale =
-        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.65) : 1.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -993,8 +971,8 @@ class _SalahShartFocusedBody extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         hStrings.shartChecklistTitle,
-                        style: TextStyle(
-                          fontSize: 16 * uiScale.clamp(1.0, 1.3),
+                        style: const TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
                           height: 1.3,
                         ),
@@ -1022,7 +1000,7 @@ class _SalahShartFocusedBody extends ConsumerWidget {
                       child: Text(
                         hStrings.shartCountSummary(conditions.length),
                         style: TextStyle(
-                          fontSize: 11.5 * uiScale.clamp(1.0, 1.25),
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                           color: accentColor,
                           fontFeatures: const [FontFeature.tabularFigures()],
@@ -1049,13 +1027,16 @@ class _SalahShartFocusedBody extends ConsumerWidget {
                       color: accentColor.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(9),
                     ),
-                    child: Text(
-                      '${i + 1}',
-                      style: TextStyle(
-                        fontSize: 13 * uiScale.clamp(1.0, 1.2),
-                        fontWeight: FontWeight.w800,
-                        color: accentColor,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: accentColor,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                   ),
@@ -1067,19 +1048,21 @@ class _SalahShartFocusedBody extends ConsumerWidget {
                         Text(
                           conditions[i].titleFor(headingLang),
                           style: TextStyle(
-                            fontSize: 14.5 * uiScale,
+                            fontSize: 14.5,
                             fontWeight: FontWeight.w700,
                             height: 1.35,
                             color: cs.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          conditions[i].descFor(expLang),
-                          style: TextStyle(
-                            fontSize: 12.8 * uiScale,
-                            height: 1.5,
-                            color: cs.onSurfaceVariant,
+                        NoTextScaling(
+                          child: Text(
+                            conditions[i].descFor(expLang),
+                            style: TextStyle(
+                              fontSize: settings.translationFontSize,
+                              height: 1.5,
+                              color: cs.onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ],
@@ -1153,8 +1136,6 @@ class _SalahArkanFocusedBodyState
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = isDark ? AppBranding.accentGold : cs.primary;
-    final double uiScale =
-        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.65) : 1.0;
 
     final qawliCount = widget.arkan.where((r) => r.isQawli).length;
     final qawliSunnahSteps = [
@@ -1199,8 +1180,8 @@ class _SalahArkanFocusedBodyState
                         Expanded(
                           child: Text(
                             hStrings.arkanSectionTitle,
-                            style: TextStyle(
-                              fontSize: 16 * uiScale.clamp(1.0, 1.3),
+                            style: const TextStyle(
+                              fontSize: 16,
                               fontWeight: FontWeight.w800,
                               height: 1.3,
                             ),
@@ -1232,7 +1213,7 @@ class _SalahArkanFocusedBodyState
                               qawliCount,
                             ),
                             style: TextStyle(
-                              fontSize: 11.5 * uiScale.clamp(1.0, 1.25),
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w800,
                               color: accentColor,
                             ),
@@ -1241,7 +1222,7 @@ class _SalahArkanFocusedBodyState
                         Text(
                           t.tapToExpandRecitation,
                           style: TextStyle(
-                            fontSize: 11.8 * uiScale.clamp(1.0, 1.25),
+                            fontSize: 11.8,
                             fontWeight: FontWeight.w600,
                             color: cs.onSurfaceVariant,
                           ),
@@ -1313,18 +1294,20 @@ class _SalahArkanFocusedBodyState
                                           borderRadius:
                                               BorderRadius.circular(9),
                                         ),
-                                        child: Text(
-                                          '${rukn.order}',
-                                          style: TextStyle(
-                                            fontSize:
-                                                12.5 * uiScale.clamp(1.0, 1.2),
-                                            fontWeight: FontWeight.w800,
-                                            color: isQawli
-                                                ? Colors.white
-                                                : accentColor,
-                                            fontFeatures: const [
-                                              FontFeature.tabularFigures(),
-                                            ],
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            '${rukn.order}',
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w800,
+                                              color: isQawli
+                                                  ? Colors.white
+                                                  : accentColor,
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -1333,7 +1316,7 @@ class _SalahArkanFocusedBodyState
                                         child: Text(
                                           rukn.titleFor(headingLang),
                                           style: TextStyle(
-                                            fontSize: 14.2 * uiScale,
+                                            fontSize: 14.2,
                                             fontWeight: isQawli
                                                 ? FontWeight.w800
                                                 : FontWeight.w600,
@@ -1401,8 +1384,7 @@ class _SalahArkanFocusedBodyState
                                                   headingLang,
                                                 ),
                                                 style: TextStyle(
-                                                  fontSize: 11.2 *
-                                                      uiScale.clamp(1.0, 1.2),
+                                                  fontSize: 11.2,
                                                   fontWeight: isQawli
                                                       ? FontWeight.w800
                                                       : FontWeight.w600,
@@ -1416,8 +1398,7 @@ class _SalahArkanFocusedBodyState
                                           Text(
                                             t.tapToExpandRecitation,
                                             style: TextStyle(
-                                              fontSize:
-                                                  11.2 * uiScale.clamp(1.0, 1.2),
+                                              fontSize: 11.2,
                                               fontWeight: FontWeight.w700,
                                               color: accentColor,
                                             ),
@@ -1531,8 +1512,8 @@ class _SalahArkanFocusedBodyState
                           Expanded(
                             child: Text(
                               t.qawliSunnahRecitationsTitle,
-                              style: TextStyle(
-                                fontSize: 15.5 * uiScale.clamp(1.0, 1.3),
+                              style: const TextStyle(
+                                fontSize: 15.5,
                                 fontWeight: FontWeight.w800,
                                 height: 1.3,
                               ),
@@ -1544,7 +1525,7 @@ class _SalahArkanFocusedBodyState
                       Text(
                         t.qawliSunnahRecitationsNote,
                         style: TextStyle(
-                          fontSize: 12.2 * uiScale.clamp(1.0, 1.25),
+                          fontSize: 12.2,
                           height: 1.45,
                           color: cs.onSurfaceVariant,
                         ),
@@ -1599,16 +1580,18 @@ class _SalahArkanFocusedBodyState
                                             borderRadius:
                                                 BorderRadius.circular(9),
                                           ),
-                                          child: Text(
-                                            '${step.order}',
-                                            style: TextStyle(
-                                              fontSize:
-                                                  12.5 * uiScale.clamp(1.0, 1.2),
-                                              fontWeight: FontWeight.w800,
-                                              color: AppBranding.accentGold,
-                                              fontFeatures: const [
-                                                FontFeature.tabularFigures(),
-                                              ],
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              '${step.order}',
+                                              style: const TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppBranding.accentGold,
+                                                fontFeatures: [
+                                                  FontFeature.tabularFigures(),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -1617,7 +1600,7 @@ class _SalahArkanFocusedBodyState
                                           child: Text(
                                             step.titleFor(headingLang),
                                             style: TextStyle(
-                                              fontSize: 14 * uiScale,
+                                              fontSize: 14,
                                               fontWeight: FontWeight.w700,
                                               height: 1.35,
                                               color: cs.onSurface,
@@ -1659,9 +1642,8 @@ class _SalahArkanFocusedBodyState
                                             ),
                                             child: Text(
                                               '${hStrings.sunnahBadgeLabel} · ${t.qawliBadgeLabel}',
-                                              style: TextStyle(
-                                                fontSize: 11 *
-                                                    uiScale.clamp(1.0, 1.2),
+                                              style: const TextStyle(
+                                                fontSize: 11,
                                                 fontWeight: FontWeight.w800,
                                                 color: AppBranding.accentGold,
                                               ),
@@ -1670,8 +1652,7 @@ class _SalahArkanFocusedBodyState
                                           Text(
                                             step.postureFor(headingLang),
                                             style: TextStyle(
-                                              fontSize: 11.5 *
-                                                  uiScale.clamp(1.0, 1.2),
+                                              fontSize: 11.5,
                                               color: cs.onSurfaceVariant,
                                             ),
                                           ),
@@ -1862,8 +1843,6 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = isDark ? AppBranding.accentGold : cs.primary;
-    final double uiScale =
-        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.5) : 1.0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1879,7 +1858,7 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
           Text(
             group.occasionFor(headingLang),
             style: TextStyle(
-              fontSize: 17 * uiScale,
+              fontSize: 17,
               fontWeight: FontWeight.w800,
               color: cs.onSurface,
               height: 1.3,
@@ -1899,8 +1878,8 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
                 ),
                 child: Text(
                   '${hStrings.recommendedSurahsTitle} · ${group.surahs.length} ${hStrings.surahsCountUnitLabel}',
-                  style: TextStyle(
-                    fontSize: 11.5 * uiScale.clamp(1.0, 1.25),
+                  style: const TextStyle(
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                     color: AppBranding.accentGold,
                   ),
@@ -1910,12 +1889,14 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
           ),
           if (settings.ibadahShowNotes) ...[
             const SizedBox(height: 10),
-            Text(
-              group.reasonFor(expLang),
-              style: TextStyle(
-                fontSize: 13.5 * uiScale,
-                height: 1.55,
-                color: cs.onSurfaceVariant,
+            NoTextScaling(
+              child: Text(
+                group.reasonFor(expLang),
+                style: TextStyle(
+                  fontSize: settings.translationFontSize,
+                  height: 1.55,
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -1949,7 +1930,7 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
                         Text(
                           '${surah.surahNumber}. ${surah.nameFor(headingLang)}',
                           style: TextStyle(
-                            fontSize: 15 * uiScale,
+                            fontSize: 15,
                             fontWeight: FontWeight.w800,
                             color: cs.onSurface,
                           ),
@@ -1958,7 +1939,7 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
                         Text(
                           surah.tagFor(headingLang),
                           style: TextStyle(
-                            fontSize: 12.2 * uiScale,
+                            fontSize: 12.2,
                             fontWeight: FontWeight.w600,
                             color: cs.onSurfaceVariant,
                           ),
@@ -1973,12 +1954,14 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
                           children: [
                             Directionality(
                               textDirection: TextDirection.rtl,
-                              child: Text(
-                                surah.nameAr,
-                                style: GoogleFonts.amiri(
-                                  fontSize: 20 * uiScale,
-                                  fontWeight: FontWeight.w700,
-                                  color: accentColor,
+                              child: NoTextScaling(
+                                child: Text(
+                                  surah.nameAr,
+                                  style: GoogleFonts.amiri(
+                                    fontSize: settings.arabicFontSize,
+                                    fontWeight: FontWeight.w700,
+                                    color: accentColor,
+                                  ),
                                 ),
                               ),
                             ),
@@ -2004,7 +1987,7 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
                                     Text(
                                       t.openInQuranReader,
                                       style: TextStyle(
-                                        fontSize: 11.5 * uiScale.clamp(1.0, 1.2),
+                                        fontSize: 11.5,
                                         fontWeight: FontWeight.w700,
                                         color: accentColor,
                                       ),
@@ -2048,8 +2031,6 @@ class _MayyithFocusedBody extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = isDark ? AppBranding.accentGold : cs.primary;
-    final double uiScale =
-        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.5) : 1.0;
 
     if (entry.prep != null) {
       final stage = entry.prep!;
@@ -2091,12 +2072,14 @@ class _MayyithFocusedBody extends ConsumerWidget {
                     ),
                     const SizedBox(width: 9),
                     Expanded(
-                      child: Text(
-                        pt,
-                        style: TextStyle(
-                          fontSize: 13.5 * uiScale,
-                          height: 1.55,
-                          color: cs.onSurface,
+                      child: NoTextScaling(
+                        child: Text(
+                          pt,
+                          style: TextStyle(
+                            fontSize: settings.translationFontSize,
+                            height: 1.55,
+                            color: cs.onSurface,
+                          ),
                         ),
                       ),
                     ),

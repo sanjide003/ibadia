@@ -1486,7 +1486,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                     },
                   ),
             actions: tvModeEnabled
-                ? const []
+                ? const [SizedBox.shrink()]
                 : [
                     const TvModeActionButton(),
                     Builder(
@@ -1781,11 +1781,13 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         if (showBismillah)
           Padding(
             padding: const EdgeInsets.only(top: 10, bottom: 10),
-            child: Text(
-              'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
-              textAlign: TextAlign.center,
-              textDirection: TextDirection.rtl,
-              style: styles.bismillah,
+            child: NoTextScaling(
+              child: Text(
+                'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.rtl,
+                style: styles.bismillah,
+              ),
             ),
           ),
       ],
@@ -2177,12 +2179,14 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                       ],
                     ),
                     const SizedBox(height: 10),
-                    TajweedAyahRichText(
-                      arabicText: ayah.arabicText,
-                      endMarker: ApiConfig.ayahEndMarker(ayahNo),
-                      baseStyle: styles.arabicBase,
-                      markerStyle: styles.arabicMarker,
-                      strings: t,
+                    NoTextScaling(
+                      child: TajweedAyahRichText(
+                        arabicText: ayah.arabicText,
+                        endMarker: ApiConfig.ayahEndMarker(ayahNo),
+                        baseStyle: styles.arabicBase,
+                        markerStyle: styles.arabicMarker,
+                        strings: t,
+                      ),
                     ),
                     if (showTranslation)
                       ...selectedTranslations.map((code) {
@@ -2194,11 +2198,13 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                           child: Directionality(
                             textDirection:
                                 isAr ? TextDirection.rtl : TextDirection.ltr,
-                            child: Text(
-                              text,
-                              textAlign:
-                                  isAr ? TextAlign.right : TextAlign.left,
-                              style: styles.forTranslation(code),
+                            child: NoTextScaling(
+                              child: Text(
+                                text,
+                                textAlign:
+                                    isAr ? TextAlign.right : TextAlign.left,
+                                style: styles.forTranslation(code),
+                              ),
                             ),
                           ),
                         );
@@ -2287,9 +2293,10 @@ class _MushafSegmentBodyState extends ConsumerState<_MushafSegmentBody>
       children: [
         Directionality(
           textDirection: TextDirection.rtl,
-          child: Text.rich(
-            TextSpan(
-              style: styles.arabicBase,
+          child: NoTextScaling(
+            child: Text.rich(
+              TextSpan(
+                style: styles.arabicBase,
               children: [
                 for (final i in segment.ayahIndices) ...[
                   () {
@@ -2382,6 +2389,7 @@ class _MushafSegmentBodyState extends ConsumerState<_MushafSegmentBody>
               ],
             ),
             textAlign: TextAlign.justify,
+            ),
           ),
         ),
         if (showTranslation) ...[
@@ -2429,10 +2437,12 @@ class _MushafSegmentBodyState extends ConsumerState<_MushafSegmentBody>
                         child: Directionality(
                           textDirection:
                               isAr ? TextDirection.rtl : TextDirection.ltr,
-                          child: Text(
-                            '($ayahNo) $txt',
-                            textAlign: isAr ? TextAlign.right : TextAlign.left,
-                            style: styles.forTranslation(code),
+                          child: NoTextScaling(
+                            child: Text(
+                              '($ayahNo) $txt',
+                              textAlign: isAr ? TextAlign.right : TextAlign.left,
+                              style: styles.forTranslation(code),
+                            ),
                           ),
                         ),
                       );
@@ -2695,32 +2705,34 @@ class _DraggableAutoScrollFabState
                             child: SizedBox(
                               width: _fabSize,
                               height: _fabSize,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    isAutoScrolling
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    size: 25,
-                                    color: isAutoScrolling
-                                        ? cs.onPrimary
-                                        : cs.onPrimaryContainer,
-                                  ),
-                                  Text(
-                                    formatAutoScrollSpeed(speed),
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w700,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures(),
-                                      ],
+                              child: NoTextScaling(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      isAutoScrolling
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      size: 25,
                                       color: isAutoScrolling
                                           ? cs.onPrimary
                                           : cs.onPrimaryContainer,
                                     ),
-                                  ),
-                                ],
+                                    Text(
+                                      formatAutoScrollSpeed(speed),
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w700,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                        color: isAutoScrolling
+                                            ? cs.onPrimary
+                                            : cs.onPrimaryContainer,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -2802,98 +2803,109 @@ class HijriCalendarView extends ConsumerWidget {
                   ),
                 )
               else
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    mainAxisSpacing: 6,
-                    crossAxisSpacing: 4,
-                    childAspectRatio: 0.86,
-                  ),
-                  itemCount: firstWeekday + cal.days.length,
-                  itemBuilder: (_, idx) {
-                    if (idx < firstWeekday) {
-                      return const SizedBox.shrink();
-                    }
-                    final dayIndex = idx - firstWeekday;
-                    final dayEntry = cal.days[dayIndex];
-                    final gDate = dayEntry.gregorianDate;
-                    final isToday = gDate.year == now.year &&
-                        gDate.month == now.month &&
-                        gDate.day == now.day;
-                    final isSelected = gDate.year == cal.selectedDate.year &&
-                        gDate.month == cal.selectedDate.month &&
-                        gDate.day == cal.selectedDate.day;
-                    final isFriday = gDate.weekday == DateTime.friday;
-                    final hasHoliday = dayEntry.holidays.isNotEmpty;
+                Builder(
+                  builder: (gridCtx) {
+                    final textScale = MediaQuery.textScalerOf(gridCtx)
+                        .scale(1.0)
+                        .clamp(0.85, 2.2);
+                    final cellAspectRatio = (0.86 /
+                            math.max(1.0, textScale * 0.72))
+                        .clamp(0.48, 0.86);
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 7,
+                        mainAxisSpacing: 6,
+                        crossAxisSpacing: 4,
+                        childAspectRatio: cellAspectRatio,
+                      ),
+                      itemCount: firstWeekday + cal.days.length,
+                      itemBuilder: (_, idx) {
+                        if (idx < firstWeekday) {
+                          return const SizedBox.shrink();
+                        }
+                        final dayIndex = idx - firstWeekday;
+                        final dayEntry = cal.days[dayIndex];
+                        final gDate = dayEntry.gregorianDate;
+                        final isToday = gDate.year == now.year &&
+                            gDate.month == now.month &&
+                            gDate.day == now.day;
+                        final isSelected = gDate.year == cal.selectedDate.year &&
+                            gDate.month == cal.selectedDate.month &&
+                            gDate.day == cal.selectedDate.day;
+                        final isFriday = gDate.weekday == DateTime.friday;
+                        final hasHoliday = dayEntry.holidays.isNotEmpty;
 
-                    final showGregMonth =
-                        dayIndex == 0 || dayEntry.gregorianDay == 1;
-                    final smallGregText = showGregMonth
-                        ? '${dayEntry.gregorianDay} ${t.gregMonthShort(dayEntry.gregorianMonth)}'
-                        : '${dayEntry.gregorianDay}';
+                        final showGregMonth =
+                            dayIndex == 0 || dayEntry.gregorianDay == 1;
+                        final smallGregText = showGregMonth
+                            ? '${dayEntry.gregorianDay} ${t.gregMonthShort(dayEntry.gregorianMonth)}'
+                            : '${dayEntry.gregorianDay}';
 
-                    return Material(
-                      color: isToday
-                          ? cs.primary
-                          : (isSelected
-                              ? cs.primaryContainer.withValues(alpha: 0.65)
-                              : (isFriday
-                                  ? cs.primary.withValues(alpha: 0.06)
-                                  : Colors.transparent)),
-                      borderRadius: BorderRadius.circular(11),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(11),
-                        onTap: () => notifier.selectDay(gDate),
-                        child: Container(
-                          decoration: BoxDecoration(
+                        return Material(
+                          color: isToday
+                              ? cs.primary
+                              : (isSelected
+                                  ? cs.primaryContainer.withValues(alpha: 0.65)
+                                  : (isFriday
+                                      ? cs.primary.withValues(alpha: 0.06)
+                                      : Colors.transparent)),
+                          borderRadius: BorderRadius.circular(11),
+                          child: InkWell(
                             borderRadius: BorderRadius.circular(11),
-                            border: isSelected && !isToday
-                                ? Border.all(color: cs.primary, width: 1.4)
-                                : null,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 2,
-                            vertical: 3,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Row(
+                            onTap: () => notifier.selectDay(gDate),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(11),
+                                border: isSelected && !isToday
+                                    ? Border.all(color: cs.primary, width: 1.4)
+                                    : null,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                                vertical: 3,
+                              ),
+                              child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    '${dayEntry.hijriDay}',
-                                    style: TextStyle(
-                                      fontSize: 16.5,
-                                      height: 1.05,
-                                      fontWeight: FontWeight.w800,
-                                      color: isToday
-                                          ? Colors.white
-                                          : cs.onSurface,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures()
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '${dayEntry.hijriDay}',
+                                          style: TextStyle(
+                                            fontSize: 16.5,
+                                            height: 1.05,
+                                            fontWeight: FontWeight.w800,
+                                            color: isToday
+                                                ? Colors.white
+                                                : cs.onSurface,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures()
+                                            ],
+                                          ),
+                                        ),
+                                        if (hasHoliday) ...[
+                                          const SizedBox(width: 2),
+                                          Container(
+                                            width: 5,
+                                            height: 5,
+                                            decoration: BoxDecoration(
+                                              color: isToday
+                                                  ? Colors.white
+                                                  : AppBranding.accentGold,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),
-                                  if (hasHoliday) ...[
-                                    const SizedBox(width: 2),
-                                    Container(
-                                      width: 5,
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: isToday
-                                            ? Colors.white
-                                            : AppBranding.accentGold,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 2),
+                                  const SizedBox(height: 2),
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
@@ -2921,7 +2933,9 @@ class HijriCalendarView extends ConsumerWidget {
                       ),
                     );
                   },
-                ),
+                );
+              },
+            ),
             ],
           ),
         ),
@@ -2947,12 +2961,15 @@ class HijriCalendarView extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    '${selectedEntry.hijriDay}',
-                    style: GoogleFonts.amiri(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: cs.primary,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${selectedEntry.hijriDay}',
+                      style: GoogleFonts.amiri(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: cs.primary,
+                      ),
                     ),
                   ),
                 ),

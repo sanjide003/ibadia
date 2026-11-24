@@ -18,7 +18,6 @@ class FeatureIndexSearchBar extends StatelessWidget {
   final String clearTooltip;
   final Color cardBg;
   final Color cardBorder;
-  final double uiScale;
 
   const FeatureIndexSearchBar({
     super.key,
@@ -30,7 +29,6 @@ class FeatureIndexSearchBar extends StatelessWidget {
     required this.clearTooltip,
     required this.cardBg,
     required this.cardBorder,
-    this.uiScale = 1.0,
   });
 
   @override
@@ -46,14 +44,14 @@ class FeatureIndexSearchBar extends StatelessWidget {
         controller: controller,
         onChanged: onChanged,
         textInputAction: TextInputAction.search,
-        style: TextStyle(
-          fontSize: 14.5 * uiScale.clamp(1.0, 1.35),
+        style: const TextStyle(
+          fontSize: 14.5,
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: TextStyle(
-            fontSize: 14 * uiScale.clamp(1.0, 1.35),
+            fontSize: 14,
             color: cs.onSurfaceVariant,
           ),
           prefixIcon: Icon(
@@ -95,7 +93,6 @@ class FeatureIndexTile extends StatelessWidget {
   final Color cardBg;
   final Color cardBorder;
   final Color accentColor;
-  final double uiScale;
   final VoidCallback onTap;
 
   const FeatureIndexTile({
@@ -109,15 +106,14 @@ class FeatureIndexTile extends StatelessWidget {
     required this.cardBg,
     required this.cardBorder,
     required this.accentColor,
-    this.uiScale = 1.0,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final double titlePx = 15.5 * uiScale.clamp(1.0, 1.45);
-    final double subPx = 12.2 * uiScale.clamp(1.0, 1.35);
+    const double titlePx = 15.5;
+    const double subPx = 12.2;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -164,13 +160,19 @@ class FeatureIndexTile extends StatelessWidget {
                         color: accentColor.withValues(alpha: 0.28),
                       ),
                     ),
-                    child: Text(
-                      '$indexNumber',
-                      style: TextStyle(
-                        fontSize: 13.5 * uiScale.clamp(1.0, 1.25),
-                        fontWeight: FontWeight.w800,
-                        color: accentColor,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '$indexNumber',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: accentColor,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -221,7 +223,7 @@ class FeatureIndexTile extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.amiri(
-                            fontSize: 18.5 * uiScale.clamp(1.0, 1.3),
+                            fontSize: 18.5,
                             fontWeight: FontWeight.w700,
                             color: accentColor,
                           ),
@@ -233,7 +235,7 @@ class FeatureIndexTile extends StatelessWidget {
                     Text(
                       trailingLabel!,
                       style: TextStyle(
-                        fontSize: 12.5 * uiScale.clamp(1.0, 1.25),
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                         color: accentColor,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -357,8 +359,6 @@ class _FocusedDetailPageState extends ConsumerState<FocusedDetailPage> {
     );
     final bool hasPrev = _currentIndex > 0;
     final bool hasNext = _currentIndex < widget.itemCount - 1;
-    final double uiScale =
-        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.4) : 1.0;
 
     return Directionality(
       textDirection: t.textDirection,
@@ -420,7 +420,7 @@ class _FocusedDetailPageState extends ConsumerState<FocusedDetailPage> {
                   ),
                 ),
           actions: settings.tvModeEnabled
-              ? const []
+              ? const [SizedBox.shrink()]
               : [
                   if (widget.extraActions != null && widget.itemCount > 0)
                     ...widget.extraActions!(context, _currentIndex),
@@ -485,8 +485,8 @@ class _FocusedDetailPageState extends ConsumerState<FocusedDetailPage> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: SizedBox(
-                            height: 46,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 46),
                             child: OutlinedButton.icon(
                               onPressed: hasPrev
                                   ? () => _stepTo(_currentIndex - 1)
@@ -499,9 +499,9 @@ class _FocusedDetailPageState extends ConsumerState<FocusedDetailPage> {
                                 t.previousLabel,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 13.5 * uiScale.clamp(1.0, 1.15),
+                                  fontSize: 13.5,
                                 ),
                               ),
                               style: OutlinedButton.styleFrom(
@@ -517,7 +517,7 @@ class _FocusedDetailPageState extends ConsumerState<FocusedDetailPage> {
                           child: Text(
                             '${_currentIndex + 1} / ${widget.itemCount}',
                             style: TextStyle(
-                              fontSize: 13.5 * uiScale.clamp(1.0, 1.2),
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w800,
                               color: cs.onSurfaceVariant,
                               fontFeatures: const [
@@ -527,8 +527,8 @@ class _FocusedDetailPageState extends ConsumerState<FocusedDetailPage> {
                           ),
                         ),
                         Expanded(
-                          child: SizedBox(
-                            height: 46,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 46),
                             child: FilledButton.icon(
                               onPressed: hasNext
                                   ? () => _stepTo(_currentIndex + 1)
@@ -542,9 +542,9 @@ class _FocusedDetailPageState extends ConsumerState<FocusedDetailPage> {
                                 t.nextLabel,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 13.5 * uiScale.clamp(1.0, 1.15),
+                                  fontSize: 13.5,
                                 ),
                               ),
                               style: FilledButton.styleFrom(

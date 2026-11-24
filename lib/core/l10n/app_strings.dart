@@ -357,6 +357,8 @@ class AppStrings {
       );
 
   // Adhkar & Tasbih
+  String get quranAdhkarTab => _p('From Quran', 'ഖുർആനിൽ വന്നവ', 'من القرآن الكريم');
+  String get hadithAdhkarTab => _p('From Hadith', 'ഹദീസിൽ വന്നവ', 'من السنة النبوية');
   String get morningAdhkar => _p('Morning', 'രാവിലെ', 'الصباح');
   String get eveningAdhkar => _p('Evening', 'വൈകിട്ട്', 'المساء');
   String get afterSalahAdhkar => _p('After Salah', 'നിസ്കാര ശേഷം', 'بعد الصلاة');
@@ -704,9 +706,9 @@ class AppStrings {
       );
   String get tvModeExitLabel => _p('Exit TV', 'ടിവി നിർത്തുക', 'إنهاء التلفاز');
   String get tvTextScaleLabel => _p(
-        'TV / Card Text Scale',
-        'ടിവി / കാർഡ് ടെക്സ്റ്റ് വലിപ്പം',
-        'حجم خط التلفاز والبطاقات',
+        'Card / Text Scale',
+        'കാർഡ് & ടെക്സ്റ്റ് വലിപ്പം',
+        'حجم النصوص والبطاقات',
       );
   String get tvLandscapeBadge => _p('TV 16:9', 'TV 16:9', 'تلفاز 16:9');
   String get tvArabicShort => _p('Arabic', 'അറബിക്', 'عربي');

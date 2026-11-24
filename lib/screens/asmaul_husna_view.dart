@@ -24,9 +24,11 @@ void showAsmaulHusnaDetailSheet(
   required AppStrings strings,
   required String appLanguage,
   ValueChanged<AsmaulHusnaItem>? onNavigateName,
-  double textScale = 1.0,
   double? arabicFontSize,
+  double? translationFontSize,
 }) {
+  final double resolvedArabic = arabicFontSize ?? 27.0;
+  final double resolvedTrans = translationFontSize ?? 15.0;
   final total = AsmaulHusnaCatalog.names.length;
   if (total == 0) return;
   int currentIdx = initialIndex.clamp(0, total - 1);
@@ -63,13 +65,16 @@ void showAsmaulHusnaDetailSheet(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         alignment: Alignment.center,
-                        child: Text(
-                          item.number.toString().padLeft(2, '0'),
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: cs.primary,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            item.number.toString().padLeft(2, '0'),
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: cs.primary,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
                           ),
                         ),
                       ),
@@ -151,17 +156,17 @@ void showAsmaulHusnaDetailSheet(
                       ),
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      item.arabic,
-                      textDirection: TextDirection.rtl,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.amiri(
-                        fontSize: arabicFontSize != null
-                            ? math.max(46.0 * textScale, arabicFontSize)
-                            : 46.0 * textScale,
-                        fontWeight: FontWeight.w700,
-                        height: 1.35,
-                        color: accent,
+                    child: NoTextScaling(
+                      child: Text(
+                        item.arabic,
+                        textDirection: TextDirection.rtl,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.amiri(
+                          fontSize: (resolvedArabic * 1.55).clamp(32.0, 82.0),
+                          fontWeight: FontWeight.w700,
+                          height: 1.35,
+                          color: accent,
+                        ),
                       ),
                     ),
                   ),
@@ -174,7 +179,7 @@ void showAsmaulHusnaDetailSheet(
                       value: item.malayalamMeaning,
                       cs: cs,
                       highlight: true,
-                      textScale: textScale,
+                      valueFontSize: resolvedTrans + 1.0,
                     ),
                     const SizedBox(height: 10),
                   ],
@@ -186,7 +191,7 @@ void showAsmaulHusnaDetailSheet(
                     cs: cs,
                     highlight: appLanguage == 'ar',
                     isRtl: true,
-                    textScale: textScale,
+                    valueFontSize: resolvedTrans + 3.0,
                   ),
                   const SizedBox(height: 10),
 
@@ -208,18 +213,20 @@ void showAsmaulHusnaDetailSheet(
                           Text(
                             strings.reflectionLabel,
                             style: TextStyle(
-                              fontSize: 11.5 * textScale,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                               color: cs.primary,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            item.reflectionMl,
-                            style: TextStyle(
-                              fontSize: 13.5 * textScale,
-                              height: 1.5,
-                              fontWeight: FontWeight.w500,
+                          NoTextScaling(
+                            child: Text(
+                              item.reflectionMl,
+                              style: TextStyle(
+                                fontSize: resolvedTrans,
+                                height: 1.5,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
@@ -291,7 +298,7 @@ class _MeaningDetailBlock extends StatelessWidget {
   final ColorScheme cs;
   final bool highlight;
   final bool isRtl;
-  final double textScale;
+  final double valueFontSize;
 
   const _MeaningDetailBlock({
     required this.label,
@@ -299,7 +306,7 @@ class _MeaningDetailBlock extends StatelessWidget {
     required this.cs,
     this.highlight = false,
     this.isRtl = false,
-    this.textScale = 1.0,
+    this.valueFontSize = 15.0,
   });
 
   @override
@@ -326,7 +333,7 @@ class _MeaningDetailBlock extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 11.5 * textScale,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w700,
                 color: highlight ? cs.primary : cs.onSurfaceVariant,
               ),
@@ -335,23 +342,25 @@ class _MeaningDetailBlock extends StatelessWidget {
           const SizedBox(height: 4),
           SizedBox(
             width: double.infinity,
-            child: Text(
-              value,
-              textDirection: isRtl ? TextDirection.rtl : null,
-              textAlign: isRtl ? TextAlign.right : TextAlign.start,
-              style: isRtl
-                  ? GoogleFonts.amiri(
-                      fontSize: 18 * textScale,
-                      fontWeight: FontWeight.w700,
-                      color: cs.onSurface,
-                      height: 1.45,
-                    )
-                  : TextStyle(
-                      fontSize: 15 * textScale,
-                      fontWeight: FontWeight.w700,
-                      color: cs.onSurface,
-                      height: 1.35,
-                    ),
+            child: NoTextScaling(
+              child: Text(
+                value,
+                textDirection: isRtl ? TextDirection.rtl : null,
+                textAlign: isRtl ? TextAlign.right : TextAlign.start,
+                style: isRtl
+                    ? GoogleFonts.amiri(
+                        fontSize: valueFontSize,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                        height: 1.45,
+                      )
+                    : TextStyle(
+                        fontSize: valueFontSize,
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                        height: 1.35,
+                      ),
+              ),
             ),
           ),
         ],
@@ -428,11 +437,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
       tvModeEnabled: settings.tvModeEnabled,
       normalMaxWidth: 1040,
     );
-    final double uiScale =
-        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.5) : 1.0;
-    final double arabicCardSize = settings.tvModeEnabled
-        ? math.max(25.0 * settings.tvFontScale, settings.arabicFontSize)
-        : 25.0;
+    final double arabicCardSize = settings.arabicFontSize;
+    final double transCardSize = settings.translationFontSize;
     final String viewMode = settings.names99ViewMode;
 
     final trimmed = _query.trim().toLowerCase();
@@ -619,8 +625,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                   strings: t,
                                   appLanguage: settings.appLanguage,
                                   onNavigateName: _recordNameActivity,
-                                  textScale: uiScale,
                                   arabicFontSize: arabicCardSize,
+                                  translationFontSize: transCardSize,
                                 );
                               },
                               child: Container(
@@ -657,18 +663,20 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                     const SizedBox(height: 6),
                                     Expanded(
                                       child: Center(
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            item.arabic,
-                                            textDirection: TextDirection.rtl,
-                                            textAlign: TextAlign.center,
-                                            maxLines: 1,
-                                            style: GoogleFonts.amiri(
-                                              fontSize: arabicCardSize,
-                                              fontWeight: FontWeight.w700,
-                                              height: 1.25,
-                                              color: accent,
+                                        child: NoTextScaling(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              item.arabic,
+                                              textDirection: TextDirection.rtl,
+                                              textAlign: TextAlign.center,
+                                              maxLines: 1,
+                                              style: GoogleFonts.amiri(
+                                                fontSize: arabicCardSize,
+                                                fontWeight: FontWeight.w700,
+                                                height: 1.25,
+                                                color: accent,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -701,8 +709,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                   isDark: isDark,
                                   cardBg: palette.cardBg,
                                   cardBorder: palette.cardBorder,
-                                  uiScale: uiScale,
                                   arabicFontSize: arabicCardSize,
+                                  translationFontSize: transCardSize,
                                   onTap: () {
                                     _recordNameActivity(item);
                                     showAsmaulHusnaDetailSheet(
@@ -711,8 +719,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                       strings: t,
                                       appLanguage: settings.appLanguage,
                                       onNavigateName: _recordNameActivity,
-                                      textScale: uiScale,
                                       arabicFontSize: arabicCardSize,
+                                      translationFontSize: transCardSize,
                                     );
                                   },
                                 ),
@@ -721,6 +729,11 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                           );
                         }
 
+                        final double multiColExtent = 112.0 +
+                            48.0 * settings.tvFontScale.clamp(0.85, 2.2) +
+                            math.max(0.0, arabicCardSize - 25.0) * 0.7 +
+                            math.max(0.0, transCardSize - 15.0) * 1.1;
+
                         return GridView.builder(
                           padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
                           gridDelegate:
@@ -728,7 +741,7 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                             crossAxisCount: cols,
                             mainAxisSpacing: 10,
                             crossAxisSpacing: 10,
-                            mainAxisExtent: 172 * uiScale.clamp(1.0, 1.4),
+                            mainAxisExtent: multiColExtent,
                           ),
                           itemCount: filtered.length,
                           itemBuilder: (_, idx) {
@@ -740,8 +753,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                               isDark: isDark,
                               cardBg: palette.cardBg,
                               cardBorder: palette.cardBorder,
-                              uiScale: uiScale,
                               arabicFontSize: arabicCardSize,
+                              translationFontSize: transCardSize,
                               onTap: () {
                                 _recordNameActivity(item);
                                 showAsmaulHusnaDetailSheet(
@@ -750,8 +763,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                   strings: t,
                                   appLanguage: settings.appLanguage,
                                   onNavigateName: _recordNameActivity,
-                                  textScale: uiScale,
                                   arabicFontSize: arabicCardSize,
+                                  translationFontSize: transCardSize,
                                 );
                               },
                             );
@@ -772,8 +785,8 @@ class _AsmaulHusnaCard extends StatelessWidget {
   final bool isDark;
   final Color cardBg;
   final Color cardBorder;
-  final double uiScale;
   final double arabicFontSize;
+  final double translationFontSize;
   final VoidCallback onTap;
 
   const _AsmaulHusnaCard({
@@ -783,8 +796,8 @@ class _AsmaulHusnaCard extends StatelessWidget {
     required this.isDark,
     required this.cardBg,
     required this.cardBorder,
-    this.uiScale = 1.0,
-    this.arabicFontSize = 25.0,
+    this.arabicFontSize = 27.0,
+    this.translationFontSize = 15.0,
     required this.onTap,
   });
 
@@ -821,13 +834,16 @@ class _AsmaulHusnaCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      item.number.toString().padLeft(2, '0'),
-                      style: TextStyle(
-                        fontSize: 13 * uiScale.clamp(1.0, 1.3),
-                        fontWeight: FontWeight.w800,
-                        color: cs.primary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        item.number.toString().padLeft(2, '0'),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: cs.primary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                   ),
@@ -840,49 +856,55 @@ class _AsmaulHusnaCard extends StatelessWidget {
                           item.transliteration,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14.8 * uiScale.clamp(1.0, 1.35),
+                          style: const TextStyle(
+                            fontSize: 14.8,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          item.malayalamMeaning,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13 * uiScale.clamp(1.0, 1.35),
-                            fontWeight: FontWeight.w700,
-                            color: accent,
+                        NoTextScaling(
+                          child: Text(
+                            item.malayalamMeaning,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: (translationFontSize - 1.5).clamp(12.0, 28.0),
+                              fontWeight: FontWeight.w700,
+                              color: accent,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    item.arabic,
-                    textDirection: TextDirection.rtl,
-                    style: GoogleFonts.amiri(
-                      fontSize: arabicFontSize,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                      color: accent,
+                  NoTextScaling(
+                    child: Text(
+                      item.arabic,
+                      textDirection: TextDirection.rtl,
+                      style: GoogleFonts.amiri(
+                        fontSize: arabicFontSize,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                        color: accent,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
-                item.arabicMeaning,
-                textDirection: TextDirection.rtl,
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.amiri(
-                  fontSize: 14.5 * uiScale.clamp(1.0, 1.25),
-                  color: cs.onSurfaceVariant,
-                  height: 1.3,
+              NoTextScaling(
+                child: Text(
+                  item.arabicMeaning,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.amiri(
+                    fontSize: translationFontSize,
+                    color: cs.onSurfaceVariant,
+                    height: 1.3,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),

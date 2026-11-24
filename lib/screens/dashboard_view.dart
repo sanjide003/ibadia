@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -205,11 +206,14 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
         if (entry.asmaIndex != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
+            final currentSettings = ref.read(settingsProvider);
             showAsmaulHusnaDetailSheet(
               context,
               initialIndex: entry.asmaIndex!,
               strings: t,
               appLanguage: lang,
+              arabicFontSize: currentSettings.arabicFontSize,
+              translationFontSize: currentSettings.translationFontSize,
             );
           });
         }
@@ -486,6 +490,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                           initialIndex: n.number - 1,
                                           strings: strings,
                                           appLanguage: settings.appLanguage,
+                                          arabicFontSize: settings.arabicFontSize,
+                                          translationFontSize:
+                                              settings.translationFontSize,
                                         );
                                       },
                                     )),
@@ -1158,27 +1165,38 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 ),
               )
             else
-              SizedBox(
-                height: 92,
-                child: ListView.separated(
-                  padding: EdgeInsets.symmetric(horizontal: hPad),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: recent.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, idx) {
-                    final item = recent[idx];
-                    final iconColor =
-                        isDark ? AppBranding.accentGold : cs.primary;
-                    return Material(
-                      color: palette.cardBg,
-                      borderRadius: BorderRadius.circular(15),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(15),
-                        onTap: () =>
-                            _handleRecentTap(item, t, settings.appLanguage),
-                        child: Container(
-                          width: 168,
-                          padding: const EdgeInsets.all(11),
+              Builder(
+                builder: (ctx) {
+                  final textScale = MediaQuery.textScalerOf(ctx)
+                      .scale(1.0)
+                      .clamp(0.85, 2.2);
+                  final stripHeight =
+                      (92.0 + math.max(0.0, textScale - 1.0) * 44.0)
+                          .clamp(92.0, 154.0);
+                  final cardWidth =
+                      (168.0 * math.max(1.0, textScale * 0.72))
+                          .clamp(168.0, 270.0);
+                  return SizedBox(
+                    height: stripHeight,
+                    child: ListView.separated(
+                      padding: EdgeInsets.symmetric(horizontal: hPad),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: recent.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (_, idx) {
+                        final item = recent[idx];
+                        final iconColor =
+                            isDark ? AppBranding.accentGold : cs.primary;
+                        return Material(
+                          color: palette.cardBg,
+                          borderRadius: BorderRadius.circular(15),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(15),
+                            onTap: () =>
+                                _handleRecentTap(item, t, settings.appLanguage),
+                            child: Container(
+                              width: cardWidth,
+                              padding: const EdgeInsets.all(11),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(15),
                             border: Border.all(color: palette.cardBorder),
@@ -1251,7 +1269,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                     );
                   },
                 ),
-              ),
+              );
+            },
+          ),
 
             const SizedBox(height: 18),
 
@@ -1285,6 +1305,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                     initialIndex: dailyNameIdx,
                     strings: t,
                     appLanguage: settings.appLanguage,
+                    arabicFontSize: settings.arabicFontSize,
+                    translationFontSize: settings.translationFontSize,
                   );
                 },
               ),
@@ -1724,6 +1746,12 @@ class _DashboardActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context)
+        .scale(1.0)
+        .clamp(0.85, 2.2);
+    final double dynamicExtent = mainAxisExtent +
+        math.max(0.0, textScale - 1.0) * (showSubtitle ? 52.0 : 48.0);
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -1731,7 +1759,7 @@ class _DashboardActionGrid extends StatelessWidget {
         crossAxisCount: crossAxisCount,
         mainAxisSpacing: 11,
         crossAxisSpacing: 11,
-        mainAxisExtent: mainAxisExtent,
+        mainAxisExtent: dynamicExtent,
       ),
       itemCount: actions.length,
       itemBuilder: (_, idx) {
