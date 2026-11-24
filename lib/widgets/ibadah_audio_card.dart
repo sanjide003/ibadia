@@ -133,14 +133,14 @@ class IbadahAudioCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Card Header
+            // Tier 1: Full-width Card Heading (never squeezed by action icons)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (orderBadge != null && orderBadge!.isNotEmpty) ...[
                   Container(
-                    width: 30,
-                    height: 30,
+                    width: 32,
+                    height: 32,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: effectiveBadgeColor.withValues(alpha: 0.14),
@@ -149,7 +149,7 @@ class IbadahAudioCard extends ConsumerWidget {
                     child: Text(
                       orderBadge!,
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: effectiveBadgeColor,
                       ),
@@ -164,10 +164,10 @@ class IbadahAudioCard extends ConsumerWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 15 * scale,
+                          fontSize: 15.5 * scale,
                           fontWeight: FontWeight.w800,
                           color: cs.onSurface,
-                          height: 1.25,
+                          height: 1.3,
                         ),
                       ),
                       if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
@@ -175,7 +175,7 @@ class IbadahAudioCard extends ConsumerWidget {
                         Text(
                           subtitle!,
                           style: TextStyle(
-                            fontSize: 12 * scale,
+                            fontSize: 12.2 * scale,
                             fontWeight: FontWeight.w600,
                             color: cs.onSurfaceVariant,
                           ),
@@ -184,74 +184,82 @@ class IbadahAudioCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                if (badgeText != null && badgeText!.trim().isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: effectiveBadgeColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(9),
-                      border: Border.all(
-                        color: effectiveBadgeColor.withValues(alpha: 0.28),
-                      ),
-                    ),
-                    child: Text(
-                      badgeText!,
-                      style: TextStyle(
-                        fontSize: 11 * scale.clamp(1.0, 1.35),
-                        fontWeight: FontWeight.w800,
-                        color: effectiveBadgeColor,
-                      ),
-                    ),
-                  ),
-                ],
-                if (hasExportableContent)
-                  IconButton(
-                    tooltip: strings.exportCardTitle,
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      Icons.download_rounded,
-                      size: 19,
-                      color: accentColor,
-                    ),
-                    onPressed: () => _showExportSheet(context),
-                  ),
-                if (arabicText != null && arabicText!.trim().isNotEmpty)
-                  IconButton(
-                    tooltip: strings.copiedTextNotice,
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      Icons.copy_rounded,
-                      size: 18,
-                      color: cs.onSurfaceVariant,
-                    ),
-                    onPressed: () {
-                      final buffer = StringBuffer(arabicText!.trim());
-                      if (showTransliteration &&
-                          transliterationMl != null &&
-                          transliterationMl!.trim().isNotEmpty) {
-                        buffer.writeln('\n${transliterationMl!.trim()}');
-                      }
-                      if (showMeaning &&
-                          meaningText != null &&
-                          meaningText!.trim().isNotEmpty) {
-                        buffer.writeln(meaningText!.trim());
-                      }
-                      Clipboard.setData(ClipboardData(text: buffer.toString()));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(strings.copiedTextNotice),
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                  ),
               ],
             ),
+
+            // Tier 2: Badge + Action Row (Download, Share, Copy) directly below heading
+            if ((badgeText != null && badgeText!.trim().isNotEmpty) ||
+                hasExportableContent ||
+                _hasCopyableText) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (badgeText != null && badgeText!.trim().isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: effectiveBadgeColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(
+                          color: effectiveBadgeColor.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      child: Text(
+                        badgeText!,
+                        style: TextStyle(
+                          fontSize: 11.2 * scale.clamp(1.0, 1.35),
+                          fontWeight: FontWeight.w800,
+                          color: effectiveBadgeColor,
+                        ),
+                      ),
+                    ),
+                  if (hasExportableContent)
+                    _CardActionButton(
+                      icon: Icons.download_rounded,
+                      label: strings.download,
+                      color: accentColor,
+                      borderColor: cardBorder,
+                      scale: scale,
+                      onTap: () => _showExportSheet(context, shareFocused: false),
+                    ),
+                  if (hasExportableContent || _hasCopyableText)
+                    _CardActionButton(
+                      icon: Icons.share_rounded,
+                      label: strings.share,
+                      color: cs.onSurface,
+                      borderColor: cardBorder,
+                      scale: scale,
+                      onTap: () => _showExportSheet(context, shareFocused: true),
+                    ),
+                  if (_hasCopyableText)
+                    _CardActionButton(
+                      icon: Icons.copy_rounded,
+                      label: strings.copyLabel,
+                      color: cs.onSurfaceVariant,
+                      borderColor: cardBorder,
+                      scale: scale,
+                      onTap: () {
+                        Clipboard.setData(
+                          ClipboardData(text: _buildShareOrCopyText()),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(strings.copiedTextNotice),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ],
 
             // Arabic Section
             if (arabicText != null && arabicText!.trim().isNotEmpty) ...[
@@ -483,7 +491,44 @@ class IbadahAudioCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _showExportSheet(BuildContext context) async {
+  bool get _hasCopyableText =>
+      (arabicText != null && arabicText!.trim().isNotEmpty) ||
+      (meaningText != null && meaningText!.trim().isNotEmpty) ||
+      (transliterationMl != null && transliterationMl!.trim().isNotEmpty);
+
+  String _buildShareOrCopyText() {
+    final buffer = StringBuffer(title.trim());
+    if (subtitle != null && subtitle!.trim().isNotEmpty) {
+      buffer.writeln(' (${subtitle!.trim()})');
+    } else {
+      buffer.writeln();
+    }
+    if (arabicText != null && arabicText!.trim().isNotEmpty) {
+      buffer.writeln('\n${arabicText!.trim()}');
+    }
+    if (showTransliteration &&
+        transliterationMl != null &&
+        transliterationMl!.trim().isNotEmpty) {
+      buffer.writeln('\n${transliterationMl!.trim()}');
+    }
+    if (showMeaning &&
+        meaningText != null &&
+        meaningText!.trim().isNotEmpty) {
+      buffer.writeln('\n${meaningText!.trim()}');
+    }
+    if (showNotes && noteText != null && noteText!.trim().isNotEmpty) {
+      buffer.writeln('\n${noteText!.trim()}');
+    }
+    return buffer.toString().trim();
+  }
+
+  Future<void> _showExportSheet(
+    BuildContext context, {
+    required bool shareFocused,
+  }) async {
+    final bool hasExportableContent =
+        (arabicText != null && arabicText!.trim().isNotEmpty) ||
+            (meaningText != null && meaningText!.trim().isNotEmpty);
     final item = IbadahExportItem(
       title: title,
       subtitle: subtitle,
@@ -599,14 +644,20 @@ class IbadahAudioCard extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.hd_rounded, color: cs.primary, size: 22),
+                        Icon(
+                          shareFocused ? Icons.share_rounded : Icons.hd_rounded,
+                          color: cs.primary,
+                          size: 22,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                strings.exportCardTitle,
+                                shareFocused
+                                    ? strings.share
+                                    : strings.exportCardTitle,
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
@@ -631,77 +682,109 @@ class IbadahAudioCard extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: cs.primaryContainer,
-                        child: Icon(Icons.image_rounded, color: cs.primary),
-                      ),
-                      title: Text(
-                        strings.saveUltraHdPng,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      trailing: const Icon(Icons.download_rounded),
-                      onTap: busy
-                          ? null
-                          : () => runAction(isPdf: false, isShare: false),
-                    ),
-                    ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: cs.primaryContainer,
-                        child: Icon(Icons.share_rounded, color: cs.primary),
-                      ),
-                      title: Text(
-                        strings.shareUltraHdPng,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: busy
-                          ? null
-                          : () => runAction(isPdf: false, isShare: true),
-                    ),
-                    ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: cs.secondaryContainer,
-                        child: Icon(
-                          Icons.picture_as_pdf_rounded,
-                          color: cs.secondary,
+                    if (shareFocused) ...[
+                      if (_hasCopyableText)
+                        ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: cs.tertiaryContainer,
+                            child: Icon(Icons.notes_rounded, color: cs.tertiary),
+                          ),
+                          title: Text(
+                            strings.share,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: busy
+                              ? null
+                              : () async {
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  await ExportService.shareText(
+                                    _buildShareOrCopyText(),
+                                    subject: title,
+                                  );
+                                },
                         ),
+                      if (hasExportableContent) ...[
+                        ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: cs.primaryContainer,
+                            child: Icon(Icons.image_rounded, color: cs.primary),
+                          ),
+                          title: Text(
+                            strings.shareUltraHdPng,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: busy
+                              ? null
+                              : () => runAction(isPdf: false, isShare: true),
+                        ),
+                        ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: cs.secondaryContainer,
+                            child: Icon(
+                              Icons.picture_as_pdf_rounded,
+                              color: cs.secondary,
+                            ),
+                          ),
+                          title: Text(
+                            strings.shareHighQualityPdf,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: busy
+                              ? null
+                              : () => runAction(isPdf: true, isShare: true),
+                        ),
+                      ],
+                    ] else ...[
+                      ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        leading: CircleAvatar(
+                          backgroundColor: cs.primaryContainer,
+                          child: Icon(Icons.image_rounded, color: cs.primary),
+                        ),
+                        title: Text(
+                          strings.saveUltraHdPng,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        trailing: const Icon(Icons.download_rounded),
+                        onTap: busy
+                            ? null
+                            : () => runAction(isPdf: false, isShare: false),
                       ),
-                      title: Text(
-                        strings.saveHighQualityPdf,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        leading: CircleAvatar(
+                          backgroundColor: cs.secondaryContainer,
+                          child: Icon(
+                            Icons.picture_as_pdf_rounded,
+                            color: cs.secondary,
+                          ),
+                        ),
+                        title: Text(
+                          strings.saveHighQualityPdf,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        trailing: const Icon(Icons.download_rounded),
+                        onTap: busy
+                            ? null
+                            : () => runAction(isPdf: true, isShare: false),
                       ),
-                      trailing: const Icon(Icons.download_rounded),
-                      onTap: busy
-                          ? null
-                          : () => runAction(isPdf: true, isShare: false),
-                    ),
-                    ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: cs.secondaryContainer,
-                        child: Icon(Icons.ios_share_rounded, color: cs.secondary),
-                      ),
-                      title: Text(
-                        strings.shareHighQualityPdf,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: busy
-                          ? null
-                          : () => runAction(isPdf: true, isShare: true),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -709,6 +792,58 @@ class IbadahAudioCard extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _CardActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color borderColor;
+  final double scale;
+  final VoidCallback onTap;
+
+  const _CardActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.borderColor,
+    required this.scale,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15.5, color: color),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.8 * scale.clamp(1.0, 1.25),
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

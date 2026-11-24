@@ -10,6 +10,7 @@ import '../core/l10n/app_strings.dart';
 import '../data/asmaul_husna_data.dart';
 import '../models/recent_activity_model.dart';
 import '../providers/quran_providers.dart';
+import '../services/export_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/tv_mode_widgets.dart';
 
@@ -51,7 +52,7 @@ void showAsmaulHusnaDetailSheet(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Top Header: Number + Transliteration + Copy
+                  // Tier 1: Full-width Header (Number + Transliteration)
                   Row(
                     children: [
                       Container(
@@ -80,7 +81,7 @@ void showAsmaulHusnaDetailSheet(
                             Text(
                               item.transliteration,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: 18.5,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -97,11 +98,30 @@ void showAsmaulHusnaDetailSheet(
                           ],
                         ),
                       ),
-                      IconButton.filledTonal(
-                        tooltip: strings.copiedNameNotice,
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Tier 2: Share & Copy Actions
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          final shareText =
+                              '${item.arabic} (${item.transliteration})\n${item.malayalamMeaning}\n${item.arabicMeaning}\n\n${item.reflectionMl}';
+                          ExportService.shareText(
+                            shareText,
+                            subject: '${item.transliteration} (${item.arabic})',
+                          );
+                        },
+                        icon: const Icon(Icons.share_rounded, size: 17),
+                        label: Text(strings.share),
+                      ),
+                      OutlinedButton.icon(
                         onPressed: () {
                           final copyText =
-                              '${item.arabic} (${item.transliteration})\n${item.malayalamMeaning}\n${item.englishMeaning}';
+                              '${item.arabic} (${item.transliteration})\n${item.malayalamMeaning}\n${item.arabicMeaning}\n\n${item.reflectionMl}';
                           Clipboard.setData(ClipboardData(text: copyText));
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -110,7 +130,8 @@ void showAsmaulHusnaDetailSheet(
                             ),
                           );
                         },
-                        icon: const Icon(Icons.copy_rounded, size: 18),
+                        icon: const Icon(Icons.copy_rounded, size: 17),
+                        label: Text(strings.copyLabel),
                       ),
                     ],
                   ),
@@ -146,69 +167,64 @@ void showAsmaulHusnaDetailSheet(
                   ),
                   const SizedBox(height: 16),
 
-                  // Malayalam Meaning Card
-                  _MeaningDetailBlock(
-                    label: strings.meaningMalayalamLabel,
-                    value: item.malayalamMeaning,
-                    cs: cs,
-                    highlight: true,
-                    textScale: textScale,
-                  ),
-                  const SizedBox(height: 10),
-
-                  // English Meaning Card
-                  _MeaningDetailBlock(
-                    label: strings.meaningEnglishLabel,
-                    value: item.englishMeaning,
-                    cs: cs,
-                    textScale: textScale,
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Reflection Block
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: cs.outlineVariant.withValues(alpha: 0.45),
-                      ),
+                  if (appLanguage != 'ar') ...[
+                    // Malayalam Meaning Card
+                    _MeaningDetailBlock(
+                      label: strings.meaningMalayalamLabel,
+                      value: item.malayalamMeaning,
+                      cs: cs,
+                      highlight: true,
+                      textScale: textScale,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.reflectionLabel,
-                          style: TextStyle(
-                            fontSize: 11.5 * textScale,
-                            fontWeight: FontWeight.w700,
-                            color: cs.primary,
-                          ),
+                    const SizedBox(height: 10),
+                  ],
+
+                  // Arabic Explanation Card
+                  _MeaningDetailBlock(
+                    label: strings.meaningArabicLabel,
+                    value: item.arabicMeaning,
+                    cs: cs,
+                    highlight: appLanguage == 'ar',
+                    isRtl: true,
+                    textScale: textScale,
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Reflection Block (Malayalam)
+                  if (appLanguage != 'ar')
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color:
+                            cs.surfaceContainerHighest.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: cs.outlineVariant.withValues(alpha: 0.45),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.reflectionMl,
-                          style: TextStyle(
-                            fontSize: 13.5 * textScale,
-                            height: 1.5,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        if (appLanguage != 'ml') ...[
-                          const SizedBox(height: 6),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            item.reflectionEn,
+                            strings.reflectionLabel,
                             style: TextStyle(
-                              fontSize: 12.5 * textScale,
-                              height: 1.45,
-                              color: cs.onSurfaceVariant,
+                              fontSize: 11.5 * textScale,
+                              fontWeight: FontWeight.w700,
+                              color: cs.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.reflectionMl,
+                            style: TextStyle(
+                              fontSize: 13.5 * textScale,
+                              height: 1.5,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 18),
 
                   // Prev / Next Controls
@@ -274,6 +290,7 @@ class _MeaningDetailBlock extends StatelessWidget {
   final String value;
   final ColorScheme cs;
   final bool highlight;
+  final bool isRtl;
   final double textScale;
 
   const _MeaningDetailBlock({
@@ -281,6 +298,7 @@ class _MeaningDetailBlock extends StatelessWidget {
     required this.value,
     required this.cs,
     this.highlight = false,
+    this.isRtl = false,
     this.textScale = 1.0,
   });
 
@@ -300,24 +318,40 @@ class _MeaningDetailBlock extends StatelessWidget {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isRtl ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5 * textScale,
-              fontWeight: FontWeight.w700,
-              color: highlight ? cs.primary : cs.onSurfaceVariant,
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5 * textScale,
+                fontWeight: FontWeight.w700,
+                color: highlight ? cs.primary : cs.onSurfaceVariant,
+              ),
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 15 * textScale,
-              fontWeight: FontWeight.w700,
-              color: cs.onSurface,
-              height: 1.35,
+          const SizedBox(height: 4),
+          SizedBox(
+            width: double.infinity,
+            child: Text(
+              value,
+              textDirection: isRtl ? TextDirection.rtl : null,
+              textAlign: isRtl ? TextAlign.right : TextAlign.start,
+              style: isRtl
+                  ? GoogleFonts.amiri(
+                      fontSize: 18 * textScale,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
+                      height: 1.45,
+                    )
+                  : TextStyle(
+                      fontSize: 15 * textScale,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
+                      height: 1.35,
+                    ),
             ),
           ),
         ],
@@ -411,6 +445,7 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                 item.transliteration.toLowerCase().contains(trimmed) ||
                 item.englishMeaning.toLowerCase().contains(trimmed) ||
                 item.malayalamMeaning.toLowerCase().contains(trimmed) ||
+                item.arabicMeaning.contains(_query.trim()) ||
                 item.arabic.contains(_query.trim()) ||
                 (strippedQuery.isNotEmpty &&
                     _stripArabicTashkeel(item.arabic).contains(strippedQuery));
@@ -661,6 +696,7 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                 padding: const EdgeInsets.only(bottom: 10),
                                 child: _AsmaulHusnaCard(
                                   item: item,
+                                  strings: t,
                                   cs: cs,
                                   isDark: isDark,
                                   cardBg: palette.cardBg,
@@ -692,13 +728,14 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                             crossAxisCount: cols,
                             mainAxisSpacing: 10,
                             crossAxisSpacing: 10,
-                            mainAxisExtent: 120 * uiScale.clamp(1.0, 1.4),
+                            mainAxisExtent: 172 * uiScale.clamp(1.0, 1.4),
                           ),
                           itemCount: filtered.length,
                           itemBuilder: (_, idx) {
                             final item = filtered[idx];
                             return _AsmaulHusnaCard(
                               item: item,
+                              strings: t,
                               cs: cs,
                               isDark: isDark,
                               cardBg: palette.cardBg,
@@ -730,6 +767,7 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
 
 class _AsmaulHusnaCard extends StatelessWidget {
   final AsmaulHusnaItem item;
+  final AppStrings strings;
   final ColorScheme cs;
   final bool isDark;
   final Color cardBg;
@@ -740,6 +778,7 @@ class _AsmaulHusnaCard extends StatelessWidget {
 
   const _AsmaulHusnaCard({
     required this.item,
+    required this.strings,
     required this.cs,
     required this.isDark,
     required this.cardBg,
@@ -752,6 +791,9 @@ class _AsmaulHusnaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = isDark ? AppBranding.accentGold : cs.primary;
+    final shareAndCopyText =
+        '${item.arabic} (${item.transliteration})\n${item.malayalamMeaning}\n${item.arabicMeaning}';
+
     return Material(
       color: cardBg,
       borderRadius: BorderRadius.circular(16),
@@ -764,79 +806,166 @@ class _AsmaulHusnaCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: cardBorder),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Number index badge
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: cs.primaryContainer.withValues(alpha: 0.65),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  item.number.toString().padLeft(2, '0'),
-                  style: TextStyle(
-                    fontSize: 13.5 * uiScale.clamp(1.0, 1.3),
-                    fontWeight: FontWeight.w800,
-                    color: cs.primary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Transliteration + Malayalam + English meanings
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.transliteration,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+              // Tier 1: Number + Transliteration/Malayalam + Arabic Name
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: cs.primaryContainer.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      item.number.toString().padLeft(2, '0'),
                       style: TextStyle(
-                        fontSize: 15 * uiScale.clamp(1.0, 1.35),
+                        fontSize: 13 * uiScale.clamp(1.0, 1.3),
                         fontWeight: FontWeight.w800,
+                        color: cs.primary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.malayalamMeaning,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13 * uiScale.clamp(1.0, 1.35),
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                      ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.transliteration,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14.8 * uiScale.clamp(1.0, 1.35),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item.malayalamMeaning,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13 * uiScale.clamp(1.0, 1.35),
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      item.englishMeaning,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12 * uiScale.clamp(1.0, 1.35),
-                        color: cs.onSurfaceVariant,
-                      ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    item.arabic,
+                    textDirection: TextDirection.rtl,
+                    style: GoogleFonts.amiri(
+                      fontSize: arabicFontSize,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                      color: accent,
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                item.arabicMeaning,
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.amiri(
+                  fontSize: 14.5 * uiScale.clamp(1.0, 1.25),
+                  color: cs.onSurfaceVariant,
+                  height: 1.3,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(height: 8),
+              // Tier 2: Share & Copy action bar
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  _AsmaCardActionBtn(
+                    icon: Icons.share_rounded,
+                    label: strings.share,
+                    color: accent,
+                    borderColor: cardBorder,
+                    onTap: () => ExportService.shareText(
+                      shareAndCopyText,
+                      subject: '${item.transliteration} (${item.arabic})',
+                    ),
+                  ),
+                  _AsmaCardActionBtn(
+                    icon: Icons.copy_rounded,
+                    label: strings.copyLabel,
+                    color: cs.onSurfaceVariant,
+                    borderColor: cardBorder,
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: shareAndCopyText));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(strings.copiedNameNotice),
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-              // Arabic Name
+class _AsmaCardActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color borderColor;
+  final VoidCallback onTap;
+
+  const _AsmaCardActionBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.borderColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14.5, color: color),
+              const SizedBox(width: 4),
               Text(
-                item.arabic,
-                textDirection: TextDirection.rtl,
-                style: GoogleFonts.amiri(
-                  fontSize: arabicFontSize,
+                label,
+                style: TextStyle(
+                  fontSize: 11.2,
                   fontWeight: FontWeight.w700,
-                  height: 1.2,
-                  color: accent,
+                  color: color,
                 ),
               ),
             ],

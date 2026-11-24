@@ -263,12 +263,12 @@ class ApiConfig {
   }
 
   static const List<PrayerCalculationMethod> prayerMethods = [
-    PrayerCalculationMethod(id: 1, englishName: 'Karachi (UISK)', malayalamName: 'കറാച്ചി (UISK)', arabicName: 'جامعة العلوم الإسلامية بكراتشي'),
-    PrayerCalculationMethod(id: 3, englishName: 'Muslim World League (MWL)', malayalamName: 'മുസ്‌ലിം വേൾഡ് ലീഗ് (MWL)', arabicName: 'رابطة العالم الإسلامي'),
+    PrayerCalculationMethod(id: 1, englishName: 'Karachi (UISK)', malayalamName: 'കറാച്ചി ഇസ്‌ലാമിക് സർവ്വകലാശാല', arabicName: 'جامعة العلوم الإسلامية بكراتشي'),
+    PrayerCalculationMethod(id: 3, englishName: 'Muslim World League (MWL)', malayalamName: 'മുസ്‌ലിം വേൾഡ് ലീഗ്', arabicName: 'رابطة العالم الإسلامي'),
     PrayerCalculationMethod(id: 4, englishName: 'Umm Al-Qura, Makkah', malayalamName: 'ഉമ്മുൽ ഖുറ, മക്ക', arabicName: 'أم القرى، مكة المكرمة'),
-    PrayerCalculationMethod(id: 2, englishName: 'ISNA (North America)', malayalamName: 'ISNA (വടക്കേ അമേരിക്ക)', arabicName: 'الجمعية الإسلامية لأمريكا الشمالية'),
+    PrayerCalculationMethod(id: 2, englishName: 'ISNA (North America)', malayalamName: 'വടക്കേ അമേരിക്കൻ ഇസ്‌ലാമിക് സൊസൈറ്റി', arabicName: 'الجمعية الإسلامية لأمريكا الشمالية'),
     PrayerCalculationMethod(id: 5, englishName: 'Egyptian General Authority', malayalamName: 'ഈജിപ്ഷ്യൻ അതോറിറ്റി', arabicName: 'الهيئة المصرية العامة للمساحة'),
-    PrayerCalculationMethod(id: 11, englishName: 'MUIS (Singapore)', malayalamName: 'MUIS (സിംഗപ്പൂർ)', arabicName: 'مجلس الشؤون الإسلامية في سنغافورة'),
+    PrayerCalculationMethod(id: 11, englishName: 'MUIS (Singapore)', malayalamName: 'സിംഗപ്പൂർ ഇസ്‌ലാമിക് കൗൺസിൽ', arabicName: 'مجلس الشؤون الإسلامية في سنغافورة'),
     PrayerCalculationMethod(id: 15, englishName: 'Moonsighting Committee', malayalamName: 'മൂൺസൈറ്റിംഗ് കമ്മിറ്റി', arabicName: 'لجنة تحري الهلال'),
   ];
 
@@ -302,6 +302,21 @@ class ApiConfig {
     'Shawwal',
     "Dhu al-Qi'dah",
     'Dhu al-Hijjah',
+  ];
+
+  static const List<String> hijriMonthsMl = [
+    'മുഹർറം',
+    'സ്വഫർ',
+    'റബീഉൽ അവ്വൽ',
+    'റബീഉൽ ആഖിർ',
+    'ജുമാദൽ ഊല',
+    'ജുമാദൽ ആഖിറ',
+    'റജബ്',
+    'ശഅ്ബാൻ',
+    'റമളാൻ',
+    'ശവ്വാൽ',
+    'ദുൽഖഅ്ദ',
+    'ദുൽഹിജ്ജ',
   ];
 
   static const List<String> hijriMonthsAr = [

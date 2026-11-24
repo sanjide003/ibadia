@@ -231,8 +231,9 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           requiredTranslations: activeTranslations,
         );
 
-        final surahName =
-            t.lang == 'ar' ? detail.summary.nameArabic : detail.summary.englishName;
+        final surahName = (t.lang == 'ar' || t.lang == 'ml')
+            ? detail.summary.nameArabic
+            : detail.summary.englishName;
         docTitle = _scope == ExportScope.surah
             ? '${detail.summary.number}. $surahName'
             : '${detail.summary.number}. $surahName ($fromAyah–$toAyah)';
@@ -265,9 +266,9 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               titleEn: docTitle,
               titleMl: docTitle,
               titleAr: docTitle,
-              subtitleEn: 'Export (${_format.name.toUpperCase()})',
-              subtitleMl: 'എക്സ്പോർട്ട് (${_format.name.toUpperCase()})',
-              subtitleAr: 'تصدير (${_format.name.toUpperCase()})',
+              subtitleEn: 'Export (${_format == ExportFormat.pdf ? 'PDF' : 'PNG'})',
+              subtitleMl: 'എക്സ്പോർട്ട് (${_format == ExportFormat.pdf ? 'PDF' : 'PNG'})',
+              subtitleAr: 'تصدير (${_format == ExportFormat.pdf ? 'PDF' : 'PNG'})',
               timestampMs: DateTime.now().millisecondsSinceEpoch,
               quranSubTab: 3,
             ),
@@ -480,7 +481,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                             ),
                           ),
                           child: Text(
-                            t.lang == 'ar'
+                            (t.lang == 'ar' || t.lang == 'ml')
                                 ? '${currentSurah.number}. ${currentSurah.nameArabic} (${currentSurah.numberOfAyahs})'
                                 : '${currentSurah.number}. ${currentSurah.englishName} — ${currentSurah.nameArabic} (${currentSurah.numberOfAyahs})',
                             maxLines: 1,
@@ -1432,7 +1433,9 @@ class _SurahSearchBottomSheetState extends State<_SurahSearchBottomSheet> {
                         ),
                       ),
                       title: Text(
-                        s.englishName,
+                        t.lang == 'ml'
+                            ? '${t.surahLabel} ${s.number}'
+                            : (t.lang == 'ar' ? s.nameArabic : s.englishName),
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       subtitle: Text(

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart' show TextDirection;
 
-/// Returns `'ml'` for instructional/fiqh/tajweed/adhkar explanations
+/// Returns `'ml'` for instructional/fiqh/tajweed/adhkar/list content
 /// when the UI language is `'en'`, preserving `'ml'` and `'ar'`.
-String explanationLangFor(String appLanguage) =>
+String contentLangFor(String appLanguage) =>
     appLanguage == 'en' ? 'ml' : appLanguage;
+
+/// Alias for instructional/fiqh/tajweed/adhkar explanations.
+String explanationLangFor(String appLanguage) => contentLangFor(appLanguage);
 
 class AppStrings {
   final String lang;
@@ -11,6 +14,7 @@ class AppStrings {
 
   bool get isRtl => lang == 'ar';
   TextDirection get textDirection => isRtl ? TextDirection.rtl : TextDirection.ltr;
+  String get contentLang => contentLangFor(lang);
   String get explanationLang => explanationLangFor(lang);
 
   String _p(String en, String ml, String ar) {
@@ -50,7 +54,7 @@ class AppStrings {
   String get continueReading => _p('Continue Reading', 'വായന തുടരുക', 'متابعة القراءة');
   String get searchHint => _p(
         'Search Surah (e.g. Yaseen, Kahf, 36)...',
-        'സൂറത്ത് തിരയുക (ഉദാ: Yaseen, Kahf, 36)...',
+        'സൂറത്ത് തിരയുക (ഉദാ: യാസീൻ, കഹ്ഫ്, 36)...',
         'ابحث عن سورة (مثال: يس، الكهف، 36)...',
       );
   String get ayahsLabel => _p('Ayahs', 'ആയത്തുകൾ', 'آيات');
@@ -86,7 +90,7 @@ class AppStrings {
   String get featuresSettingsTitle => _p('Prayer Times, Alarms & Hijri', 'നിസ്കാരം, അലാറം & ഹിജ്‌രി സെറ്റിംഗ്സ്', 'إعدادات الصلاة والمنبهات');
   String get appLanguage => _p('App Language', 'ആപ്പ് ഭാഷ', 'لغة التطبيق');
   String get readingMode => _p('Reading Mode', 'വായനാ രീതി', 'وضع القراءة');
-  String get modeMushaf => _p('Mushaf Page', 'പേജ് വ്യൂ (Mushaf)', 'صفحة مصحف');
+  String get modeMushaf => _p('Mushaf Page', 'മുസ്ഹഫ് പേജ്', 'صفحة مصحف');
   String get modeVerse => _p('Verse List', 'ആയത്ത് ലിസ്റ്റ്', 'قائمة الآيات');
   String get readingTheme => _p('Reading Theme', 'വായനാ തീം', 'مظهر القراءة');
   String get themeLight => _p('Light', 'ലൈറ്റ്', 'فاتح');
@@ -99,7 +103,7 @@ class AppStrings {
         'تفعيل أو إيقاف الترجمة (النص العربي للقرآن يظهر دائماً)',
       );
   String get translationLanguages => _p('Translation Languages', 'പരിഭാഷാ ഭാഷകൾ', 'لغات الترجمة');
-  String get langEnglish => _p('English', 'ഇംഗ്ലീഷ് (English)', 'الإنجليزية');
+  String get langEnglish => _p('English', 'ഇംഗ്ലീഷ്', 'الإنجليزية');
   String get langMalayalam => _p('Malayalam', 'മലയാളം', 'المالايالامية');
   String get langArabicTafsir => _p('Arabic (Al-Muyassar)', 'അറബിക് (തഫ്സീർ അൽ-മുയസ്സർ)', 'العربية (التفسير الميسر)');
   String get arabicFontSize => _p('Arabic Font Size', 'അറബിക് ഫോണ്ട് സൈസ്', 'حجم الخط العربي');
@@ -203,7 +207,7 @@ class AppStrings {
   String get tajweedTapHint => _p('Tap rule for details', 'വിവരങ്ങൾക്ക് ടാപ്പ് ചെയ്യുക', 'اضغط للتفاصيل');
 
   // Audio Recitation
-  String get reciter => _p('Reciter', 'ഖാരിഅ് (Reciter)', 'القارئ');
+  String get reciter => _p('Reciter', 'ഖാരിഅ്', 'القارئ');
   String get playAyah => _p('Play Ayah', 'ആയത്ത് കേൾക്കുക', 'تشغيل الآية');
   String get pauseAyah => _p('Pause recitation', 'പാരായണം നിർത്തുക', 'إيقاف مؤقت');
   String get resumeAyah => _p('Resume recitation', 'തുടർന്ന് കേൾക്കുക', 'استئناف التلاوة');
@@ -225,7 +229,7 @@ class AppStrings {
   String get toAyah => _p('To Ayah', 'അവസാനിക്കുന്ന ആയത്ത്', 'إلى الآية');
   String get pageSize => _p('Page Size', 'പേജ് സൈസ്', 'حجم الصفحة');
   String get sizeAutomatic => _p('Mobile Card', 'മൊബൈൽ കാർഡ്', 'بطاقة جوال');
-  String get sizeA4 => _p('A4 Print', 'A4 പ്രിന്റ്', 'A4 للطباعة');
+  String get sizeA4 => _p('A4 Print', 'എ4 പ്രിന്റ്', 'A4 للطباعة');
   String get exportFormat => _p('Format', 'ഫോർമാറ്റ്', 'الصيغة');
   String get formatPdf => _p('PDF Document', 'PDF ഡോക്യുമെന്റ്', 'ملف PDF');
   String get formatImage => _p('Image (PNG)', 'ഇമേജ് (PNG)', 'صورة PNG');
@@ -235,6 +239,7 @@ class AppStrings {
   String get preparingPages => _p('Preparing pages...', 'പേജുകൾ തയ്യാറാക്കുന്നു...', 'جاري تجهيز الصفحات...');
   String get download => _p('Download', 'ഡൗൺലോഡ്', 'تنزيل');
   String get share => _p('Share', 'ഷെയർ', 'مشاركة');
+  String get copyLabel => _p('Copy', 'കോപ്പി', 'نسخ');
   String get exportSuccess => _p('Export ready and downloaded', 'വിജയകരമായി സേവ് ചെയ്തു', 'تم التصدير بنجاح');
   String get savedToGallery => _p('Saved to device gallery', 'ഗാലറിയിലേക്ക് സേവ് ചെയ്തു', 'تم الحفظ في المعرض');
   String get exportError => _p('Export failed. Please try again.', 'എക്സ്പോർട്ട് പരാജയപ്പെട്ടു. വീണ്ടും ശ്രമിക്കുക.', 'فشل التصدير. حاول مرة أخرى.');
@@ -262,7 +267,7 @@ class AppStrings {
   String get cancelLabel => _p('Cancel', 'റദ്ദാക്കുക', 'إلغاء');
   String get calculationMethod => _p('Calculation Method', 'കാൽക്കുലേഷൻ മെത്തേഡ്', 'طريقة الحساب');
   String get asrSchool => _p('Asr Juristic School', 'അസർ മദ്ഹബ്', 'مذهب العصر');
-  String get schoolShafi => _p('Shafi / Standard', 'ശാഫിഈ (Standard)', 'الشافعي / الجمهور');
+  String get schoolShafi => _p('Shafi / Standard', 'ശാഫിഈ (സാധാരണം)', 'الشافعي / الجمهور');
   String get schoolHanafi => _p('Hanafi', 'ഹനഫി', 'الحنفي');
   String get tuneMinutes => _p('Masjid Time Tune (Minutes)', 'പള്ളി സമയ ക്രമീകരണം (മിനിറ്റ്)', 'تعديل الدقائق حسب المسجد');
   String get resetTune => _p('Reset Tune', 'റീസെറ്റ്', 'إعادة ضبط');
@@ -333,7 +338,7 @@ class AppStrings {
   String get dndActiveBanner => dndActiveNowBanner;
   String get autoSilentWebNote => _p(
         'Auto-Silent preference syncs immediately to Android APK native alarms & DND engine.',
-        'ഈ സെറ്റിംഗ്സ് തനിയെ സേവ് ആകുകയും Android APK DND എഞ്ചിനിലേക്ക് സിങ്ക് ചെയ്യുകയും ചെയ്യുന്നു.',
+        'ഈ സെറ്റിംഗ്സ് തനിയെ സേവ് ആകുകയും ആൻഡ്രോയിഡ് APK DND എഞ്ചിനിലേക്ക് സിങ്ക് ചെയ്യുകയും ചെയ്യുന്നു.',
         'تُحفظ الإعدادات تلقائياً وتُزامن مع محرك DND في تطبيق أندرويد.',
       );
   String get autoSilentPrayersLabel => _p('Prayers for Auto-Silent', 'ഓട്ടോ-സൈലന്റ് വേണ്ട നമസ്കാരങ്ങൾ', 'الصلوات المفعّلة للصامت');
@@ -344,7 +349,7 @@ class AppStrings {
   String get dayPlusOne => _p('+1 Day', '+1 ദിവസം', '+1 يوم');
 
   // Home Widget Promo Card
-  String get homeWidgetTitle => _p('Android Home Screen Widget', 'ഹോം സ്ക്രീൻ വിജറ്റ് (Widget)', 'أداة الشاشة الرئيسية');
+  String get homeWidgetTitle => _p('Android Home Screen Widget', 'ഹോം സ്ക്രീൻ വിജറ്റ്', 'أداة الشاشة الرئيسية');
   String get homeWidgetDesc => _p(
         'Add Ibadia Prayer Times & Hijri Date directly to your Android home screen.',
         'നിസ്കാര സമയവും ഹിജ്‌രി തീയതിയും ഫോണിന്റെ ഹോം സ്ക്രീനിൽ ചേർക്കാം.',
@@ -415,7 +420,7 @@ class AppStrings {
 
   // PWA & Android Update Dialog
   String get installApp => _p('Install Ibadia App', 'ഇബാദിയ ഇൻസ്റ്റാൾ ചെയ്യുക', 'تثبيت تطبيق عبادية');
-  String get downloadAndroidApk => _p('Download Android APK', 'Android APK ഡൗൺലോഡ്', 'تحميل تطبيق أندرويد');
+  String get downloadAndroidApk => _p('Download Android APK', 'ആൻഡ്രോയിഡ് APK ഡൗൺലോഡ്', 'تحميل تطبيق أندرويد');
   String get checkForUpdates => _p('Check for App Updates', 'പുതിയ അപ്ഡേറ്റ് പരിശോധിക്കുക', 'التحقق من التحديثات');
   String get shareApp => _p('Share App', 'ആപ്പ് ഷെയർ ചെയ്യുക', 'مشاركة التطبيق');
   String get shareAppCopied => _p('App link copied to clipboard', 'ആപ്പ് ലിങ്ക് കോപ്പി ചെയ്തു', 'تم نسخ رابط التطبيق');
@@ -427,7 +432,7 @@ class AppStrings {
   String get updateAvailableTitle => _p('App Update Available', 'പുതിയ അപ്ഡേറ്റ് ലഭ്യമാണ്', 'يتوفر تحديث جديد');
   String updateAvailableDesc(String version, int build) => _p(
         'Ibadia v$version (Build #$build) is ready with improvements and fixes.',
-        'ഇബാദിയ v$version (#$build) അപ്ഡേറ്റ് ഇപ്പോൾ ഡൗൺലോഡ് ചെയ്യാം.',
+        'ഇബാദിയ പതിപ്പ് $version (#$build) അപ്ഡേറ്റ് ഇപ്പോൾ ഡൗൺലോഡ് ചെയ്യാം.',
         'يتوفر تحديث عبادية v$version (البناء #$build).',
       );
   String get updateNow => _p('Update Now', 'അപ്ഡേറ്റ് ചെയ്യുക', 'تحديث الآن');
@@ -445,27 +450,27 @@ class AppStrings {
   String get allowInstallPermissionTitle => _p('Allow App Installation', 'ഇൻസ്റ്റാൾ അനുമതി നൽകുക', 'السماح بتثبيت التطبيقات');
   String get allowInstallPermissionDesc => _p(
         'Allow Ibadia to install APK updates from unknown sources in Android Settings.',
-        'അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്യാൻ Android സെറ്റിംഗ്സിൽ അനുമതി നൽകുക.',
+        'അപ്ഡേറ്റ് ഇൻസ്റ്റാൾ ചെയ്യാൻ ആൻഡ്രോയിഡ് സെറ്റിംഗ്സിൽ അനുമതി നൽകുക.',
         'اسمح لتطبيق عبادية بتثبيت التحديثات من إعدادات أندرويد.',
       );
   String get installDownloadedApk => _p('Install Update Now', 'ഇൻസ്റ്റാൾ ചെയ്യുക', 'تثبيت الآن');
   String get downloadInBrowser => _p('Download via Browser', 'ബ്രൗസർ വഴി ഡൗൺലോഡ്', 'تنزيل عبر المتصفح');
-  String get installOnIosTitle => _p('Install on iPhone / iPad', 'iPhone / iPad-ൽ ഇൻസ്റ്റാൾ ചെയ്യുക', 'التثبيت على iOS');
+  String get installOnIosTitle => _p('Install on iPhone / iPad', 'ഐഫോൺ / ഐപാഡിൽ ഇൻസ്റ്റാൾ ചെയ്യുക', 'التثبيت على iOS');
   String get installOnIosSteps => _p(
         'Tap the Share icon at the bottom of Safari, then select "Add to Home Screen".',
-        'Safari-യുടെ താഴെയുള്ള Share ബട്ടണിൽ അമർത്തി "Add to Home Screen" തിരഞ്ഞെടുക്കുക.',
+        'സഫാരി ബ്രൗസറിന്റെ താഴെയുള്ള ഷെയർ ബട്ടണിൽ അമർത്തി "ഹോം സ്ക്രീനിലേക്ക് ചേർക്കുക" തിരഞ്ഞെടുക്കുക.',
         'اضغط على زر المشاركة في Safari ثم اختر "إضافة إلى الشاشة الرئيسية".',
       );
-  String get apkSetupTitle => _p('Android APK Download', 'Android APK ഡൗൺലോഡ്', 'تحميل ملف APK');
+  String get apkSetupTitle => _p('Android APK Download', 'ആൻഡ്രോയിഡ് APK ഡൗൺലോഡ്', 'تحميل ملف APK');
   String get apkSetupDesc => _p(
         'Download Ibadia APK directly for native Prayer Alarms & Auto-Silent DND.',
-        'നിസ്കാര അലാറവും ഓട്ടോ-സൈലന്റും ലഭിക്കാൻ Ibadia APK ഡൗൺലോഡ് ചെയ്യുക.',
+        'നിസ്കാര അലാറവും ഓട്ടോ-സൈലന്റും ലഭിക്കാൻ ഇബാദിയ APK ഡൗൺലോഡ് ചെയ്യുക.',
         'حمّل تطبيق عبادية APK للحصول على منبهات الصلاة والصامت التلقائي.',
       );
   String get appAndUpdatesTitle => _p('App & Updates', 'ആപ്പും അപ്ഡേറ്റുകളും', 'التطبيق والتحديثات');
   String get apkDownloadStarted => _p(
         'Starting Ibadia.apk download...',
-        'Ibadia.apk ഡൗൺലോഡ് തുടങ്ങുന്നു...',
+        'ഇബാദിയ APK ഡൗൺലോഡ് തുടങ്ങുന്നു...',
         'بدأ تنزيل Ibadia.apk...',
       );
   String get copyApkLink => _p('Copy APK Link', 'APK ലിങ്ക് കോപ്പി ചെയ്യുക', 'نسخ رابط APK');
@@ -473,7 +478,7 @@ class AppStrings {
   String get browserInstallTitle => _p('Install Ibadia App', 'ഇബാദിയ ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യുക', 'تثبيت تطبيق عبادية');
   String get browserInstallSteps => _p(
         'Open your browser menu (⋮ or Share) and select "Install App" or "Add to Home Screen".',
-        'ബ്രൗസർ മെനു (⋮) തുറന്ന് "Install App" അല്ലെങ്കിൽ "Add to Home Screen" തിരഞ്ഞെടുക്കുക.',
+        'ബ്രൗസർ മെനു (⋮) തുറന്ന് "ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യുക" അല്ലെങ്കിൽ "ഹോം സ്ക്രീനിലേക്ക് ചേർക്കുക" തിരഞ്ഞെടുക്കുക.',
         'افتح قائمة المتصفح واختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية".',
       );
 
@@ -543,6 +548,34 @@ class AppStrings {
   String get filterAll => _p('All', 'എല്ലാം', 'الكل');
   String get fardBadgeLabel => _p('Fard Pillar', 'ഫർള്', 'ركن / فرض');
   String get sunnahBadgeLabel => _p('Sunnah', 'സുന്നത്ത്', 'سنة');
+  String get qawliBadgeLabel => _p('Qawli · വാചികം', 'വാചികം (ഖൗലി)', 'قولي');
+  String get filiBadgeLabel => _p('Fi\'li · കർമ്മം', 'കർമ്മം (ഫെഅ്‌ലി)', 'فعلي');
+  String get qalbiBadgeLabel => _p('Qalbi · ഹൃദയം', 'ഹൃദയം (ഖൽബി)', 'قلبي');
+  String get qawliSunnahRecitationsTitle => _p(
+        'Qawli Sunnahs (Verbal Recitations)',
+        'പ്രധാന വാചിക സുന്നത്തുകൾ (ഖൗലിയായ സുന്നത്തുകൾ)',
+        'السنن القولية في الصلاة',
+      );
+  String get qawliSunnahRecitationsNote => _p(
+        'Key verbal Sunnahs in Salah (distinct from the 14 Fard pillars). Tap to expand inline.',
+        'നിസ്കാരത്തിലെ പ്രധാന വാചിക സുന്നത്തുകൾ (ഇവ 14 ഫർളുകളിൽ പെട്ടതല്ല). വായിക്കാൻ ടാപ്പ് ചെയ്യുക.',
+        'هذه أذكار وأدعية مسنونة في الصلاة وليست من الأركان الأربعة عشر.',
+      );
+  String get tapToExpandRecitation => _p(
+        'Tap to read recitation',
+        'ഓതേണ്ടത് കാണാൻ ടാപ്പ് ചെയ്യുക',
+        'اضغط لعرض الذكر',
+      );
+  String get openInStepOrderBtn => _p(
+        'Open in Step Order',
+        'നിസ്കാര ക്രമത്തിൽ കാണുക',
+        'فتح في ترتيب الصلاة',
+      );
+  String shartCountSummary(int count) => _p(
+        '$count Conditions · Mandatory',
+        '$count ശർത്വുകൾ · നിർബന്ധം',
+        '$count شروط واجبة',
+      );
   String get muakkadahBadgeLabel => _p('Mu\'akkadah', 'മുഅക്കദ', 'مؤكدة');
   String get ghairMuakkadahBadgeLabel => _p('Ghair Mu\'akkadah', 'ഗൈർ മുഅക്കദ', 'غير مؤكدة');
 
@@ -585,9 +618,9 @@ class AppStrings {
   String get meaningLabel => _p('Meaning', 'അർത്ഥം', 'المعنى');
   String get copiedTextNotice => _p('Copied to clipboard', 'കോപ്പി ചെയ്തു', 'تم النسخ');
   String get audioNotFoundMessage => _p(
-        'Audio file not found yet. Add the MP3 file under assets/audio/ibadah/ to enable playback.',
-        'ഓഡിയോ ഫയൽ ഇതുവരെ ചേർത്തിട്ടില്ല. പ്ലേ ചെയ്യാൻ MP3 ഫയൽ assets/audio/ibadah/ ഫോൾഡറിൽ ചേർക്കുക.',
-        'ملف الصوت غير موجود بعد. أضف ملف MP3 في assets/audio/ibadah/.',
+        'Audio file not found yet. Add the audio file under assets/audio/ibadah/ to enable playback.',
+        'ഓഡിയോ ഫയൽ ഇതുവരെ ചേർത്തിട്ടില്ല. ആപ്പ് ഓഡിയോ ഫോൾഡറിൽ ഫയൽ ചേർക്കുക.',
+        'ملف الصوت غير موجود بعد. أضف ملف الصوت في المجلد المخصص.',
       );
 
   // Ibadah Settings & Summary Navigation
@@ -687,17 +720,17 @@ class AppStrings {
       );
   String get exportCardSubtitle => _p(
         'Ultra-HD 4K PNG image or print-grade PDF',
-        'Ultra-HD ഇമേജ് (PNG) അല്ലെങ്കിൽ ഹൈ-ക്വാളിറ്റി PDF',
+        'ഹൈ-ക്വാളിറ്റി ഇമേജ് (PNG) അല്ലെങ്കിൽ പ്രിന്റ് PDF',
         'صورة PNG فائقة الدقة أو ملف PDF عالي الجودة',
       );
   String get saveUltraHdPng => _p(
         'Save Ultra-HD Image (PNG)',
-        'Ultra-HD ഇമേജ് (PNG) ഡൗൺലോഡ്',
+        'ഹൈ-ക്വാളിറ്റി ഇമേജ് (PNG) ഡൗൺലോഡ്',
         'حفظ صورة فائقة الدقة (PNG)',
       );
   String get shareUltraHdPng => _p(
         'Share Ultra-HD Image (PNG)',
-        'Ultra-HD ഇമേജ് ഷെയർ ചെയ്യുക',
+        'ഹൈ-ക്വാളിറ്റി ഇമേജ് (PNG) ഷെയർ ചെയ്യുക',
         'مشاركة صورة فائقة الدقة',
       );
   String get saveHighQualityPdf => _p(
@@ -717,8 +750,8 @@ class AppStrings {
       );
   String get ultraHdQualityBadge => _p(
         'Ultra-HD 360 DPI',
-        'Ultra-HD ഹൈ ക്വാളിറ്റി',
-        'جودة فائقة Ultra-HD',
+        'ഹൈ-ക്വാളിറ്റി പതിപ്പ്',
+        'جودة فائقة',
       );
 
   // Focused Index List & Single-Item Reader Navigation
@@ -733,4 +766,171 @@ class AppStrings {
         'لا توجد نتائج مطابقة',
       );
   String get clearSearchLabel => _p('Clear search', 'തിരച്ചിൽ മായ്ക്കുക', 'مسح البحث');
+  String get shareTextLabel => _p('Share Text', 'ടെക്സ്റ്റ് ഷെയർ ചെയ്യുക', 'مشاركة النص');
+  String get rakaatUnitLabel => _p("Raka'at", 'റക്അത്ത്', 'ركعات');
+  String get surahsCountUnitLabel => _p('Surahs', 'സൂറത്തുകൾ', 'سور');
+  String get takbirLabel => _p('Takbir', 'തക്ബീർ', 'التكبيرة');
+  String get shafiiBadgeLabel => _p("Shafi'i", 'ശാഫിഈ', 'شافعي');
+  String pillarsCountSummary(int total, int qawliCount) => _p(
+        '$total Pillars · $qawliCount Qawli',
+        '$total ഫർളുകൾ · $qawliCount വാചികം (ഖൗലി)',
+        '$total ركناً · $qawliCount قولية',
+      );
+  String get hijriEraShort => _p('AH', 'ഹി.', 'هـ');
+  String get maxShortLabel => _p('max', 'പരമാവധി', 'حد');
+  String get amLabel => _p('AM', 'രാവിലെ', 'ص');
+  String get pmLabel => _p('PM', 'വൈകിട്ട്', 'م');
+
+  String weekdayShort(int index) {
+    const en = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const ml = ['ഞായ', 'തിങ്ക', 'ചൊവ്വ', 'ബുധ', 'വ്യാഴ', 'വെള്ളി', 'ശനി'];
+    const ar = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    final i = index.clamp(0, 6);
+    if (lang == 'ml') return ml[i];
+    if (lang == 'ar') return ar[i];
+    return en[i];
+  }
+
+  String weekdayFullFromEn(String raw) {
+    final lower = raw.trim().toLowerCase();
+    const map = <String, int>{
+      'sunday': 0,
+      'monday': 1,
+      'tuesday': 2,
+      'wednesday': 3,
+      'thursday': 4,
+      'friday': 5,
+      'saturday': 6,
+    };
+    final idx = map[lower];
+    if (idx == null) return raw;
+    const en = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
+    const ml = [
+      'ഞായറാഴ്ച',
+      'തിങ്കളാഴ്ച',
+      'ചൊവ്വാഴ്ച',
+      'ബുധനാഴ്ച',
+      'വ്യാഴാഴ്ച',
+      'വെള്ളിയാഴ്ച',
+      'ശനിയാഴ്ച',
+    ];
+    const ar = [
+      'الأحد',
+      'الإثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+    ];
+    if (lang == 'ml') return ml[idx];
+    if (lang == 'ar') return ar[idx];
+    return en[idx];
+  }
+
+  String gregMonthFull(int month) {
+    const en = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    const ml = [
+      'ജനുവരി',
+      'ഫെബ്രുവരി',
+      'മാർച്ച്',
+      'ഏപ്രിൽ',
+      'മേയ്',
+      'ജൂൺ',
+      'ജൂലൈ',
+      'ഓഗസ്റ്റ്',
+      'സെപ്റ്റംബർ',
+      'ഒക്ടോബർ',
+      'നവംബർ',
+      'ഡിസംബർ',
+    ];
+    const ar = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
+    final idx = (month - 1).clamp(0, 11);
+    if (lang == 'ml') return ml[idx];
+    if (lang == 'ar') return ar[idx];
+    return en[idx];
+  }
+
+  String gregMonthShort(int month) {
+    const en = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const ml = [
+      'ജനു',
+      'ഫെബ്രു',
+      'മാർ',
+      'ഏപ്രി',
+      'മേയ്',
+      'ജൂൺ',
+      'ജൂലൈ',
+      'ഓഗ',
+      'സെപ്',
+      'ഒക്ടോ',
+      'നവം',
+      'ഡിസ',
+    ];
+    const ar = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
+    final idx = (month - 1).clamp(0, 11);
+    if (lang == 'ml') return ml[idx];
+    if (lang == 'ar') return ar[idx];
+    return en[idx];
+  }
 }

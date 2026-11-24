@@ -28,7 +28,7 @@ class ReaderAudioPlayerBar extends ConsumerWidget {
 
     final surahTitle = audio.summary == null
         ? '${t.surahLabel} ${audio.surahNumber ?? 1}'
-        : (settings.appLanguage == 'ar'
+        : ((settings.appLanguage == 'ar' || settings.appLanguage == 'ml')
             ? audio.summary!.nameArabic
             : '${audio.summary!.number}. ${audio.summary!.englishName}');
 

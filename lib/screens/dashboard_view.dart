@@ -453,7 +453,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                       title:
                                           '${n.number}. ${n.transliteration} — ${n.arabic}',
                                       subtitle:
-                                          '${n.malayalamMeaning} · ${n.englishMeaning}',
+                                          '${n.malayalamMeaning} · ${n.arabicMeaning}',
                                       cardBg: palette.cardBg,
                                       cardBorder: palette.cardBorder,
                                       onTap: () {
@@ -499,7 +499,8 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                                 ...matchedAdhkar.map((d) => _SearchResultTile(
                                       icon: Icons.auto_stories_rounded,
                                       accent: const Color(0xFF0B7A43),
-                                      title: d.titleFor(settings.appLanguage),
+                                      title: d.titleFor(
+                                          contentLangFor(settings.appLanguage)),
                                       subtitle: d.reference,
                                       cardBg: palette.cardBg,
                                       cardBorder: palette.cardBorder,
@@ -902,7 +903,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
             titleEn: '99 Names of Allah',
             titleMl: 'അല്ലാഹുവിന്റെ 99 നാമങ്ങൾ',
             titleAr: 'أسماء الله الحسنى',
-            subtitleEn: 'Arabic, Malayalam & English',
+            subtitleEn: 'Arabic & Malayalam',
             subtitleMl: 'അസ്മാഉൽ ഹുസ്ന',
             subtitleAr: '99 اسماً',
             featureSubTab: 4,
@@ -1532,7 +1533,7 @@ class _DashboardFloatingPrayerCardState
                             children: [
                               if (data != null)
                                 Text(
-                                  '${data.hijriDay} ${t.lang == 'ar' ? data.hijriMonthAr : data.hijriMonthEn} ${data.hijriYear}',
+                                  '${data.hijriDay} ${HijriMonthCatalog.monthName(data.hijriMonthNumber, contentLangFor(t.lang))}${t.lang == 'ar' ? '' : ' (${data.hijriMonthAr})'} ${data.hijriYear} ${t.hijriEraShort}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -1568,7 +1569,11 @@ class _DashboardFloatingPrayerCardState
                         const SizedBox(width: 8),
                         if (nextInfo != null)
                           Text(
-                            DailyPrayerData.format12Hour(nextInfo.time),
+                            DailyPrayerData.format12Hour(
+                              nextInfo.time,
+                              am: t.amLabel,
+                              pm: t.pmLabel,
+                            ),
                             style: TextStyle(
                               fontSize: 23,
                               fontWeight: FontWeight.w800,
@@ -1885,7 +1890,7 @@ class _DailyAsmaulHusnaBanner extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      '#${item.number} / 99',
+                      '${item.number} / 99',
                       style: const TextStyle(
                         color: AppBranding.accentGold,
                         fontSize: 11,
@@ -1933,15 +1938,6 @@ class _DailyAsmaulHusnaBanner extends StatelessWidget {
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             height: 1.3,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          item.englishMeaning,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.82),
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],

@@ -989,7 +989,7 @@ class _SurahTabView extends StatelessWidget {
             // Item 0: Optional Last Read resume banner
             if (index == 0) {
               if (currentLastRead == null) return const SizedBox.shrink();
-              final surahLabel = appLanguage == 'ar' &&
+              final surahLabel = (appLanguage == 'ar' || appLanguage == 'ml') &&
                       currentLastRead.surahArabicName.isNotEmpty
                   ? currentLastRead.surahArabicName
                   : currentLastRead.surahName;
@@ -1092,8 +1092,8 @@ class _SurahTabView extends StatelessWidget {
                         itemBuilder: (_, idx) {
                           final item = ApiConfig.featuredSurahs[idx];
                           final surahNo = item['number'] as int;
-                          final label =
-                              (item[appLanguage] ?? item['en']) as String;
+                          final label = (item[contentLangFor(appLanguage)] ??
+                              item['en']) as String;
                           final arabicCalligraphy = item['ar'] as String;
 
                           return Material(
@@ -1370,7 +1370,9 @@ class _SurahCardTile extends StatelessWidget {
                       Text(
                         strings.lang == 'ar'
                             ? surah.nameArabic
-                            : surah.englishName,
+                            : (strings.lang == 'ml'
+                                ? '${strings.surahLabel} ${surah.number}'
+                                : surah.englishName),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -1766,9 +1768,9 @@ class BookmarksListView extends StatelessWidget {
 
     return ListView.separated(
       controller: scrollController,
-      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
       itemCount: bookmarks.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final key = bookmarks[index];
         final isFullSurah = key.startsWith('surah:');
@@ -1779,55 +1781,104 @@ class BookmarksListView extends StatelessWidget {
               ? '${strings.surahLabel} $surahNo'
               : (strings.lang == 'ar'
                   ? '${summary.number}. ${summary.nameArabic}'
-                  : '${summary.number}. ${summary.englishName}');
+                  : '${summary.number}. ${summary.englishName} · ${summary.nameArabic}');
 
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: cs.primaryContainer,
-              foregroundColor: cs.onPrimaryContainer,
-              child: const Icon(Icons.menu_book_rounded, size: 20),
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                    overflow: TextOverflow.ellipsis,
+          return Material(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => onOpenSurah(surahNo),
+              child: Container(
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: cs.outlineVariant.withValues(alpha: 0.45),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: cs.primary.withValues(alpha: 0.35),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.menu_book_rounded,
+                          size: 20,
+                          color: cs.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  child: Text(
-                    strings.fullSurahBadge,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: cs.primary,
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.primary.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: cs.primary.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Text(
+                            strings.fullSurahBadge,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: cs.primary,
+                            ),
+                          ),
+                        ),
+                        if (summary != null)
+                          Text(
+                            '${summary.numberOfAyahs} ${strings.ayahsLabel}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              strings.openInQuranReader,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: cs.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 16,
+                              color: cs.primary,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-            subtitle: summary != null
-                ? Text(
-                    '${summary.numberOfAyahs} ${strings.ayahsLabel} • ${summary.nameArabic}',
-                    style: const TextStyle(fontSize: 12.5),
-                  )
-                : null,
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => onOpenSurah(surahNo),
           );
         }
 
@@ -1839,22 +1890,69 @@ class BookmarksListView extends StatelessWidget {
             ? '${strings.surahLabel} $surahNo'
             : (strings.lang == 'ar'
                 ? summary.nameArabic
-                : '${summary.number}. ${summary.englishName}');
+                : '${summary.number}. ${summary.englishName} · ${summary.nameArabic}');
 
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: cs.surfaceContainerHighest,
-            foregroundColor: cs.primary,
-            child: const Icon(Icons.bookmark_rounded, size: 20),
-          ),
-          title: Text(
-            '$surahTitle — ${strings.ayahLabel} $ayahNo',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => onOpenSurah(
-            surahNo,
-            ayahNo: int.tryParse(ayahNo),
+        return Material(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => onOpenSurah(
+              surahNo,
+              ayahNo: int.tryParse(ayahNo),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: 0.45),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.bookmark_rounded,
+                        size: 20,
+                        color: cs.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$surahTitle — ${strings.ayahLabel} $ayahNo',
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Text(
+                        strings.openInQuranReader,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: cs.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: cs.primary,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },

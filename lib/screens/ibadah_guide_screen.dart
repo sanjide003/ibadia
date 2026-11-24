@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,22 +37,6 @@ class IbadahGuideScreen extends ConsumerStatefulWidget {
 class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = '';
-  Set<String> _checkedSharts = {};
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.section == IbadahSection.salah) {
-      _loadPersistedSharts();
-    }
-  }
-
-  Future<void> _loadPersistedSharts() async {
-    final loaded =
-        await ref.read(storageServiceProvider).loadIbadahCheckedSharts();
-    if (!mounted) return;
-    setState(() => _checkedSharts = loaded);
-  }
 
   @override
   void dispose() {
@@ -116,9 +98,6 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
       ),
     );
     IbadahAudioController.instance.stopOnDispose();
-    if (widget.section == IbadahSection.salah && mounted) {
-      unawaited(_loadPersistedSharts());
-    }
   }
 
   @override
@@ -126,7 +105,8 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
     final lang = settings.appLanguage;
-    final headingLang = settings.ibadahMalayalamHeadings ? 'ml' : lang;
+    final headingLang =
+        settings.ibadahMalayalamHeadings ? 'ml' : contentLangFor(lang);
     final hStrings = AppStrings(headingLang);
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -331,7 +311,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 ? entry.fard!.titleFor(headingLang)
                 : entry.sunnah!.titleFor(headingLang);
             final String subtitle = entry.fard != null
-                ? '${hStrings.fardBadgeLabel} · ${entry.fard!.rakaat} ${headingLang == 'ml' ? 'റക്അത്ത്' : "Raka'at"}'
+                ? '${hStrings.fardBadgeLabel} · ${entry.fard!.rakaat} ${hStrings.rakaatUnitLabel}'
                 : hStrings.sunnahBadgeLabel;
             final String arabicPreview = entry.fard != null
                 ? entry.fard!.titleAr
@@ -406,6 +386,10 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
             if (_matchesQuery([entries[i].searchText(hStrings)])) i,
         ];
 
+        final int stepOffset =
+            (bundle.conditions.isNotEmpty ? 1 : 0) +
+                (bundle.arkan.isNotEmpty ? 1 : 0);
+
         return _buildSearchAndList(
           t: t,
           palette: palette,
@@ -422,13 +406,14 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
 
             if (entry.conditions != null) {
               title = hStrings.shartChecklistTitle;
-              subtitle =
-                  '${_checkedSharts.length}/${entry.conditions!.length} · ${hStrings.fardBadgeLabel}';
+              subtitle = hStrings.shartCountSummary(entry.conditions!.length);
               rowAccent = accentColor;
             } else if (entry.arkan != null) {
+              final qawliCount =
+                  entry.arkan!.where((r) => r.isQawli).length;
               title = hStrings.arkanSectionTitle;
               subtitle =
-                  '${entry.arkan!.length} ${headingLang == 'ml' ? 'ഫർളുകൾ' : 'Pillars'} · ${hStrings.fardBadgeLabel}';
+                  '${hStrings.pillarsCountSummary(entry.arkan!.length, qawliCount)} · ${hStrings.fardBadgeLabel}';
               rowAccent = accentColor;
             } else {
               final step = entry.step!;
@@ -464,7 +449,11 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     return _SalahShartFocusedBody(conditions: e.conditions!);
                   }
                   if (e.arkan != null) {
-                    return _SalahArkanFocusedBody(arkan: e.arkan!);
+                    return _SalahArkanFocusedBody(
+                      arkan: e.arkan!,
+                      steps: bundle.steps,
+                      stepOffset: stepOffset,
+                    );
                   }
                   return _SalahStepFocusedBody(step: e.step!);
                 },
@@ -547,14 +536,14 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                   : hStrings.ghairMuakkadahBadgeLabel;
               title = '${g.prayerFor(headingLang)} — ${item.timingFor(headingLang)}';
               subtitle =
-                  '$timingBadge · $muakkadahLabel · ${item.rakaat} ${headingLang == 'ml' ? 'റക്അത്ത്' : "Raka'at"}';
+                  '$timingBadge · $muakkadahLabel · ${item.rakaat} ${hStrings.rakaatUnitLabel}';
               rowAccent =
                   item.isMuakkadah ? accentColor : AppBranding.accentGold;
             } else {
               final sg = entry.surahGroup!;
               title = sg.occasionFor(headingLang);
               subtitle =
-                  '${hStrings.recommendedSurahsTitle} · ${sg.surahs.length} ${headingLang == 'ml' ? 'സൂറത്തുകൾ' : 'Surahs'}';
+                  '${hStrings.recommendedSurahsTitle} · ${sg.surahs.length} ${hStrings.surahsCountUnitLabel}';
               rowAccent = AppBranding.accentGold;
             }
 
@@ -661,7 +650,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
             } else if (entry.takbir != null) {
               title = entry.takbir!.titleFor(headingLang);
               subtitle =
-                  '${hStrings.mayyithTakbirsTitle} · ${headingLang == 'ml' ? 'തക്ബീർ' : 'Takbir'} ${entry.takbir!.takbirNumber}';
+                  '${hStrings.mayyithTakbirsTitle} · ${hStrings.takbirLabel} ${entry.takbir!.takbirNumber}';
               rowAccent = AppBranding.accentGold;
             } else {
               title = entry.burial!.titleFor(headingLang);
@@ -851,8 +840,9 @@ class _NiyyahFocusedDetailBodyState
     final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
     final expLang = explanationLangFor(settings.appLanguage);
-    final headingLang =
-        settings.ibadahMalayalamHeadings ? 'ml' : settings.appLanguage;
+    final headingLang = settings.ibadahMalayalamHeadings
+        ? 'ml'
+        : contentLangFor(settings.appLanguage);
     final hStrings = AppStrings(headingLang);
     final palette = _detailPalette(context, settings.themeMode);
     final cs = Theme.of(context).colorScheme;
@@ -909,9 +899,7 @@ class _NiyyahFocusedDetailBodyState
             orderBadge: '${widget.orderNumber}',
             title: prayer.titleFor(headingLang),
             subtitle: variant.labelFor(headingLang),
-            badgeText: headingLang == 'ml'
-                ? '${prayer.rakaat} റക്അത്ത്'
-                : '${prayer.rakaat} Raka\'at',
+            badgeText: '${prayer.rakaat} ${hStrings.rakaatUnitLabel}',
             badgeColor: accentColor,
             isHighlighted: true,
             arabicText: variant.arabic,
@@ -952,55 +940,18 @@ class _NiyyahFocusedDetailBodyState
   }
 }
 
-class _SalahShartFocusedBody extends ConsumerStatefulWidget {
+class _SalahShartFocusedBody extends ConsumerWidget {
   final List<SalahCondition> conditions;
 
   const _SalahShartFocusedBody({required this.conditions});
 
   @override
-  ConsumerState<_SalahShartFocusedBody> createState() =>
-      _SalahShartFocusedBodyState();
-}
-
-class _SalahShartFocusedBodyState
-    extends ConsumerState<_SalahShartFocusedBody> {
-  Set<String> _checkedSharts = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final loaded =
-        await ref.read(storageServiceProvider).loadIbadahCheckedSharts();
-    if (!mounted) return;
-    setState(() => _checkedSharts = loaded);
-  }
-
-  Future<void> _toggle(String id) async {
-    final next = Set<String>.from(_checkedSharts);
-    if (next.contains(id)) {
-      next.remove(id);
-    } else {
-      next.add(id);
-    }
-    setState(() => _checkedSharts = next);
-    await ref.read(storageServiceProvider).saveIbadahCheckedSharts(next);
-  }
-
-  Future<void> _reset() async {
-    setState(() => _checkedSharts = {});
-    await ref.read(storageServiceProvider).saveIbadahCheckedSharts(const {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final expLang = explanationLangFor(settings.appLanguage);
-    final headingLang =
-        settings.ibadahMalayalamHeadings ? 'ml' : settings.appLanguage;
+    final headingLang = settings.ibadahMalayalamHeadings
+        ? 'ml'
+        : contentLangFor(settings.appLanguage);
     final hStrings = AppStrings(headingLang);
     final palette = _detailPalette(context, settings.themeMode);
     final cs = Theme.of(context).colorScheme;
@@ -1008,10 +959,6 @@ class _SalahShartFocusedBodyState
     final accentColor = isDark ? AppBranding.accentGold : cs.primary;
     final double uiScale =
         settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.65) : 1.0;
-
-    final total = widget.conditions.length;
-    final checkedCount =
-        widget.conditions.where((c) => _checkedSharts.contains(c.id)).length;
 
     return Container(
       decoration: BoxDecoration(
@@ -1023,102 +970,184 @@ class _SalahShartFocusedBodyState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.checklist_rounded,
-                    size: 19,
-                    color: accentColor,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.format_list_numbered_rounded,
+                        size: 19,
+                        color: accentColor,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
                         hStrings.shartChecklistTitle,
                         style: TextStyle(
-                          fontSize: 15 * uiScale.clamp(1.0, 1.3),
+                          fontSize: 16 * uiScale.clamp(1.0, 1.3),
                           fontWeight: FontWeight.w800,
+                          height: 1.3,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$checkedCount / $total',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: accentColor.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      child: Text(
+                        hStrings.shartCountSummary(conditions.length),
                         style: TextStyle(
-                          fontSize: 12 * uiScale.clamp(1.0, 1.25),
-                          fontWeight: FontWeight.w700,
+                          fontSize: 11.5 * uiScale.clamp(1.0, 1.25),
+                          fontWeight: FontWeight.w800,
                           color: accentColor,
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                if (checkedCount > 0)
-                  TextButton(
-                    onPressed: _reset,
-                    child: Text(hStrings.resetChecklistLabel),
-                  ),
               ],
             ),
           ),
           Divider(height: 1, color: palette.cardBorder),
-          for (final cond in widget.conditions)
-            Builder(
-              builder: (_) {
-                final isChecked = _checkedSharts.contains(cond.id);
-                return CheckboxListTile(
-                  value: isChecked,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  activeColor: accentColor,
-                  onChanged: (_) => _toggle(cond.id),
-                  title: Text(
-                    cond.titleFor(headingLang),
-                    style: TextStyle(
-                      fontSize: 14 * uiScale,
-                      fontWeight: FontWeight.w700,
-                      decoration:
-                          isChecked ? TextDecoration.lineThrough : null,
-                      color: isChecked ? cs.onSurfaceVariant : cs.onSurface,
+          for (int i = 0; i < conditions.length; i++) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: TextStyle(
+                        fontSize: 13 * uiScale.clamp(1.0, 1.2),
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
-                  subtitle: Text(
-                    cond.descFor(expLang),
-                    style: TextStyle(
-                      fontSize: 12.5 * uiScale,
-                      height: 1.45,
-                      color: cs.onSurfaceVariant,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          conditions[i].titleFor(headingLang),
+                          style: TextStyle(
+                            fontSize: 14.5 * uiScale,
+                            fontWeight: FontWeight.w700,
+                            height: 1.35,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          conditions[i].descFor(expLang),
+                          style: TextStyle(
+                            fontSize: 12.8 * uiScale,
+                            height: 1.5,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
+            if (i < conditions.length - 1)
+              Divider(height: 1, color: palette.cardBorder),
+          ],
         ],
       ),
     );
   }
 }
 
-class _SalahArkanFocusedBody extends ConsumerWidget {
+class _SalahArkanFocusedBody extends ConsumerStatefulWidget {
   final List<SalahRukn> arkan;
+  final List<SalahStep> steps;
+  final int stepOffset;
 
-  const _SalahArkanFocusedBody({required this.arkan});
+  const _SalahArkanFocusedBody({
+    required this.arkan,
+    required this.steps,
+    required this.stepOffset,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SalahArkanFocusedBody> createState() =>
+      _SalahArkanFocusedBodyState();
+}
+
+class _SalahArkanFocusedBodyState
+    extends ConsumerState<_SalahArkanFocusedBody> {
+  final Set<int> _expandedRuknOrders = {};
+  final Set<int> _expandedSunnahStepOrders = {};
+
+  static const List<int> _qawliSunnahStepOrders = [2, 4, 9, 10, 13];
+
+  String _categoryLabel(SalahRukn rukn, AppStrings t, String headingLang) {
+    final jsonType = rukn.typeFor(headingLang);
+    if (jsonType.trim().isNotEmpty) return jsonType;
+    switch (rukn.category) {
+      case 'qawli':
+        return t.qawliBadgeLabel;
+      case 'qalbi':
+        return t.qalbiBadgeLabel;
+      default:
+        return t.filiBadgeLabel;
+    }
+  }
+
+  void _jumpToStep(BuildContext context, int stepOrder) {
+    final stepIdx = widget.steps.indexWhere((s) => s.order == stepOrder);
+    if (stepIdx < 0) return;
+    IbadahAudioController.instance.stopOnDispose();
+    FocusedDetailPage.jumpTo(context, widget.stepOffset + stepIdx);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
-    final headingLang =
-        settings.ibadahMalayalamHeadings ? 'ml' : settings.appLanguage;
+    final expLang = explanationLangFor(settings.appLanguage);
+    final headingLang = settings.ibadahMalayalamHeadings
+        ? 'ml'
+        : contentLangFor(settings.appLanguage);
     final hStrings = AppStrings(headingLang);
     final palette = _detailPalette(context, settings.themeMode);
     final cs = Theme.of(context).colorScheme;
@@ -1127,98 +1156,590 @@ class _SalahArkanFocusedBody extends ConsumerWidget {
     final double uiScale =
         settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.65) : 1.0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: palette.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.foundation_rounded,
-                    size: 19,
-                    color: accentColor,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    hStrings.arkanSectionTitle,
-                    style: TextStyle(
-                      fontSize: 15 * uiScale.clamp(1.0, 1.3),
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    final qawliCount = widget.arkan.where((r) => r.isQawli).length;
+    final qawliSunnahSteps = [
+      for (final order in _qawliSunnahStepOrders)
+        ...widget.steps.where((s) => s.order == order),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: palette.cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: palette.cardBorder),
           ),
-          Divider(height: 1, color: palette.cardBorder),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              children: [
-                for (final rukn in arkan)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Tier 1 Heading + Tier 2 Summary Badges
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
                         Container(
-                          width: 28,
-                          height: 28,
-                          alignment: Alignment.center,
+                          width: 34,
+                          height: 34,
                           decoration: BoxDecoration(
                             color: accentColor.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Text(
-                            '${rukn.order}',
-                            style: TextStyle(
-                              fontSize: 12.5 * uiScale.clamp(1.0, 1.2),
-                              fontWeight: FontWeight.w800,
-                              color: accentColor,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
+                          child: Icon(
+                            Icons.foundation_rounded,
+                            size: 19,
+                            color: accentColor,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: Text(
-                              rukn.titleFor(headingLang),
-                              style: TextStyle(
-                                fontSize: 14 * uiScale,
-                                fontWeight: FontWeight.w600,
-                                height: 1.4,
-                              ),
+                          child: Text(
+                            hStrings.arkanSectionTitle,
+                            style: TextStyle(
+                              fontSize: 16 * uiScale.clamp(1.0, 1.3),
+                              fontWeight: FontWeight.w800,
+                              height: 1.3,
                             ),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: accentColor.withValues(alpha: 0.28),
+                            ),
+                          ),
+                          child: Text(
+                            hStrings.pillarsCountSummary(
+                              widget.arkan.length,
+                              qawliCount,
+                            ),
+                            style: TextStyle(
+                              fontSize: 11.5 * uiScale.clamp(1.0, 1.25),
+                              fontWeight: FontWeight.w800,
+                              color: accentColor,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          t.tapToExpandRecitation,
+                          style: TextStyle(
+                            fontSize: 11.8 * uiScale.clamp(1.0, 1.25),
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: palette.cardBorder),
+              for (int i = 0; i < widget.arkan.length; i++)
+                Builder(
+                  builder: (_) {
+                    final rukn = widget.arkan[i];
+                    final isQawli = rukn.isQawli;
+                    final isExpanded =
+                        isQawli && _expandedRuknOrders.contains(rukn.order);
+                    final Color badgeColor =
+                        isQawli ? accentColor : cs.onSurfaceVariant;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Material(
+                          color: isQawli
+                              ? Color.alphaBlend(
+                                  accentColor.withValues(
+                                    alpha: isExpanded ? 0.09 : 0.035,
+                                  ),
+                                  palette.cardBg,
+                                )
+                              : Colors.transparent,
+                          child: InkWell(
+                            onTap: isQawli
+                                ? () {
+                                    setState(() {
+                                      if (isExpanded) {
+                                        _expandedRuknOrders.remove(rukn.order);
+                                      } else {
+                                        _expandedRuknOrders.add(rukn.order);
+                                      }
+                                    });
+                                  }
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                14,
+                                12,
+                                14,
+                                12,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 30,
+                                        height: 30,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: isQawli
+                                              ? accentColor
+                                              : accentColor.withValues(
+                                                  alpha: 0.14,
+                                                ),
+                                          borderRadius:
+                                              BorderRadius.circular(9),
+                                        ),
+                                        child: Text(
+                                          '${rukn.order}',
+                                          style: TextStyle(
+                                            fontSize:
+                                                12.5 * uiScale.clamp(1.0, 1.2),
+                                            fontWeight: FontWeight.w800,
+                                            color: isQawli
+                                                ? Colors.white
+                                                : accentColor,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures(),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          rukn.titleFor(headingLang),
+                                          style: TextStyle(
+                                            fontSize: 14.2 * uiScale,
+                                            fontWeight: isQawli
+                                                ? FontWeight.w800
+                                                : FontWeight.w600,
+                                            height: 1.4,
+                                            color: cs.onSurface,
+                                          ),
+                                        ),
+                                      ),
+                                      if (isQawli) ...[
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          isExpanded
+                                              ? Icons.keyboard_arrow_up_rounded
+                                              : Icons
+                                                  .keyboard_arrow_down_rounded,
+                                          color: accentColor,
+                                          size: 24,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding: const EdgeInsetsDirectional.only(
+                                      start: 42,
+                                    ),
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: badgeColor.withValues(
+                                              alpha: isQawli ? 0.14 : 0.08,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(7),
+                                            border: Border.all(
+                                              color: badgeColor.withValues(
+                                                alpha: isQawli ? 0.35 : 0.18,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (isQawli) ...[
+                                                Icon(
+                                                  Icons.record_voice_over_rounded,
+                                                  size: 13,
+                                                  color: accentColor,
+                                                ),
+                                                const SizedBox(width: 4),
+                                              ],
+                                              Text(
+                                                _categoryLabel(
+                                                  rukn,
+                                                  t,
+                                                  headingLang,
+                                                ),
+                                                style: TextStyle(
+                                                  fontSize: 11.2 *
+                                                      uiScale.clamp(1.0, 1.2),
+                                                  fontWeight: isQawli
+                                                      ? FontWeight.w800
+                                                      : FontWeight.w600,
+                                                  color: badgeColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isQawli)
+                                          Text(
+                                            t.tapToExpandRecitation,
+                                            style: TextStyle(
+                                              fontSize:
+                                                  11.2 * uiScale.clamp(1.0, 1.2),
+                                              fontWeight: FontWeight.w700,
+                                              color: accentColor,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          child: !isExpanded
+                              ? const SizedBox.shrink()
+                              : Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    2,
+                                    12,
+                                    12,
+                                  ),
+                                  child: IbadahAudioCard(
+                                    orderBadge: '${rukn.order}',
+                                    title: rukn.titleFor(headingLang),
+                                    subtitle:
+                                        _categoryLabel(rukn, t, headingLang),
+                                    badgeText: hStrings.fardBadgeLabel,
+                                    badgeColor: accentColor,
+                                    isHighlighted: true,
+                                    arabicText: rukn.arabic,
+                                    transliterationMl: rukn.transliterationMl,
+                                    meaningText: rukn.meaningMl,
+                                    noteText: rukn.noteMl,
+                                    audioPath: rukn.audioPath,
+                                    showTransliteration: true,
+                                    showMeaning: true,
+                                    showNotes: true,
+                                    showAudio: settings.ibadahShowAudio,
+                                    strings: t,
+                                    cardBg: palette.cardBg,
+                                    cardBorder: palette.cardBorder,
+                                    footerExtra: rukn.linkedStepOrder != null
+                                        ? Align(
+                                            alignment:
+                                                AlignmentDirectional.centerStart,
+                                            child: FilledButton.tonalIcon(
+                                              onPressed: () => _jumpToStep(
+                                                context,
+                                                rukn.linkedStepOrder!,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.arrow_forward_rounded,
+                                                size: 17,
+                                              ),
+                                              label: Text(
+                                                t.openInStepOrderBtn,
+                                              ),
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                        ),
+                        if (i < widget.arkan.length - 1)
+                          Divider(height: 1, color: palette.cardBorder),
+                      ],
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+
+        // Clearly separated Qawli Sunnahs section (Wajjahtu, Surah, First Tashahhud, Fajr Qunoot, Complete Dua before Salam)
+        if (qawliSunnahSteps.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: palette.cardBg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: palette.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: AppBranding.accentGold
+                                  .withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.menu_book_rounded,
+                              size: 19,
+                              color: AppBranding.accentGold,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              t.qawliSunnahRecitationsTitle,
+                              style: TextStyle(
+                                fontSize: 15.5 * uiScale.clamp(1.0, 1.3),
+                                fontWeight: FontWeight.w800,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        t.qawliSunnahRecitationsNote,
+                        style: TextStyle(
+                          fontSize: 12.2 * uiScale.clamp(1.0, 1.25),
+                          height: 1.45,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(height: 1, color: palette.cardBorder),
+                for (int i = 0; i < qawliSunnahSteps.length; i++)
+                  Builder(
+                    builder: (_) {
+                      final step = qawliSunnahSteps[i];
+                      final isExpanded =
+                          _expandedSunnahStepOrders.contains(step.order);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Material(
+                            color: isExpanded
+                                ? AppBranding.accentGold
+                                    .withValues(alpha: 0.06)
+                                : Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  if (isExpanded) {
+                                    _expandedSunnahStepOrders
+                                        .remove(step.order);
+                                  } else {
+                                    _expandedSunnahStepOrders.add(step.order);
+                                  }
+                                });
+                              },
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 30,
+                                          height: 30,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: AppBranding.accentGold
+                                                .withValues(alpha: 0.16),
+                                            borderRadius:
+                                                BorderRadius.circular(9),
+                                          ),
+                                          child: Text(
+                                            '${step.order}',
+                                            style: TextStyle(
+                                              fontSize:
+                                                  12.5 * uiScale.clamp(1.0, 1.2),
+                                              fontWeight: FontWeight.w800,
+                                              color: AppBranding.accentGold,
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            step.titleFor(headingLang),
+                                            style: TextStyle(
+                                              fontSize: 14 * uiScale,
+                                              fontWeight: FontWeight.w700,
+                                              height: 1.35,
+                                              color: cs.onSurface,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          isExpanded
+                                              ? Icons.keyboard_arrow_up_rounded
+                                              : Icons
+                                                  .keyboard_arrow_down_rounded,
+                                          color: AppBranding.accentGold,
+                                          size: 24,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Padding(
+                                      padding: const EdgeInsetsDirectional.only(
+                                        start: 42,
+                                      ),
+                                      child: Wrap(
+                                        spacing: 8,
+                                        runSpacing: 6,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppBranding.accentGold
+                                                  .withValues(alpha: 0.14),
+                                              borderRadius:
+                                                  BorderRadius.circular(7),
+                                            ),
+                                            child: Text(
+                                              '${hStrings.sunnahBadgeLabel} · ${t.qawliBadgeLabel}',
+                                              style: TextStyle(
+                                                fontSize: 11 *
+                                                    uiScale.clamp(1.0, 1.2),
+                                                fontWeight: FontWeight.w800,
+                                                color: AppBranding.accentGold,
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            step.postureFor(headingLang),
+                                            style: TextStyle(
+                                              fontSize: 11.5 *
+                                                  uiScale.clamp(1.0, 1.2),
+                                              color: cs.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            child: !isExpanded
+                                ? const SizedBox.shrink()
+                                : Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      2,
+                                      12,
+                                      12,
+                                    ),
+                                    child: IbadahAudioCard(
+                                      orderBadge: '${step.order}',
+                                      title: step.titleFor(headingLang),
+                                      subtitle: step.postureFor(headingLang),
+                                      badgeText: hStrings.sunnahBadgeLabel,
+                                      badgeColor: AppBranding.accentGold,
+                                      arabicText: step.arabic,
+                                      transliterationMl: step.transliterationMl,
+                                      meaningText: step.meaningFor(expLang),
+                                      noteText: step.noteFor(expLang),
+                                      audioPath: step.audioPath,
+                                      showTransliteration: true,
+                                      showMeaning: true,
+                                      showNotes: true,
+                                      showAudio: settings.ibadahShowAudio,
+                                      strings: t,
+                                      cardBg: palette.cardBg,
+                                      cardBorder: palette.cardBorder,
+                                      footerExtra: Align(
+                                        alignment:
+                                            AlignmentDirectional.centerStart,
+                                        child: OutlinedButton.icon(
+                                          onPressed: () =>
+                                              _jumpToStep(context, step.order),
+                                          icon: const Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 17,
+                                          ),
+                                          label: Text(t.openInStepOrderBtn),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                          if (i < qawliSunnahSteps.length - 1)
+                            Divider(height: 1, color: palette.cardBorder),
+                        ],
+                      );
+                    },
                   ),
               ],
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -1233,8 +1754,9 @@ class _SalahStepFocusedBody extends ConsumerWidget {
     final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
     final expLang = explanationLangFor(settings.appLanguage);
-    final headingLang =
-        settings.ibadahMalayalamHeadings ? 'ml' : settings.appLanguage;
+    final headingLang = settings.ibadahMalayalamHeadings
+        ? 'ml'
+        : contentLangFor(settings.appLanguage);
     final hStrings = AppStrings(headingLang);
     final palette = _detailPalette(context, settings.themeMode);
     final cs = Theme.of(context).colorScheme;
@@ -1283,8 +1805,9 @@ class _RawatibItemFocusedBody extends ConsumerWidget {
     final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
     final expLang = explanationLangFor(settings.appLanguage);
-    final headingLang =
-        settings.ibadahMalayalamHeadings ? 'ml' : settings.appLanguage;
+    final headingLang = settings.ibadahMalayalamHeadings
+        ? 'ml'
+        : contentLangFor(settings.appLanguage);
     final hStrings = AppStrings(headingLang);
     final palette = _detailPalette(context, settings.themeMode);
     final cs = Theme.of(context).colorScheme;
@@ -1328,10 +1851,13 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
     final expLang = explanationLangFor(settings.appLanguage);
-    final headingLang =
-        settings.ibadahMalayalamHeadings ? 'ml' : settings.appLanguage;
+    final headingLang = settings.ibadahMalayalamHeadings
+        ? 'ml'
+        : contentLangFor(settings.appLanguage);
+    final hStrings = AppStrings(headingLang);
     final palette = _detailPalette(context, settings.themeMode);
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1347,18 +1873,43 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
         border: Border.all(color: palette.cardBorder),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Tier 1: Full-width heading + Tier 2 badge
           Text(
             group.occasionFor(headingLang),
             style: TextStyle(
               fontSize: 17 * uiScale,
               fontWeight: FontWeight.w800,
               color: cs.onSurface,
+              height: 1.3,
             ),
           ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppBranding.accentGold.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${hStrings.recommendedSurahsTitle} · ${group.surahs.length} ${hStrings.surahsCountUnitLabel}',
+                  style: TextStyle(
+                    fontSize: 11.5 * uiScale.clamp(1.0, 1.25),
+                    fontWeight: FontWeight.w800,
+                    color: AppBranding.accentGold,
+                  ),
+                ),
+              ),
+            ],
+          ),
           if (settings.ibadahShowNotes) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               group.reasonFor(expLang),
               style: TextStyle(
@@ -1391,52 +1942,78 @@ class _RecommendedSurahsFocusedBody extends ConsumerWidget {
                       horizontal: 14,
                       vertical: 12,
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${surah.surahNumber}. ${surah.nameFor(headingLang)}',
-                                style: TextStyle(
-                                  fontSize: 14.5 * uiScale,
-                                  fontWeight: FontWeight.w800,
-                                  color: cs.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                surah.tagFor(headingLang),
-                                style: TextStyle(
-                                  fontSize: 12 * uiScale,
-                                  fontWeight: FontWeight.w600,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                        // Tier 1: Surah title & tag
+                        Text(
+                          '${surah.surahNumber}. ${surah.nameFor(headingLang)}',
+                          style: TextStyle(
+                            fontSize: 15 * uiScale,
+                            fontWeight: FontWeight.w800,
+                            color: cs.onSurface,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Directionality(
-                          textDirection: TextDirection.rtl,
-                          child: Text(
-                            surah.nameAr,
-                            style: GoogleFonts.amiri(
-                              fontSize: 20 * uiScale,
-                              fontWeight: FontWeight.w700,
-                              color: accentColor,
+                        const SizedBox(height: 3),
+                        Text(
+                          surah.tagFor(headingLang),
+                          style: TextStyle(
+                            fontSize: 12.2 * uiScale,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Tier 2: Arabic calligraphy + Read CTA
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 6,
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Directionality(
+                              textDirection: TextDirection.rtl,
+                              child: Text(
+                                surah.nameAr,
+                                style: GoogleFonts.amiri(
+                                  fontSize: 20 * uiScale,
+                                  fontWeight: FontWeight.w700,
+                                  color: accentColor,
+                                ),
+                              ),
                             ),
-                          ),
+                            if (onOpenSurah != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: accentColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.open_in_new_rounded,
+                                      size: 15,
+                                      color: accentColor,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      t.openInQuranReader,
+                                      style: TextStyle(
+                                        fontSize: 11.5 * uiScale.clamp(1.0, 1.2),
+                                        fontWeight: FontWeight.w700,
+                                        color: accentColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
-                        if (onOpenSurah != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.open_in_new_rounded,
-                            size: 17,
-                            color: accentColor,
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -1463,8 +2040,9 @@ class _MayyithFocusedBody extends ConsumerWidget {
     final t = ref.watch(stringsProvider);
     final settings = ref.watch(settingsProvider);
     final expLang = explanationLangFor(settings.appLanguage);
-    final headingLang =
-        settings.ibadahMalayalamHeadings ? 'ml' : settings.appLanguage;
+    final headingLang = settings.ibadahMalayalamHeadings
+        ? 'ml'
+        : contentLangFor(settings.appLanguage);
     final hStrings = AppStrings(headingLang);
     final palette = _detailPalette(context, settings.themeMode);
     final cs = Theme.of(context).colorScheme;
@@ -1478,7 +2056,7 @@ class _MayyithFocusedBody extends ConsumerWidget {
       return IbadahAudioCard(
         orderBadge: '$orderNumber',
         title: stage.titleFor(headingLang),
-        badgeText: headingLang == 'ml' ? 'ശാഫിഈ' : 'Shafi\'i',
+        badgeText: hStrings.shafiiBadgeLabel,
         badgeColor: accentColor,
         arabicText: stage.arabic,
         transliterationMl: stage.transliterationMl,
@@ -1556,9 +2134,7 @@ class _MayyithFocusedBody extends ConsumerWidget {
       return IbadahAudioCard(
         orderBadge: '$orderNumber',
         title: step.titleFor(headingLang),
-        badgeText: headingLang == 'ml'
-            ? 'തക്ബീർ ${step.takbirNumber}'
-            : 'Takbir ${step.takbirNumber}',
+        badgeText: '${hStrings.takbirLabel} ${step.takbirNumber}',
         badgeColor: AppBranding.accentGold,
         isHighlighted: true,
         arabicText: step.arabic,

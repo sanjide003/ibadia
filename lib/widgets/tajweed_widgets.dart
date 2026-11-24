@@ -381,31 +381,36 @@ Future<void> showTajweedRuleInspectorSheet(
                       ),
                     ),
                   ),
-                  if (cleanTapped.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: color.withValues(alpha: 0.35),
-                        ),
-                      ),
-                      child: Text(
-                        cleanTapped,
-                        textDirection: TextDirection.rtl,
-                        style: GoogleFonts.amiri(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: color,
-                        ),
-                      ),
-                    ),
                 ],
               ),
+              if (cleanTapped.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: color.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Text(
+                      cleanTapped,
+                      textDirection: TextDirection.rtl,
+                      style: GoogleFonts.amiri(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(14),
@@ -559,16 +564,20 @@ Future<void> showTajweedLegendSheet(
                               ),
                             ),
                           ),
-                          Text(
-                            meta.sampleAr,
-                            textDirection: TextDirection.rtl,
-                            style: GoogleFonts.amiri(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w700,
-                              color: color,
-                            ),
-                          ),
                         ],
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          meta.sampleAr,
+                          textDirection: TextDirection.rtl,
+                          style: GoogleFonts.amiri(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(

@@ -144,9 +144,13 @@ class DailyPrayerData {
     this.cacheSig = '',
   });
 
-  static String format12Hour(DateTime dt) {
+  static String format12Hour(
+    DateTime dt, {
+    String am = 'AM',
+    String pm = 'PM',
+  }) {
     final h24 = dt.hour;
-    final amPm = h24 >= 12 ? 'PM' : 'AM';
+    final amPm = h24 >= 12 ? pm : am;
     final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
     final m = dt.minute.toString().padLeft(2, '0');
     return '$h12:$m $amPm';
@@ -431,6 +435,7 @@ class HijriMonthCatalog {
   static String monthName(int month, String lang) {
     final idx = (month - 1).clamp(0, 11);
     if (lang == 'ar') return ApiConfig.hijriMonthsAr[idx];
+    if (lang == 'ml') return ApiConfig.hijriMonthsMl[idx];
     return ApiConfig.hijriMonthsEn[idx];
   }
 }

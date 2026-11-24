@@ -199,19 +199,54 @@ class SalahRukn {
   final int order;
   final String titleEn;
   final String titleMl;
+  final bool isQawli;
+  final String category; // 'qawli' | 'fili' | 'qalbi' | 'manawi'
+  final String typeMl;
+  final String typeAr;
+  final int? linkedStepOrder;
+  final String? arabic;
+  final String? transliterationMl;
+  final String? meaningMl;
+  final String? noteMl;
+  final String? audioPath;
 
   const SalahRukn({
     required this.order,
     required this.titleEn,
     required this.titleMl,
+    this.isQawli = false,
+    this.category = 'fili',
+    this.typeMl = '',
+    this.typeAr = '',
+    this.linkedStepOrder,
+    this.arabic,
+    this.transliterationMl,
+    this.meaningMl,
+    this.noteMl,
+    this.audioPath,
   });
 
   String titleFor(String lang) => lang == 'ml' ? titleMl : titleEn;
+
+  String typeFor(String lang) {
+    if (lang == 'ar' && typeAr.isNotEmpty) return typeAr;
+    return typeMl;
+  }
 
   factory SalahRukn.fromJson(Map<String, dynamic> json) => SalahRukn(
         order: (json['order'] as num?)?.toInt() ?? 1,
         titleEn: (json['titleEn'] ?? '').toString(),
         titleMl: (json['titleMl'] ?? '').toString(),
+        isQawli: json['isQawli'] == true,
+        category: (json['category'] ?? 'fili').toString(),
+        typeMl: (json['typeMl'] ?? '').toString(),
+        typeAr: (json['typeAr'] ?? '').toString(),
+        linkedStepOrder: (json['linkedStepOrder'] as num?)?.toInt(),
+        arabic: json['arabic']?.toString(),
+        transliterationMl: json['transliterationMl']?.toString(),
+        meaningMl: json['meaningMl']?.toString(),
+        noteMl: json['noteMl']?.toString(),
+        audioPath: json['audioPath']?.toString(),
       );
 }
 

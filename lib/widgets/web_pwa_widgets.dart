@@ -153,10 +153,10 @@ Future<void> triggerShareApp(BuildContext context, AppStrings t) async {
       ? runtimeOrigin
       : AppBranding.webAppUrl;
 
-  final shareText = '${AppBranding.appName} — ${AppBranding.appTagline}\n$webUrl';
+  final shareText = '${t.appTitle} — ${t.appTagline}\n$webUrl';
 
   try {
-    await Share.share(shareText, subject: AppBranding.appName);
+    await Share.share(shareText, subject: t.appTitle);
     return;
   } catch (_) {
     await Clipboard.setData(ClipboardData(text: shareText));
@@ -393,7 +393,7 @@ class _HomeAppUpdatesCardState extends ConsumerState<HomeAppUpdatesCard> {
                         ),
                         const SizedBox(height: 1),
                         Text(
-                          '${t.appTitle} • v${update.currentVersion} (#${update.currentBuildNumber})',
+                          '${t.appTitle} • ${update.currentVersion} (#${update.currentBuildNumber})',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

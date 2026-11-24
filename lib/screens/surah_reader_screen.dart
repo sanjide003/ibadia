@@ -11,6 +11,7 @@ import '../models/recent_activity_model.dart';
 import '../models/surah_model.dart';
 import '../providers/audio_provider.dart';
 import '../providers/quran_providers.dart';
+import '../services/export_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/quick_reader_controls.dart';
@@ -604,7 +605,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
               id: 'surah:${detail.summary.number}',
               type: RecentActivityType.surah,
               titleEn: '${detail.summary.number}. ${detail.summary.englishName}',
-              titleMl: '${detail.summary.number}. ${detail.summary.englishName}',
+              titleMl: '${detail.summary.number}. ${detail.summary.nameArabic}',
               titleAr: '${detail.summary.number}. ${detail.summary.nameArabic}',
               subtitleEn: detail.summary.nameArabic,
               subtitleMl: detail.summary.nameArabic,
@@ -2032,47 +2033,30 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TajweedAyahRichText(
-                      arabicText: ayah.arabicText,
-                      endMarker: ApiConfig.ayahEndMarker(ayahNo),
-                      baseStyle: styles.arabicBase,
-                      markerStyle: styles.arabicMarker,
-                      strings: t,
+                    // Tier 1: Full-width Ayah Heading
+                    Text(
+                      '${detail.summary.nameArabic} · ${t.ayahLabel} $ayahNo',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: cs.primary,
+                      ),
                     ),
-                    if (showTranslation)
-                      ...selectedTranslations.map((code) {
-                        final text = detail.translationAt(code, ayahIndex);
-                        if (text.isEmpty) return const SizedBox.shrink();
-                        final isAr = code == 'ar';
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Directionality(
-                            textDirection:
-                                isAr ? TextDirection.rtl : TextDirection.ltr,
-                            child: Text(
-                              text,
-                              textAlign:
-                                  isAr ? TextAlign.right : TextAlign.left,
-                              style: styles.forTranslation(code),
-                            ),
-                          ),
-                        );
-                      }),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    const SizedBox(height: 6),
+                    // Tier 2: Action buttons directly below heading (Bookmark, Share, Copy, Play)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: Icon(
-                            isBookmarked
-                                ? Icons.bookmark_rounded
-                                : Icons.bookmark_border_rounded,
-                            size: 19,
-                            color: isBookmarked
-                                ? cs.primary
-                                : cs.onSurfaceVariant,
-                          ),
-                          onPressed: () {
+                        _VerseActionChip(
+                          icon: isBookmarked
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          label: t.bookmarksTab,
+                          active: isBookmarked,
+                          cs: cs,
+                          onTap: () {
                             ref.read(bookmarksProvider.notifier).toggle(ayahKey);
                             if (!isBookmarked) {
                               ref.read(recentActivityProvider.notifier).record(
@@ -2082,7 +2066,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                                       titleEn:
                                           '${detail.summary.englishName} $surahNo:$ayahNo',
                                       titleMl:
-                                          '${detail.summary.englishName} $surahNo:$ayahNo',
+                                          '${detail.summary.nameArabic} $surahNo:$ayahNo',
                                       titleAr:
                                           '${detail.summary.nameArabic} $surahNo:$ayahNo',
                                       subtitleEn: 'Bookmarked Ayah',
@@ -2125,14 +2109,34 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                             );
                           },
                         ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: Icon(
-                            Icons.copy_rounded,
-                            size: 18,
-                            color: cs.onSurfaceVariant,
-                          ),
-                          onPressed: () {
+                        _VerseActionChip(
+                          icon: Icons.share_rounded,
+                          label: t.share,
+                          cs: cs,
+                          onTap: () {
+                            final buffer = StringBuffer(
+                              '${detail.summary.nameArabic} ($surahNo:$ayahNo)\n'
+                              '${ayah.arabicText}${ApiConfig.ayahEndMarker(ayahNo)}',
+                            );
+                            if (showTranslation) {
+                              for (final code in selectedTranslations) {
+                                final txt = detail.translationAt(code, ayahIndex);
+                                if (txt.isNotEmpty) {
+                                  buffer.write('\n\n$txt');
+                                }
+                              }
+                            }
+                            ExportService.shareText(
+                              buffer.toString(),
+                              subject: '${detail.summary.nameArabic} $surahNo:$ayahNo',
+                            );
+                          },
+                        ),
+                        _VerseActionChip(
+                          icon: Icons.copy_rounded,
+                          label: t.copyLabel,
+                          cs: cs,
+                          onTap: () {
                             final buffer = StringBuffer(
                               '${ayah.arabicText}${ApiConfig.ayahEndMarker(ayahNo)}',
                             );
@@ -2155,28 +2159,15 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                             );
                           },
                         ),
-                        IconButton(
-                          tooltip: isPlayingThis ? t.pauseAyah : t.playAyah,
-                          visualDensity: VisualDensity.compact,
-                          icon: isBufferingThis
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: cs.primary,
-                                  ),
-                                )
-                              : Icon(
-                                  isPlayingThis
-                                      ? Icons.pause_circle_filled_rounded
-                                      : Icons.play_circle_outline_rounded,
-                                  size: 22,
-                                  color: isTarget
-                                      ? cs.primary
-                                      : cs.onSurfaceVariant,
-                                ),
-                          onPressed: () => _audioNotifier.playOrToggleAyah(
+                        _VerseActionChip(
+                          icon: isPlayingThis
+                              ? Icons.pause_circle_filled_rounded
+                              : Icons.play_circle_outline_rounded,
+                          label: isPlayingThis ? t.pauseAyah : t.playAyah,
+                          active: isTarget,
+                          isLoading: isBufferingThis,
+                          cs: cs,
+                          onTap: () => _audioNotifier.playOrToggleAyah(
                             surahNumber: surahNo,
                             ayahNumber: ayahNo,
                             globalAyahNumber: ayah.globalNumber,
@@ -2185,6 +2176,33 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                         ),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    TajweedAyahRichText(
+                      arabicText: ayah.arabicText,
+                      endMarker: ApiConfig.ayahEndMarker(ayahNo),
+                      baseStyle: styles.arabicBase,
+                      markerStyle: styles.arabicMarker,
+                      strings: t,
+                    ),
+                    if (showTranslation)
+                      ...selectedTranslations.map((code) {
+                        final text = detail.translationAt(code, ayahIndex);
+                        if (text.isEmpty) return const SizedBox.shrink();
+                        final isAr = code == 'ar';
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Directionality(
+                            textDirection:
+                                isAr ? TextDirection.rtl : TextDirection.ltr,
+                            child: Text(
+                              text,
+                              textAlign:
+                                  isAr ? TextAlign.right : TextAlign.left,
+                              style: styles.forTranslation(code),
+                            ),
+                          ),
+                        );
+                      }),
                   ],
                 ),
               ),
@@ -2768,147 +2786,213 @@ class _SurahOrnamentalBanner extends StatelessWidget {
           goldColor: _gold,
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 11),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Calligraphic Arabic Surah Title strictly centered, with bookmark button in top-end corner
-              Stack(
-                alignment: Alignment.center,
+              // Tier 1: Calligraphic Arabic Surah Title full-width centered
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 36),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '۞',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: _gold.withValues(alpha: 0.85),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Flexible(
-                          child: Text(
-                            summary.nameArabic,
-                            textDirection: TextDirection.rtl,
-                            textAlign: TextAlign.center,
-                            style: titleStyle.copyWith(
-                              fontSize: 29,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          '۞',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: _gold.withValues(alpha: 0.85),
-                          ),
-                        ),
-                      ],
+                  Text(
+                    '۞',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: _gold.withValues(alpha: 0.85),
                     ),
                   ),
-                  PositionedDirectional(
-                    top: 0,
-                    end: 0,
-                    child: Material(
-                      color: isBookmarked ? cs.primary : badgeBg,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: onToggleBookmark,
-                        child: Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: Icon(
-                            isBookmarked
-                                ? Icons.bookmark_rounded
-                                : Icons.bookmark_add_outlined,
-                            size: 18,
-                            color: isBookmarked ? cs.onPrimary : cs.primary,
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      summary.nameArabic,
+                      textDirection: TextDirection.rtl,
+                      textAlign: TextAlign.center,
+                      style: titleStyle.copyWith(
+                        fontSize: 29,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '۞',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: _gold.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Tier 2: Metadata + Bookmark action row below heading
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _gold.withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: Text(
+                      '${strings.juzLabel} $juzNumber',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: badgeTextColor,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${summary.englishName}  •  ${summary.numberOfAyahs} ${strings.ayahsLabel}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onPrimaryContainer.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: cs.primary.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Text(
+                      '${strings.surahLabel} ${summary.number}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: badgeTextColor,
+                      ),
+                    ),
+                  ),
+                  Material(
+                    color: isBookmarked ? cs.primary : badgeBg,
+                    borderRadius: BorderRadius.circular(999),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: onToggleBookmark,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: isBookmarked
+                                ? cs.primary
+                                : cs.primary.withValues(alpha: 0.35),
                           ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isBookmarked
+                                  ? Icons.bookmark_rounded
+                                  : Icons.bookmark_add_outlined,
+                              size: 14,
+                              color: isBookmarked ? cs.onPrimary : cs.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              strings.bookmarkSurah,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isBookmarked ? cs.onPrimary : cs.primary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-              const SizedBox(height: 6),
+class _VerseActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final bool isLoading;
+  final ColorScheme cs;
+  final VoidCallback onTap;
 
-              // Single bottom line: Juz (left) • English Name & Ayahs count (center) • Surah # (right)
-              Directionality(
-                textDirection: TextDirection.ltr,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: badgeBg,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: _gold.withValues(alpha: 0.45),
-                        ),
-                      ),
-                      child: Text(
-                        '${strings.juzLabel} $juzNumber',
-                        maxLines: 1,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: badgeTextColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Center(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '${summary.englishName}  •  ${summary.numberOfAyahs} ${strings.ayahsLabel}',
-                            maxLines: 1,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color:
-                                  cs.onPrimaryContainer.withValues(alpha: 0.9),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: badgeBg,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: cs.primary.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Text(
-                        '${strings.surahLabel} ${summary.number}',
-                        maxLines: 1,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: badgeTextColor,
-                        ),
-                      ),
-                    ),
-                  ],
+  const _VerseActionChip({
+    required this.icon,
+    required this.label,
+    this.active = false,
+    this.isLoading = false,
+    required this.cs,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = active ? cs.primary : cs.onSurfaceVariant;
+    return Material(
+      color: active
+          ? cs.primary.withValues(alpha: 0.12)
+          : cs.surfaceContainerHighest.withValues(alpha: 0.45),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: active
+                  ? cs.primary.withValues(alpha: 0.4)
+                  : cs.outlineVariant.withValues(alpha: 0.45),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLoading)
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: cs.primary,
+                  ),
+                )
+              else
+                Icon(icon, size: 15, color: fg),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: fg,
                 ),
               ),
             ],

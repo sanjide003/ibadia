@@ -658,6 +658,8 @@ class FeaturesSettingsSection extends ConsumerWidget {
           enabled: settings.kahfThursdayEnabled,
           hour: settings.kahfThuHour,
           minute: settings.kahfThuMinute,
+          amLabel: t.amLabel,
+          pmLabel: t.pmLabel,
           onToggle: (v) => notifier.updateWith(
             (cur) => cur.copyWith(kahfThursdayEnabled: v),
           ),
@@ -684,6 +686,8 @@ class FeaturesSettingsSection extends ConsumerWidget {
           enabled: settings.kahfFridayEnabled,
           hour: settings.kahfFriHour,
           minute: settings.kahfFriMinute,
+          amLabel: t.amLabel,
+          pmLabel: t.pmLabel,
           onToggle: (v) => notifier.updateWith(
             (cur) => cur.copyWith(kahfFridayEnabled: v),
           ),
@@ -784,6 +788,8 @@ class _KahfScheduleRow extends StatelessWidget {
   final bool enabled;
   final int hour;
   final int minute;
+  final String amLabel;
+  final String pmLabel;
   final ValueChanged<bool> onToggle;
   final VoidCallback onPickTime;
 
@@ -792,12 +798,14 @@ class _KahfScheduleRow extends StatelessWidget {
     required this.enabled,
     required this.hour,
     required this.minute,
+    required this.amLabel,
+    required this.pmLabel,
     required this.onToggle,
     required this.onPickTime,
   });
 
   String _formatTime() {
-    final amPm = hour >= 12 ? 'PM' : 'AM';
+    final amPm = hour >= 12 ? pmLabel : amLabel;
     final h12 = hour % 12 == 0 ? 12 : hour % 12;
     final min = minute.toString().padLeft(2, '0');
     return '$h12:$min $amPm';
@@ -886,8 +894,8 @@ class _AppBrandFooterCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 1),
                 Text(
-                  '${AppBranding.appTagline} • v${updateState.currentVersion} (#${updateState.currentBuildNumber})',
-                  maxLines: 1,
+                  '${strings.appTagline} • ${updateState.currentVersion} (#${updateState.currentBuildNumber})',
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11.5,
@@ -1090,12 +1098,14 @@ class SettingsTabView extends ConsumerWidget {
                 children: [
                   Icon(Icons.auto_stories_rounded, color: cs.primary, size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    t.quranSettingsTitle,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: cs.primary,
+                  Expanded(
+                    child: Text(
+                      t.quranSettingsTitle,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: cs.primary,
+                      ),
                     ),
                   ),
                 ],
@@ -1123,12 +1133,14 @@ class SettingsTabView extends ConsumerWidget {
                 children: [
                   Icon(Icons.mosque_rounded, color: cs.primary, size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    t.featuresSettingsTitle,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: cs.primary,
+                  Expanded(
+                    child: Text(
+                      t.featuresSettingsTitle,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: cs.primary,
+                      ),
                     ),
                   ),
                 ],

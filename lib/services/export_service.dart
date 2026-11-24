@@ -926,6 +926,18 @@ class ExportService {
     }
   }
 
+  static Future<bool> shareText(
+    String text, {
+    String? subject,
+  }) async {
+    try {
+      await Share.share(text, subject: subject);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static String _sanitizeName(String raw) {
     final cleaned = raw
         .toLowerCase()

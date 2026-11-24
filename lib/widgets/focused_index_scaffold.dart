@@ -284,6 +284,13 @@ class FocusedDetailPage extends ConsumerStatefulWidget {
     this.onIndexChanged,
   });
 
+  static bool jumpTo(BuildContext context, int index) {
+    final state = context.findAncestorStateOfType<_FocusedDetailPageState>();
+    if (state == null) return false;
+    state._stepTo(index);
+    return true;
+  }
+
   @override
   ConsumerState<FocusedDetailPage> createState() => _FocusedDetailPageState();
 }
@@ -321,7 +328,8 @@ class _FocusedDetailPageState extends ConsumerState<FocusedDetailPage> {
     final settings = ref.watch(settingsProvider);
     final lang = settings.appLanguage;
     final expLang = explanationLangFor(lang);
-    final headingLang = settings.ibadahMalayalamHeadings ? 'ml' : lang;
+    final headingLang =
+        settings.ibadahMalayalamHeadings ? 'ml' : contentLangFor(lang);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSepia = settings.themeMode == 'sepia';
     final cs = Theme.of(context).colorScheme;

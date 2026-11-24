@@ -11,6 +11,7 @@ import '../data/adhkar_data.dart';
 import '../models/adhkar_tasbih_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
+import '../services/export_service.dart';
 import '../widgets/focused_index_scaffold.dart';
 import '../widgets/tv_mode_widgets.dart';
 import 'settings_screen.dart';
@@ -75,6 +76,8 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
     );
 
     const allEntries = AdhkarCatalog.entries;
+    final listLang = contentLangFor(appLang);
+    final listStrings = AppStrings(listLang);
     final q = _query.trim().toLowerCase();
     final filteredIndices = <int>[
       for (int i = 0; i < allEntries.length; i++)
@@ -82,6 +85,9 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
             allEntries[i].titleEn.toLowerCase().contains(q) ||
             allEntries[i].titleMl.toLowerCase().contains(q) ||
             allEntries[i].reference.toLowerCase().contains(q) ||
+            _categoryLabel(allEntries[i].category, listStrings)
+                .toLowerCase()
+                .contains(q) ||
             _categoryLabel(allEntries[i].category, t)
                 .toLowerCase()
                 .contains(q) ||
@@ -146,11 +152,11 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
                       final count = adhkarState.countFor(entry.id);
                       final completed = count >= entry.targetCount;
                       final isFav = adhkarState.favoriteIds.contains(entry.id);
-                      final catLabel = _categoryLabel(entry.category, t);
+                      final catLabel = _categoryLabel(entry.category, listStrings);
 
                       return FeatureIndexTile(
                         indexNumber: fullIdx + 1,
-                        title: entry.titleFor(appLang),
+                        title: entry.titleFor(listLang),
                         subtitleMeta: '$catLabel · ${entry.reference}',
                         trailingLabel:
                             '${isFav ? "★ " : ""}$count/${entry.targetCount}',
@@ -166,14 +172,16 @@ class _AdhkarDuasViewState extends ConsumerState<AdhkarDuasView> {
                                 initialIndex: fullIdx,
                                 itemCount: allEntries.length,
                                 settingsScope: SettingsScope.all,
-                                titleBuilder: (idx, strings, _) =>
-                                    allEntries[idx].titleFor(strings.lang),
-                                itemBuilder: (_, idx, strings, __, expLang) {
+                                titleBuilder: (idx, _, hLang) =>
+                                    allEntries[idx].titleFor(hLang),
+                                itemBuilder: (_, idx, __, hLang, expLang) {
                                   final item = allEntries[idx];
                                   return _AdhkarFocusedDetailBody(
                                     entry: item,
-                                    categoryLabel:
-                                        _categoryLabel(item.category, strings),
+                                    categoryLabel: _categoryLabel(
+                                      item.category,
+                                      AppStrings(hLang),
+                                    ),
                                   );
                                 },
                               ),
@@ -268,51 +276,50 @@ class _AdhkarFocusedDetailBody extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
+                // Tier 1: Full-width Title & Reference
+                Text(
+                  entry.titleFor(contentLangFor(appLang)),
+                  style: TextStyle(
+                    fontSize: 16.5 * uiScale,
+                    fontWeight: FontWeight.w800,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '$categoryLabel · ${entry.reference}',
+                  style: TextStyle(
+                    fontSize: 12.2 * uiScale,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Tier 2: Action Row (Share, Copy, Favorite, Reset)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.titleFor(appLang),
-                            style: TextStyle(
-                              fontSize: 16.5 * uiScale,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '$categoryLabel · ${entry.reference}',
-                            style: TextStyle(
-                              fontSize: 12 * uiScale,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
+                    _AdhkarActionChip(
+                      icon: Icons.share_rounded,
+                      label: t.share,
+                      color: cs.primary,
+                      borderColor: cardBorder,
+                      onTap: () {
+                        final shareBody =
+                            '${entry.titleFor(contentLangFor(appLang))}\n\n${entry.arabic}\n\n${entry.translationFor(expLang)}\n(${entry.reference})';
+                        ExportService.shareText(
+                          shareBody,
+                          subject: entry.titleFor(contentLangFor(appLang)),
+                        );
+                      },
                     ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      tooltip: t.favoritesOnlyLabel,
-                      icon: Icon(
-                        isFavorite
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        color: isFavorite ? cs.error : cs.onSurfaceVariant,
-                        size: 21,
-                      ),
-                      onPressed: () => notifier.toggleFavorite(entry.id),
-                    ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      tooltip: t.copiedTextNotice,
-                      icon: Icon(
-                        Icons.copy_rounded,
-                        color: cs.onSurfaceVariant,
-                        size: 19,
-                      ),
-                      onPressed: () {
+                    _AdhkarActionChip(
+                      icon: Icons.copy_rounded,
+                      label: t.copyLabel,
+                      color: cs.onSurfaceVariant,
+                      borderColor: cardBorder,
+                      onTap: () {
                         Clipboard.setData(
                           ClipboardData(
                             text:
@@ -327,16 +334,22 @@ class _AdhkarFocusedDetailBody extends ConsumerWidget {
                         );
                       },
                     ),
+                    _AdhkarActionChip(
+                      icon: isFavorite
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      label: t.favoritesOnlyLabel,
+                      color: isFavorite ? cs.error : cs.onSurfaceVariant,
+                      borderColor: cardBorder,
+                      onTap: () => notifier.toggleFavorite(entry.id),
+                    ),
                     if (count > 0)
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        tooltip: t.resetCycleLabel,
-                        icon: Icon(
-                          Icons.refresh_rounded,
-                          color: cs.onSurfaceVariant,
-                          size: 20,
-                        ),
-                        onPressed: () => notifier.resetEntry(entry.id),
+                      _AdhkarActionChip(
+                        icon: Icons.refresh_rounded,
+                        label: t.resetCycleLabel,
+                        color: cs.onSurfaceVariant,
+                        borderColor: cardBorder,
+                        onTap: () => notifier.resetEntry(entry.id),
                       ),
                   ],
                 ),
@@ -609,6 +622,8 @@ class DigitalTasbihView extends ConsumerWidget {
       minPad: 14.0,
     );
 
+    final listLang = contentLangFor(appLang);
+
     return Directionality(
       textDirection: t.textDirection,
       child: GestureDetector(
@@ -625,7 +640,7 @@ class DigitalTasbihView extends ConsumerWidget {
                   for (final p in tasbih.allPresets) ...[
                     InputChip(
                       selected: p.id == tasbih.selectedId,
-                      label: Text(p.titleFor(appLang)),
+                      label: Text(p.titleFor(listLang)),
                       onPressed: () => notifier.selectPreset(p.id),
                       onDeleted: p.isCustom
                           ? () => notifier.deleteCustomPreset(p.id)
@@ -669,12 +684,50 @@ class DigitalTasbihView extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    preset.titleFor(appLang),
+                    preset.titleFor(listLang),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16 * uiScale,
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      _AdhkarActionChip(
+                        icon: Icons.share_rounded,
+                        label: t.share,
+                        color: cs.primary,
+                        borderColor: cardBorder,
+                        onTap: () => ExportService.shareText(
+                          '${preset.arabic}\n${preset.titleFor(listLang)}',
+                          subject: preset.titleFor(listLang),
+                        ),
+                      ),
+                      _AdhkarActionChip(
+                        icon: Icons.copy_rounded,
+                        label: t.copyLabel,
+                        color: cs.onSurfaceVariant,
+                        borderColor: cardBorder,
+                        onTap: () {
+                          Clipboard.setData(
+                            ClipboardData(
+                              text:
+                                  '${preset.arabic}\n${preset.titleFor(listLang)}',
+                            ),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(t.copiedNameNotice),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
 
@@ -914,6 +967,56 @@ class _TasbihStatTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AdhkarActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color borderColor;
+  final VoidCallback onTap;
+
+  const _AdhkarActionChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.borderColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: color),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.8,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

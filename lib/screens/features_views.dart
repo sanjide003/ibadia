@@ -253,7 +253,11 @@ class PrayerTuneControlList extends ConsumerWidget {
           final key = entry.$1;
           final label = entry.$2;
           final val = settings.tuneFor(key);
-          final formatted = val == 0 ? '0m' : (val > 0 ? '+${val}m' : '${val}m');
+          final formatted = val == 0
+              ? '0 ${t.minutesUnitShort}'
+              : (val > 0
+                  ? '+$val ${t.minutesUnitShort}'
+                  : '$val ${t.minutesUnitShort}');
 
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 3),
@@ -270,7 +274,7 @@ class PrayerTuneControlList extends ConsumerWidget {
                 ),
                 _StepperChipButton(
                   icon: Icons.remove_rounded,
-                  tooltip: '$label -1m',
+                  tooltip: '$label -1 ${t.minutesUnitShort}',
                   onTap: val > -60
                       ? () => notifier.updateWith(
                             (s) => s.copyWithTune(key, s.tuneFor(key) - 1),
@@ -278,12 +282,12 @@ class PrayerTuneControlList extends ConsumerWidget {
                       : null,
                 ),
                 SizedBox(
-                  width: 54,
+                  width: 68,
                   child: Text(
                     formatted,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w700,
                       color: val == 0 ? cs.onSurfaceVariant : cs.primary,
                       fontFeatures: const [FontFeature.tabularFigures()],
@@ -292,7 +296,7 @@ class PrayerTuneControlList extends ConsumerWidget {
                 ),
                 _StepperChipButton(
                   icon: Icons.add_rounded,
-                  tooltip: '$label +1m',
+                  tooltip: '$label +1 ${t.minutesUnitShort}',
                   onTap: val < 60
                       ? () => notifier.updateWith(
                             (s) => s.copyWithTune(key, s.tuneFor(key) + 1),
@@ -723,7 +727,7 @@ class PrayerAutoSilentSection extends ConsumerWidget {
       final endDt = startDt.add(
         Duration(minutes: settings.autoSilentDurationMinutes),
       );
-      return '${DailyPrayerData.format12Hour(startDt)} – ${DailyPrayerData.format12Hour(endDt)}';
+      return '${DailyPrayerData.format12Hour(startDt, am: t.amLabel, pm: t.pmLabel)} – ${DailyPrayerData.format12Hour(endDt, am: t.amLabel, pm: t.pmLabel)}';
     }
 
     return Column(
@@ -1299,8 +1303,11 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
             }
 
             final nextBoundaryName = _prayerName(slot.nextBoundaryKey, t);
-            final limitFormatted =
-                DailyPrayerData.format12Hour(slot.safetyLimitTime);
+            final limitFormatted = DailyPrayerData.format12Hour(
+              slot.safetyLimitTime,
+              am: t.amLabel,
+              pm: t.pmLabel,
+            );
 
             return Directionality(
               textDirection: t.textDirection,
@@ -1335,7 +1342,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                                 ),
                               ),
                               Text(
-                                '${t.adhanLabel}: ${DailyPrayerData.format12Hour(slot.adhanTime)}',
+                                '${t.adhanLabel}: ${DailyPrayerData.format12Hour(slot.adhanTime, am: t.amLabel, pm: t.pmLabel)}',
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   color: cs.onSurfaceVariant,
@@ -1365,19 +1372,31 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                         children: [
                           _ScheduleMetricColumn(
                             label: t.adhanLabel,
-                            value: DailyPrayerData.format12Hour(slot.adhanTime),
+                            value: DailyPrayerData.format12Hour(
+                              slot.adhanTime,
+                              am: t.amLabel,
+                              pm: t.pmLabel,
+                            ),
                             accentColor: cs.primary,
                             isHighlighted: true,
                           ),
                           _ScheduleMetricColumn(
                             label: t.iqamahLabel,
-                            value: DailyPrayerData.format12Hour(iqamahDt),
+                            value: DailyPrayerData.format12Hour(
+                              iqamahDt,
+                              am: t.amLabel,
+                              pm: t.pmLabel,
+                            ),
                             accentColor: cs.onSurface,
                           ),
                           _ScheduleMetricColumn(
                             label: t.alarmLabel,
                             value: previewAlarmDt != null
-                                ? DailyPrayerData.format12Hour(previewAlarmDt)
+                                ? DailyPrayerData.format12Hour(
+                                    previewAlarmDt,
+                                    am: t.amLabel,
+                                    pm: t.pmLabel,
+                                  )
                                 : t.alarmOffLabel,
                             accentColor: previewAlarmDt != null
                                 ? cs.primary
@@ -1404,7 +1423,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                                 ),
                               ),
                               Text(
-                                '+$iqamahGap ${t.minutesUnitShort} (max ${slot.maxAllowedIqamahGap}${t.minutesUnitShort})',
+                                '+$iqamahGap ${t.minutesUnitShort} (${t.maxShortLabel} ${slot.maxAllowedIqamahGap} ${t.minutesUnitShort})',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   color: cs.onSurfaceVariant,
@@ -1424,12 +1443,12 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                               : null,
                         ),
                         SizedBox(
-                          width: 56,
+                          width: 72,
                           child: Text(
-                            '+$iqamahGap${t.minutesUnitShort}',
+                            '+$iqamahGap ${t.minutesUnitShort}',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w800,
                               color: cs.primary,
                               fontFeatures: const [
@@ -1459,7 +1478,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                           .map((presetMin) {
                         final selected = iqamahGap == presetMin;
                         return ChoiceChip(
-                          label: Text('+$presetMin${t.minutesUnitShort}'),
+                          label: Text('+$presetMin ${t.minutesUnitShort}'),
                           selected: selected,
                           onSelected: (_) {
                             setSheetState(() => iqamahGap = presetMin);
@@ -1701,59 +1720,78 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
         if (showKahfBanner && widget.onOpenSurah != null) ...[
           Container(
             margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(
               color: cs.primaryContainer.withValues(alpha: 0.55),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: cs.primary.withValues(alpha: 0.45)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(Icons.auto_stories_rounded, color: cs.primary, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t.kahfBannerTitle,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: cs.primary,
-                        ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.auto_stories_rounded, color: cs.primary, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.kahfBannerTitle,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: cs.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            t.kahfBannerDesc,
+                            style: TextStyle(
+                              fontSize: 12.2,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        t.kahfBannerDesc,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
                     ),
-                  ),
-                  onPressed: () => widget.onOpenSurah!(18),
-                  child: Text(t.kahfOpenSurahBtn),
+                  ],
                 ),
-                IconButton(
-                  tooltip: t.closeLabel,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => ref
-                      .read(kahfBannerVisibleProvider.notifier)
-                      .dismissForToday(),
-                  icon: Icon(Icons.close_rounded,
-                      size: 18, color: cs.onSurfaceVariant),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      onPressed: () => widget.onOpenSurah!(18),
+                      icon: const Icon(Icons.menu_book_rounded, size: 16),
+                      label: Text(t.kahfOpenSurahBtn),
+                    ),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                      ),
+                      onPressed: () => ref
+                          .read(kahfBannerVisibleProvider.notifier)
+                          .dismissForToday(),
+                      icon: const Icon(Icons.close_rounded, size: 16),
+                      label: Text(t.closeLabel),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1834,7 +1872,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
               if (data != null) ...[
                 const SizedBox(height: 6),
                 Text(
-                  '${data.hijriDay} ${t.lang == 'ar' ? data.hijriMonthAr : data.hijriMonthEn} ${data.hijriYear} AH',
+                  '${data.hijriDay} ${HijriMonthCatalog.monthName(data.hijriMonthNumber, contentLangFor(t.lang))}${t.lang == 'ar' ? '' : ' (${data.hijriMonthAr})'} ${data.hijriYear} ${t.hijriEraShort}',
                   style: TextStyle(
                     color: AppBranding.accentGold.withValues(alpha: 0.95),
                     fontSize: 16.5,
@@ -1843,7 +1881,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${data.weekdayEn}, ${data.gregorianReadable}',
+                  '${t.weekdayFullFromEn(data.weekdayEn)}, ${data.gregorianReadable}',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.82),
                     fontSize: 12.5,
@@ -1879,7 +1917,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${nextInfo.name} • ${DailyPrayerData.format12Hour(nextInfo.time)}',
+                                '${nextInfo.name} • ${DailyPrayerData.format12Hour(nextInfo.time, am: t.amLabel, pm: t.pmLabel)}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 17,
@@ -2066,7 +2104,11 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
               alarmText = t.dismissedTodayLabel;
               alarmColor = AppBranding.accentGold;
             } else {
-              alarmText = DailyPrayerData.format12Hour(slot.alarmTime!);
+              alarmText = DailyPrayerData.format12Hour(
+                slot.alarmTime!,
+                am: t.amLabel,
+                pm: t.pmLabel,
+              );
               alarmColor = highlightColor;
             }
 
@@ -2091,9 +2133,11 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                   borderRadius: BorderRadius.circular(16),
                   onTap: () => _openSlotEditor(slot),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 11, 10, 12),
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Tier 1: Full-width Prayer Heading + optional Masjid tune delta
                         Row(
                           children: [
                             Icon(
@@ -2103,43 +2147,50 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      label,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 15.5,
-                                        fontWeight: isNext
-                                            ? FontWeight.w800
-                                            : FontWeight.w700,
-                                        color:
-                                            isNext ? cs.primary : cs.onSurface,
-                                      ),
-                                    ),
-                                  ),
-                                  if (slot.tuneMinutes != 0) ...[
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      slot.tuneMinutes > 0
-                                          ? '+${slot.tuneMinutes}m'
-                                          : '${slot.tuneMinutes}m',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: highlightColor,
-                                        fontFeatures: const [
-                                          FontFeature.tabularFigures()
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: isNext
+                                      ? FontWeight.w800
+                                      : FontWeight.w700,
+                                  color: isNext ? cs.primary : cs.onSurface,
+                                ),
                               ),
                             ),
-                            // Inline Exact Alarm Trigger Time Badge + Toggle
+                            if (slot.tuneMinutes != 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: highlightColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  slot.tuneMinutes > 0
+                                      ? '+${slot.tuneMinutes} ${t.minutesUnitShort}'
+                                      : '${slot.tuneMinutes} ${t.minutesUnitShort}',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: highlightColor,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Tier 2: Action buttons bar below heading
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
                             InkWell(
                               borderRadius: BorderRadius.circular(20),
                               onTap: () async {
@@ -2162,7 +2213,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 9,
+                                  horizontal: 10,
                                   vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
@@ -2188,7 +2239,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                                       size: 16,
                                       color: alarmColor,
                                     ),
-                                    const SizedBox(width: 4),
+                                    const SizedBox(width: 5),
                                     Text(
                                       alarmText,
                                       style: TextStyle(
@@ -2204,14 +2255,42 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                                 ),
                               ),
                             ),
-                            IconButton(
-                              tooltip: t.editScheduleLabel,
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () => _openSlotEditor(slot),
-                              icon: Icon(
-                                Icons.tune_rounded,
-                                size: 19,
-                                color: cs.onSurfaceVariant,
+                            InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () => _openSlotEditor(slot),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cs.surfaceContainerHighest
+                                      .withValues(alpha: 0.45),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: cs.outlineVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.tune_rounded,
+                                      size: 15,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      t.editScheduleLabel,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: cs.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -2233,6 +2312,8 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                                 label: t.adhanLabel,
                                 value: DailyPrayerData.format12Hour(
                                   slot.adhanTime,
+                                  am: t.amLabel,
+                                  pm: t.pmLabel,
                                 ),
                                 accentColor: highlightColor,
                                 isHighlighted: true,
@@ -2240,9 +2321,11 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                               ),
                               _ScheduleMetricColumn(
                                 label:
-                                    '${t.iqamahLabel} (+${slot.effectiveIqamahGap}${t.minutesUnitShort})',
+                                    '${t.iqamahLabel} (+${slot.effectiveIqamahGap} ${t.minutesUnitShort})',
                                 value: DailyPrayerData.format12Hour(
                                   slot.iqamahTime,
+                                  am: t.amLabel,
+                                  pm: t.pmLabel,
                                 ),
                                 accentColor: cs.onSurface,
                                 flex: 3,
@@ -2292,7 +2375,11 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                       ),
                     ),
                     Text(
-                      DailyPrayerData.format12Hour(sunriseDt),
+                      DailyPrayerData.format12Hour(
+                        sunriseDt,
+                        am: t.amLabel,
+                        pm: t.pmLabel,
+                      ),
                       style: const TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w800,
@@ -2345,7 +2432,7 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
 
         // Master Prayer Alarm & Sound Quick Control Bar (Below Prayer Schedule)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
           decoration: BoxDecoration(
             color: settings.prayerAlarmMasterEnabled
                 ? cs.primaryContainer.withValues(alpha: 0.38)
@@ -2357,51 +2444,71 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
                   : palette.cardBorder,
             ),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                settings.prayerAlarmMasterEnabled
-                    ? Icons.notifications_active_rounded
-                    : Icons.notifications_off_outlined,
-                color: settings.prayerAlarmMasterEnabled
-                    ? cs.primary
-                    : cs.onSurfaceVariant,
-                size: 22,
+              Row(
+                children: [
+                  Icon(
+                    settings.prayerAlarmMasterEnabled
+                        ? Icons.notifications_active_rounded
+                        : Icons.notifications_off_outlined,
+                    color: settings.prayerAlarmMasterEnabled
+                        ? cs.primary
+                        : cs.onSurfaceVariant,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.prayerAlarmsTitle,
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          soundOption.displayName(settings.appLanguage),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.prayerAlarmsTitle,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
                       ),
                     ),
-                    Text(
-                      soundOption.displayName(settings.appLanguage),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: cs.onSurfaceVariant,
-                      ),
+                    onPressed: () => showPrayerAlarmSoundSheet(context, ref, t),
+                    icon: Icon(Icons.graphic_eq_rounded, size: 17, color: cs.primary),
+                    label: Text(
+                      t.alarmSoundSettings,
+                      style: const TextStyle(fontSize: 12),
                     ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: t.alarmSoundSettings,
-                onPressed: () => showPrayerAlarmSoundSheet(context, ref, t),
-                icon: Icon(Icons.graphic_eq_rounded, color: cs.primary),
-              ),
-              Switch(
-                value: settings.prayerAlarmMasterEnabled,
-                onChanged: (v) => ref
-                    .read(prayerAlarmProvider.notifier)
-                    .setMasterAlarmEnabled(v),
+                  ),
+                  Switch(
+                    value: settings.prayerAlarmMasterEnabled,
+                    onChanged: (v) => ref
+                        .read(prayerAlarmProvider.notifier)
+                        .setMasterAlarmEnabled(v),
+                  ),
+                ],
               ),
             ],
           ),
@@ -2516,38 +2623,6 @@ class _ScheduleMetricColumn extends StatelessWidget {
 class HijriCalendarView extends ConsumerWidget {
   const HijriCalendarView({super.key});
 
-  static const _weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  static const _fullGregMonths = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
-
-  static const _shortGregMonths = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cal = ref.watch(hijriCalendarProvider);
@@ -2563,11 +2638,11 @@ class HijriCalendarView extends ConsumerWidget {
     );
 
     final now = DateTime.now();
-    final hijriMonthPrimary = cal.days.isNotEmpty
-        ? (t.lang == 'ar'
-            ? cal.days.first.hijriMonthAr
-            : cal.days.first.hijriMonthEn)
-        : HijriMonthCatalog.monthName(cal.hijriMonth, settings.appLanguage);
+    final contentLang = contentLangFor(t.lang);
+    final hijriMonthPrimary = HijriMonthCatalog.monthName(
+      cal.hijriMonth,
+      contentLang,
+    );
     final hijriMonthArabic = cal.days.isNotEmpty
         ? cal.days.first.hijriMonthAr
         : HijriMonthCatalog.monthName(cal.hijriMonth, 'ar');
@@ -2576,8 +2651,8 @@ class HijriCalendarView extends ConsumerWidget {
     if (cal.days.isNotEmpty) {
       final first = cal.days.first;
       final last = cal.days.last;
-      final fm = _shortGregMonths[(first.gregorianMonth - 1).clamp(0, 11)];
-      final lm = _shortGregMonths[(last.gregorianMonth - 1).clamp(0, 11)];
+      final fm = t.gregMonthShort(first.gregorianMonth);
+      final lm = t.gregMonthShort(last.gregorianMonth);
       if (first.gregorianYear == last.gregorianYear) {
         gregorianSpan = fm == lm
             ? '$fm ${first.gregorianYear}'
@@ -2607,55 +2682,59 @@ class HijriCalendarView extends ConsumerWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 32),
       children: [
-        // Hijri Month Navigation Header
+        // Hijri Month Navigation Header (Tier 1 full-width heading + Tier 2 nav actions)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
           decoration: BoxDecoration(
             color: palette.cardBg,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: palette.cardBorder),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              IconButton(
-                onPressed: notifier.previousMonth,
-                icon: const Icon(Icons.chevron_left_rounded),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      '$hijriMonthPrimary ${cal.hijriYear} AH',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      gregorianSpan.isEmpty
-                          ? hijriMonthArabic
-                          : '$hijriMonthArabic  •  $gregorianSpan',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: cs.primary,
-                      ),
-                    ),
-                  ],
+              Text(
+                '$hijriMonthPrimary ${cal.hijriYear} ${t.hijriEraShort}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 17.5,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              TextButton(
-                onPressed: notifier.goToToday,
-                child: Text(t.todayLabel),
+              const SizedBox(height: 3),
+              Text(
+                gregorianSpan.isEmpty
+                    ? hijriMonthArabic
+                    : '$hijriMonthArabic  •  $gregorianSpan',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: cs.primary,
+                ),
               ),
-              IconButton(
-                onPressed: notifier.nextMonth,
-                icon: const Icon(Icons.chevron_right_rounded),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton.filledTonal(
+                    tooltip: t.previousLabel,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: notifier.previousMonth,
+                    icon: const Icon(Icons.chevron_left_rounded),
+                  ),
+                  TextButton.icon(
+                    onPressed: notifier.goToToday,
+                    icon: const Icon(Icons.today_rounded, size: 17),
+                    label: Text(t.todayLabel),
+                  ),
+                  IconButton.filledTonal(
+                    tooltip: t.nextLabel,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: notifier.nextMonth,
+                    icon: const Icon(Icons.chevron_right_rounded),
+                  ),
+                ],
               ),
             ],
           ),
@@ -2663,7 +2742,7 @@ class HijriCalendarView extends ConsumerWidget {
 
         const SizedBox(height: 12),
 
-        // Hijri Calendar Grid Card (Large Hijri Day + Small English Date below)
+        // Hijri Calendar Grid Card (Large Hijri Day + Small Gregorian Date below)
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -2674,16 +2753,19 @@ class HijriCalendarView extends ConsumerWidget {
           child: Column(
             children: [
               Row(
-                children: _weekdays.map((wd) {
-                  final isFri = wd == 'Fri';
+                children: List.generate(7, (idx) {
+                  final isFri = idx == 5;
+                  final wd = t.weekdayShort(idx);
                   return Expanded(
                     child: Center(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text(
                           wd,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
                             color: isFri ? cs.primary : cs.onSurfaceVariant,
                           ),
@@ -2691,7 +2773,7 @@ class HijriCalendarView extends ConsumerWidget {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
               ),
               const Divider(height: 10),
               if (cal.isLoading && cal.days.isEmpty)
@@ -2748,8 +2830,8 @@ class HijriCalendarView extends ConsumerWidget {
 
                     final showGregMonth =
                         dayIndex == 0 || dayEntry.gregorianDay == 1;
-                    final smallEnglishText = showGregMonth
-                        ? dayEntry.shortGregorianLabel
+                    final smallGregText = showGregMonth
+                        ? '${dayEntry.gregorianDay} ${t.gregMonthShort(dayEntry.gregorianMonth)}'
                         : '${dayEntry.gregorianDay}';
 
                     return Material(
@@ -2815,7 +2897,7 @@ class HijriCalendarView extends ConsumerWidget {
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  smallEnglishText,
+                                  smallGregText,
                                   maxLines: 1,
                                   style: TextStyle(
                                     fontSize: 10,
@@ -2880,7 +2962,7 @@ class HijriCalendarView extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${selectedEntry.hijriDay} ${selectedEntry.hijriMonthEn} (${selectedEntry.hijriMonthAr}) ${selectedEntry.hijriYear} AH',
+                        '${selectedEntry.hijriDay} ${HijriMonthCatalog.monthName(selectedEntry.hijriMonthNumber, contentLang)}${t.lang == 'ar' ? '' : ' (${selectedEntry.hijriMonthAr})'} ${selectedEntry.hijriYear} ${t.hijriEraShort}',
                         style: const TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
@@ -2888,7 +2970,7 @@ class HijriCalendarView extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${selectedEntry.weekdayEn}, ${selectedEntry.gregorianDay} ${_fullGregMonths[(selectedEntry.gregorianMonth - 1).clamp(0, 11)]} ${selectedEntry.gregorianYear}',
+                        '${t.weekdayFullFromEn(selectedEntry.weekdayEn)}, ${selectedEntry.gregorianDay} ${t.gregMonthFull(selectedEntry.gregorianMonth)} ${selectedEntry.gregorianYear}',
                         style: TextStyle(
                           fontSize: 12.5,
                           color: cs.onSurfaceVariant,
