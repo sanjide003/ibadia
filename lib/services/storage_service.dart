@@ -132,6 +132,13 @@ class AppSettings {
   bool get ibadahShowAudio => _ibadahShowAudio ?? false;
   bool get ibadahMalayalamHeadings => _ibadahMalayalamHeadings ?? true;
 
+  // TV / Classroom Mode preferences (nullable backing fields for DDC safety)
+  final bool? _tvModeEnabled;
+  final double? _tvFontScale;
+
+  bool get tvModeEnabled => _tvModeEnabled ?? false;
+  double get tvFontScale => (_tvFontScale ?? 1.35).clamp(1.0, 2.2);
+
   PrayerAlarmConfig alarmConfigFor(String prayerKey) =>
       prayerConfigs[prayerKey] ?? PrayerAlarmConfig(prayerKey: prayerKey);
 
@@ -189,6 +196,8 @@ class AppSettings {
     bool? ibadahShowNotes = false,
     bool? ibadahShowAudio = false,
     bool? ibadahMalayalamHeadings = true,
+    bool? tvModeEnabled = false,
+    double? tvFontScale = 1.35,
   })  : _prayerLocationMode = prayerLocationMode,
         _prayerCity = prayerCity,
         _prayerCountry = prayerCountry,
@@ -229,7 +238,9 @@ class AppSettings {
         _ibadahShowMeaning = ibadahShowMeaning,
         _ibadahShowNotes = ibadahShowNotes,
         _ibadahShowAudio = ibadahShowAudio,
-        _ibadahMalayalamHeadings = ibadahMalayalamHeadings;
+        _ibadahMalayalamHeadings = ibadahMalayalamHeadings,
+        _tvModeEnabled = tvModeEnabled,
+        _tvFontScale = tvFontScale;
 
   int tuneFor(String prayerKey) {
     switch (prayerKey) {
@@ -353,6 +364,8 @@ class AppSettings {
     bool? ibadahShowNotes,
     bool? ibadahShowAudio,
     bool? ibadahMalayalamHeadings,
+    bool? tvModeEnabled,
+    double? tvFontScale,
   }) {
     return AppSettings(
       appLanguage: appLanguage ?? this.appLanguage,
@@ -416,6 +429,8 @@ class AppSettings {
       ibadahShowAudio: ibadahShowAudio ?? this.ibadahShowAudio,
       ibadahMalayalamHeadings:
           ibadahMalayalamHeadings ?? this.ibadahMalayalamHeadings,
+      tvModeEnabled: tvModeEnabled ?? this.tvModeEnabled,
+      tvFontScale: (tvFontScale ?? this.tvFontScale).clamp(1.0, 2.2),
     );
   }
 }
@@ -621,6 +636,8 @@ class StorageService {
   static const _ibadahShowNotesKey = 'pref_ibadah_show_notes_v1';
   static const _ibadahShowAudioKey = 'pref_ibadah_show_audio_v1';
   static const _ibadahMlHeadingsKey = 'pref_ibadah_ml_headings_v1';
+  static const _tvModeEnabledKey = 'pref_tv_mode_enabled_v1';
+  static const _tvFontScaleKey = 'pref_tv_font_scale_v1';
 
   // Offline API caches
   static const _dailyPrayerCacheKey = 'prayer_daily_cache_v1';
@@ -816,6 +833,9 @@ class StorageService {
       ibadahShowAudio: _readTyped<bool>(box, _ibadahShowAudioKey) ?? false,
       ibadahMalayalamHeadings:
           _readTyped<bool>(box, _ibadahMlHeadingsKey) ?? true,
+      tvModeEnabled: _readTyped<bool>(box, _tvModeEnabledKey) ?? false,
+      tvFontScale:
+          (_readDouble(box, _tvFontScaleKey) ?? 1.35).clamp(1.0, 2.2),
     );
   }
 
@@ -872,6 +892,8 @@ class StorageService {
       _ibadahShowNotesKey: settings.ibadahShowNotes,
       _ibadahShowAudioKey: settings.ibadahShowAudio,
       _ibadahMlHeadingsKey: settings.ibadahMalayalamHeadings,
+      _tvModeEnabledKey: settings.tvModeEnabled,
+      _tvFontScaleKey: settings.tvFontScale,
     });
 
     if (settings.exportIncludeTranslation != null) {

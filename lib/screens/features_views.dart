@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +11,7 @@ import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../services/prayer_alarm_bridge.dart';
 import '../services/storage_service.dart';
+import '../widgets/tv_mode_widgets.dart';
 import 'adhkar_tasbih_views.dart';
 import 'asmaul_husna_view.dart';
 
@@ -1667,7 +1667,11 @@ class _PrayerTimesViewState extends ConsumerState<PrayerTimesView> {
     final t = ref.watch(stringsProvider);
     final cs = Theme.of(context).colorScheme;
     final palette = _featurePalette(context, settings);
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: settings.tvModeEnabled,
+      normalMaxWidth: 860,
+    );
 
     final data = prayerState.data;
     final nextInfo =
@@ -2552,7 +2556,11 @@ class HijriCalendarView extends ConsumerWidget {
     final t = ref.watch(stringsProvider);
     final cs = Theme.of(context).colorScheme;
     final palette = _featurePalette(context, settings);
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: settings.tvModeEnabled,
+      normalMaxWidth: 860,
+    );
 
     final now = DateTime.now();
     final hijriMonthPrimary = cal.days.isNotEmpty

@@ -11,6 +11,7 @@ import '../data/adhkar_data.dart';
 import '../models/adhkar_tasbih_model.dart';
 import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
+import '../widgets/tv_mode_widgets.dart';
 
 class AdhkarDuasView extends ConsumerWidget {
   const AdhkarDuasView({super.key});
@@ -74,7 +75,28 @@ class AdhkarDuasView extends ConsumerWidget {
     final totalInCat = categoryItems.length;
     final catProgress = totalInCat == 0 ? 0.0 : completedCount / totalInCat;
 
-    final hPad = math.max(14.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+    final (tvMode, tvScale, settingsArabicSize, settingsTransSize) = ref.watch(
+      settingsProvider.select(
+        (s) => (
+          s.tvModeEnabled,
+          s.tvFontScale,
+          s.arabicFontSize,
+          s.translationFontSize,
+        ),
+      ),
+    );
+    final double uiScale = tvMode ? tvScale.clamp(1.0, 1.6) : 1.0;
+    final double arabicPx =
+        tvMode ? math.max(22.0 * tvScale, settingsArabicSize) : 22.0;
+    final double meaningPx =
+        tvMode ? math.max(13.5 * tvScale, settingsTransSize) : 13.5;
+
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: tvMode,
+      normalMaxWidth: 860,
+      minPad: 14.0,
+    );
 
     return Directionality(
       textDirection: t.textDirection,
@@ -260,6 +282,9 @@ class AdhkarDuasView extends ConsumerWidget {
                 cs: cs,
                 cardBg: cardBg,
                 cardBorder: cardBorder,
+                arabicFontSize: arabicPx,
+                meaningFontSize: meaningPx,
+                uiScale: uiScale,
                 onTapCount: () async {
                   final completedNow = await notifier.incrementEntry(entry);
                   if (completedNow) {
@@ -299,6 +324,9 @@ class _AdhkarCard extends StatelessWidget {
   final ColorScheme cs;
   final Color cardBg;
   final Color cardBorder;
+  final double arabicFontSize;
+  final double meaningFontSize;
+  final double uiScale;
   final VoidCallback onTapCount;
   final VoidCallback onReset;
   final VoidCallback onToggleFav;
@@ -313,6 +341,9 @@ class _AdhkarCard extends StatelessWidget {
     required this.cs,
     required this.cardBg,
     required this.cardBorder,
+    this.arabicFontSize = 22.0,
+    this.meaningFontSize = 13.5,
+    this.uiScale = 1.0,
     required this.onTapCount,
     required this.onReset,
     required this.onToggleFav,
@@ -353,8 +384,8 @@ class _AdhkarCard extends StatelessWidget {
                         children: [
                           Text(
                             entry.titleFor(appLang),
-                            style: const TextStyle(
-                              fontSize: 15,
+                            style: TextStyle(
+                              fontSize: 15 * uiScale,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -362,7 +393,7 @@ class _AdhkarCard extends StatelessWidget {
                           Text(
                             entry.reference,
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 11.5 * uiScale,
                               color: cs.onSurfaceVariant,
                             ),
                           ),
@@ -410,7 +441,7 @@ class _AdhkarCard extends StatelessWidget {
                     entry.arabic,
                     textAlign: TextAlign.right,
                     style: GoogleFonts.amiri(
-                      fontSize: 22,
+                      fontSize: arabicFontSize,
                       height: 1.85,
                       fontWeight: FontWeight.w600,
                       color: cs.onSurface,
@@ -421,7 +452,7 @@ class _AdhkarCard extends StatelessWidget {
                 Text(
                   entry.translationFor(appLang),
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: meaningFontSize,
                     height: 1.5,
                     color: cs.onSurfaceVariant,
                   ),
@@ -640,11 +671,24 @@ class DigitalTasbihView extends ConsumerWidget {
         ? const Color(0xFF23302A)
         : (isSepia ? const Color(0xFFE7DEC9) : const Color(0xFFE2EBE6));
 
+    final (tvMode, tvScale, settingsArabicSize) = ref.watch(
+      settingsProvider.select(
+        (s) => (s.tvModeEnabled, s.tvFontScale, s.arabicFontSize),
+      ),
+    );
+    final double uiScale = tvMode ? tvScale.clamp(1.0, 1.55) : 1.0;
+    final double tasbihArabicPx =
+        tvMode ? math.max(30.0 * tvScale, settingsArabicSize) : 30.0;
     final preset = tasbih.activePreset;
     final cycle = tasbih.activeCycleCount;
     final target = tasbih.activeTarget;
     final progress = target > 0 ? (cycle / target).clamp(0.0, 1.0) : 0.0;
-    final hPad = math.max(14.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: tvMode,
+      normalMaxWidth: 860,
+      minPad: 14.0,
+    );
 
     return Directionality(
       textDirection: t.textDirection,
@@ -697,7 +741,7 @@ class DigitalTasbihView extends ConsumerWidget {
                       preset.arabic,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.amiri(
-                        fontSize: 30,
+                        fontSize: tasbihArabicPx,
                         fontWeight: FontWeight.w700,
                         height: 1.5,
                         color: cs.primary,
@@ -708,8 +752,8 @@ class DigitalTasbihView extends ConsumerWidget {
                   Text(
                     preset.titleFor(appLang),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: 16 * uiScale,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

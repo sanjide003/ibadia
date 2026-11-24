@@ -18,4 +18,6 @@ class WebPlatformBridge {
   bool openExternalUrl(String url) => false;
 
   Future<void> applyWebUpdate() async {}
+
+  Future<void> setTvModeBrowser(bool enabled) async {}
 }

@@ -12,6 +12,7 @@ import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
 import '../services/prayer_alarm_bridge.dart';
 import '../widgets/quick_reader_controls.dart';
+import '../widgets/tv_mode_widgets.dart';
 import 'features_views.dart';
 
 enum SettingsScope { quran, features, ibadah, all }
@@ -974,6 +975,8 @@ class CompactSettingsDrawer extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
                   children: [
+                    const TvDisplaySettingsSection(),
+                    const Divider(height: 28),
                     if (scope == SettingsScope.quran ||
                         scope == SettingsScope.all)
                       const QuranSettingsSection(),
@@ -1017,11 +1020,61 @@ class SettingsTabView extends ConsumerWidget {
     final cardBorder = isDark
         ? const Color(0xFF23302A)
         : (isSepia ? const Color(0xFFE7DEC9) : const Color(0xFFE2EBE6));
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: settings.tvModeEnabled,
+      normalMaxWidth: 860,
+    );
 
     return ListView(
       padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 32),
       children: [
+        // 0. TV / Classroom Projection & Font Size Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: settings.tvModeEnabled
+                  ? AppBranding.accentGold.withValues(alpha: 0.7)
+                  : cardBorder,
+              width: settings.tvModeEnabled ? 1.5 : 1.0,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.tv_rounded,
+                    color: settings.tvModeEnabled
+                        ? AppBranding.accentGold
+                        : cs.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t.tvModeTitle,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: cs.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 22),
+              const TvDisplaySettingsSection(),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
         // 1. Quran Settings Card
         Container(
           padding: const EdgeInsets.all(16),

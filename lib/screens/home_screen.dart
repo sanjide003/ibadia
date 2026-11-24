@@ -15,6 +15,7 @@ import '../providers/update_provider.dart';
 import '../services/hive_db.dart';
 import '../services/prayer_alarm_bridge.dart';
 import '../services/storage_service.dart';
+import '../widgets/tv_mode_widgets.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/web_pwa_widgets.dart';
 import 'adhkar_tasbih_views.dart';
@@ -381,8 +382,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ],
                 ),
                 actions: _tabIndex == 2
-                    ? const []
+                    ? const [TvModeActionButton(), SizedBox(width: 6)]
                     : [
+                        const TvModeActionButton(),
                         Builder(
                           builder: (drawerCtx) => IconButton(
                             tooltip: t.settings,
@@ -457,7 +459,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             ],
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
+                        const TvModeActionButton(),
                         Builder(
                           builder: (drawerCtx) => IconButton(
                             tooltip: t.quranSettingsTitle,
@@ -495,6 +498,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
             OfflineStatusBanner(strings: t),
+            Builder(
+              builder: (bodyCtx) => QuickTvControlBar(
+                onOpenSettings: _tabIndex == 2
+                    ? null
+                    : () => Scaffold.of(bodyCtx).openEndDrawer(),
+              ),
+            ),
             Expanded(
               child: _tabIndex == 0
                   ? DashboardView(
@@ -537,6 +547,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   surahsAsync: surahsAsync,
                                   lastRead: lastRead,
                                   appLanguage: settings.appLanguage,
+                                  tvModeEnabled: settings.tvModeEnabled,
                                   strings: t,
                                   cs: cs,
                                   cardBg: cardBg,
@@ -561,6 +572,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 // 2. Juz Tab View
                                 _JuzTabView(
                                   scrollController: _juzScrollController,
+                                  tvModeEnabled: settings.tvModeEnabled,
                                   strings: t,
                                   cs: cs,
                                   cardBg: cardBg,
@@ -603,6 +615,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   bookmarks: bookmarks,
                                   surahs: surahsAsync.valueOrNull ?? const [],
                                   strings: t,
+                                  tvModeEnabled: settings.tvModeEnabled,
                                   onOpenSurah: (surahNo, {int? ayahNo}) =>
                                       _openSurah(context, surahNo,
                                           ayahNo: ayahNo),
@@ -616,9 +629,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             // Floating Search Surah Pill (only on Surah & Juz sub-tabs)
                             if (_quranTabController.index <= 1)
                               PositionedDirectional(
-                                end: math.max(
-                                  16.0,
-                                  (MediaQuery.sizeOf(context).width - 860) / 2,
+                                end: responsivePageHorizontalPadding(
+                                  context,
+                                  tvModeEnabled: settings.tvModeEnabled,
+                                  normalMaxWidth: 860,
                                 ),
                                 bottom: 16,
                                 child: FloatingActionButton.extended(
@@ -847,6 +861,7 @@ class _SurahTabView extends StatelessWidget {
   final AsyncValue<List<SurahSummary>> surahsAsync;
   final LastReadPosition? lastRead;
   final String appLanguage;
+  final bool tvModeEnabled;
   final AppStrings strings;
   final ColorScheme cs;
   final Color cardBg;
@@ -864,6 +879,7 @@ class _SurahTabView extends StatelessWidget {
     required this.surahsAsync,
     required this.lastRead,
     required this.appLanguage,
+    required this.tvModeEnabled,
     required this.strings,
     required this.cs,
     required this.cardBg,
@@ -892,7 +908,11 @@ class _SurahTabView extends StatelessWidget {
         ),
       ),
       data: (surahs) {
-        final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+        final hPad = responsivePageHorizontalPadding(
+          context,
+          tvModeEnabled: tvModeEnabled,
+          normalMaxWidth: 860,
+        );
         final currentLastRead = lastRead;
         return ListView.builder(
           controller: scrollController,
@@ -1087,6 +1107,7 @@ class _SurahTabView extends StatelessWidget {
 
 class _JuzTabView extends StatelessWidget {
   final ScrollController scrollController;
+  final bool tvModeEnabled;
   final AppStrings strings;
   final ColorScheme cs;
   final Color cardBg;
@@ -1095,6 +1116,7 @@ class _JuzTabView extends StatelessWidget {
 
   const _JuzTabView({
     required this.scrollController,
+    required this.tvModeEnabled,
     required this.strings,
     required this.cs,
     required this.cardBg,
@@ -1104,7 +1126,11 @@ class _JuzTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: tvModeEnabled,
+      normalMaxWidth: 860,
+    );
     return ListView.builder(
       controller: scrollController,
       padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 92),
@@ -1501,6 +1527,7 @@ class _StandaloneFeatureScreenState
           bookmarks: bookmarks,
           surahs: surahs,
           strings: t,
+          tvModeEnabled: settings.tvModeEnabled,
           onOpenSurah: widget.onOpenSurah,
         );
         break;
@@ -1560,23 +1587,31 @@ class _StandaloneFeatureScreenState
               color: Colors.white,
             ),
           ),
-          actions: scope == null
-              ? const []
-              : [
-                  Builder(
-                    builder: (drawerCtx) => IconButton(
-                      tooltip: t.settings,
-                      icon: const Icon(Icons.settings_rounded,
-                          color: Colors.white),
-                      onPressed: () => Scaffold.of(drawerCtx).openEndDrawer(),
-                    ),
-                  ),
-                ],
+          actions: [
+            const TvModeActionButton(),
+            if (scope != null)
+              Builder(
+                builder: (drawerCtx) => IconButton(
+                  tooltip: t.settings,
+                  icon: const Icon(Icons.settings_rounded, color: Colors.white),
+                  onPressed: () => Scaffold.of(drawerCtx).openEndDrawer(),
+                ),
+              )
+            else
+              const SizedBox(width: 6),
+          ],
         ),
         endDrawer: scope == null ? null : CompactSettingsDrawer(scope: scope),
         body: Column(
           children: [
             OfflineStatusBanner(strings: t),
+            Builder(
+              builder: (bodyCtx) => QuickTvControlBar(
+                onOpenSettings: scope == null
+                    ? null
+                    : () => Scaffold.of(bodyCtx).openEndDrawer(),
+              ),
+            ),
             Expanded(child: body),
           ],
         ),
@@ -1590,6 +1625,7 @@ class BookmarksListView extends StatelessWidget {
   final List<String> bookmarks;
   final List<SurahSummary> surahs;
   final AppStrings strings;
+  final bool tvModeEnabled;
   final void Function(int surahNo, {int? ayahNo}) onOpenSurah;
 
   const BookmarksListView({
@@ -1598,6 +1634,7 @@ class BookmarksListView extends StatelessWidget {
     required this.bookmarks,
     required this.surahs,
     required this.strings,
+    this.tvModeEnabled = false,
     required this.onOpenSurah,
   });
 
@@ -1622,7 +1659,11 @@ class BookmarksListView extends StatelessWidget {
       );
     }
     final cs = Theme.of(context).colorScheme;
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: tvModeEnabled,
+      normalMaxWidth: 860,
+    );
 
     return ListView.separated(
       controller: scrollController,

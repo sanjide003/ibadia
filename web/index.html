@@ -117,6 +117,27 @@
           }
           window.location.reload();
           return Promise.resolve(true);
+        },
+        setTvMode: function (enabled) {
+          try {
+            if (enabled) {
+              var el = document.documentElement;
+              if (el && !document.fullscreenElement && el.requestFullscreen) {
+                Promise.resolve(el.requestFullscreen()).catch(function () {});
+              }
+              if (screen && screen.orientation && screen.orientation.lock) {
+                Promise.resolve(screen.orientation.lock('landscape')).catch(function () {});
+              }
+            } else {
+              if (document.fullscreenElement && document.exitFullscreen) {
+                Promise.resolve(document.exitFullscreen()).catch(function () {});
+              }
+              if (screen && screen.orientation && screen.orientation.unlock) {
+                try { screen.orientation.unlock(); } catch (_) {}
+              }
+            }
+          } catch (_) {}
+          return Promise.resolve(true);
         }
       };
 

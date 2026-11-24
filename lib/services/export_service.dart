@@ -548,11 +548,13 @@ class ExportService {
   }
 
   /// Renders a single export page directly via an isolated offscreen PictureRecorder
-  /// at crisp 2.0x resolution (720px wide), completely immune to GPU widget layer glitches.
+  /// at Ultra-HD resolution (5.0x -> 1800px wide for PNG, up to 5.5x -> ~1980px / 360+ DPI for PDF),
+  /// completely immune to GPU widget layer glitches and messaging app blur.
   static Future<RenderedExportPage> renderPagePng({
     required ExportPageData page,
     required bool includeTranslation,
     required List<String> translationCodes,
+    double targetPixelRatio = 5.0,
   }) async {
     final spec = ExportLayoutSpec.mobile();
     await GoogleFonts.pendingFonts();
@@ -585,9 +587,11 @@ class ExportService {
     final double totalLogicalHeight =
         (spec.vPad * 2 + totalBodyHeight).ceilToDouble();
 
-    double pixelRatio = 2.0;
-    if (totalLogicalHeight * pixelRatio > 3200.0 && totalLogicalHeight > 0) {
-      pixelRatio = (3200.0 / totalLogicalHeight).clamp(1.2, 2.0);
+    // 4096px stays safely inside Android/Web GPU texture limits while keeping
+    // normal pages (~740pt tall) at full 5.0x-5.4x (1800px-1944px wide, 360+ DPI).
+    double pixelRatio = targetPixelRatio.clamp(3.0, 5.5);
+    if (totalLogicalHeight * pixelRatio > 4096.0 && totalLogicalHeight > 0) {
+      pixelRatio = (4096.0 / totalLogicalHeight).clamp(2.5, targetPixelRatio);
     }
 
     final int pxW = (spec.cardWidth * pixelRatio).round();
@@ -793,7 +797,10 @@ class ExportService {
             height: format.height,
             color: PdfColors.white,
             alignment: pw.Alignment.center,
-            child: pw.Image(memImg, fit: pw.BoxFit.contain),
+            child: pw.Image(
+              memImg,
+              fit: pw.BoxFit.contain,
+            ),
           ),
         ),
       );

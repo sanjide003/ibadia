@@ -19,6 +19,7 @@ extension _IbadiaPwaJsExt on _IbadiaPwaJs {
   external JSPromise<JSString> promptInstall();
   external bool openExternal(String url);
   external JSPromise<JSBoolean> applyWebUpdate();
+  external JSPromise<JSBoolean> setTvMode(bool enabled);
 }
 
 class WebPlatformBridge {
@@ -111,5 +112,13 @@ class WebPlatformBridge {
       } catch (_) {}
     }
     web.window.location.reload();
+  }
+
+  Future<void> setTvModeBrowser(bool enabled) async {
+    final pwa = _ibadiaPwa;
+    if (pwa == null) return;
+    try {
+      await pwa.setTvMode(enabled).toDart;
+    } catch (_) {}
   }
 }

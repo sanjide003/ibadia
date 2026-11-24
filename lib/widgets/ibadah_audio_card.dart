@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +9,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
 import '../providers/audio_provider.dart';
+import '../providers/quran_providers.dart';
+import '../services/export_service.dart';
 import '../services/ibadah_audio_controller.dart';
+import '../services/ibadah_export_service.dart';
 
 class IbadahAudioCard extends ConsumerWidget {
   final String title;
@@ -61,6 +65,18 @@ class IbadahAudioCard extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final audioState = ref.watch(ibadahAudioProvider);
+    final (tvMode, tvScale, settingsArabicSize) = ref.watch(
+      settingsProvider.select(
+        (s) => (s.tvModeEnabled, s.tvFontScale, s.arabicFontSize),
+      ),
+    );
+    final double scale = tvMode ? tvScale : 1.0;
+    final double arabicFontPx =
+        tvMode ? math.max(22.5 * scale, settingsArabicSize) : 22.5;
+    final bool hasExportableContent =
+        (arabicText != null && arabicText!.trim().isNotEmpty) ||
+            (meaningText != null && meaningText!.trim().isNotEmpty);
+
     final hasAudio = audioPath != null && audioPath!.trim().isNotEmpty;
     final bool isActiveTrack =
         hasAudio && audioState.activeAudioPath == audioPath!.trim();
@@ -148,7 +164,7 @@ class IbadahAudioCard extends ConsumerWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 15 * scale,
                           fontWeight: FontWeight.w800,
                           color: cs.onSurface,
                           height: 1.25,
@@ -159,7 +175,7 @@ class IbadahAudioCard extends ConsumerWidget {
                         Text(
                           subtitle!,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 12 * scale,
                             fontWeight: FontWeight.w600,
                             color: cs.onSurfaceVariant,
                           ),
@@ -185,13 +201,24 @@ class IbadahAudioCard extends ConsumerWidget {
                     child: Text(
                       badgeText!,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 11 * scale.clamp(1.0, 1.35),
                         fontWeight: FontWeight.w800,
                         color: effectiveBadgeColor,
                       ),
                     ),
                   ),
                 ],
+                if (hasExportableContent)
+                  IconButton(
+                    tooltip: strings.exportCardTitle,
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      Icons.download_rounded,
+                      size: 19,
+                      color: accentColor,
+                    ),
+                    onPressed: () => _showExportSheet(context),
+                  ),
                 if (arabicText != null && arabicText!.trim().isNotEmpty)
                   IconButton(
                     tooltip: strings.copiedTextNotice,
@@ -245,7 +272,7 @@ class IbadahAudioCard extends ConsumerWidget {
                     arabicText!,
                     textAlign: TextAlign.right,
                     style: GoogleFonts.amiri(
-                      fontSize: 22.5,
+                      fontSize: arabicFontPx,
                       height: 1.9,
                       fontWeight: FontWeight.w700,
                       color: cs.onSurface,
@@ -263,7 +290,7 @@ class IbadahAudioCard extends ConsumerWidget {
               Text(
                 strings.transliterationLabel.toUpperCase(),
                 style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 10.5 * scale.clamp(1.0, 1.4),
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.4,
                   color: accentColor,
@@ -273,7 +300,7 @@ class IbadahAudioCard extends ConsumerWidget {
               Text(
                 transliterationMl!,
                 style: TextStyle(
-                  fontSize: 13.8,
+                  fontSize: 13.8 * scale,
                   height: 1.55,
                   fontWeight: FontWeight.w600,
                   color: cs.onSurface,
@@ -289,7 +316,7 @@ class IbadahAudioCard extends ConsumerWidget {
               Text(
                 strings.meaningLabel.toUpperCase(),
                 style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 10.5 * scale.clamp(1.0, 1.4),
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.4,
                   color: cs.onSurfaceVariant,
@@ -299,7 +326,7 @@ class IbadahAudioCard extends ConsumerWidget {
               Text(
                 meaningText!,
                 style: TextStyle(
-                  fontSize: 13.2,
+                  fontSize: 13.2 * scale,
                   height: 1.5,
                   color: cs.onSurfaceVariant,
                 ),
@@ -325,7 +352,7 @@ class IbadahAudioCard extends ConsumerWidget {
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
-                      size: 15,
+                      size: 15 * scale.clamp(1.0, 1.4),
                       color: cs.onSurfaceVariant,
                     ),
                     const SizedBox(width: 7),
@@ -333,7 +360,7 @@ class IbadahAudioCard extends ConsumerWidget {
                       child: Text(
                         noteText!,
                         style: TextStyle(
-                          fontSize: 12.2,
+                          fontSize: 12.2 * scale,
                           height: 1.45,
                           color: cs.onSurfaceVariant,
                         ),
@@ -453,6 +480,235 @@ class IbadahAudioCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _showExportSheet(BuildContext context) async {
+    final item = IbadahExportItem(
+      title: title,
+      subtitle: subtitle,
+      badgeText: badgeText,
+      orderBadge: orderBadge,
+      arabicText: arabicText,
+      transliterationMl: transliterationMl,
+      meaningText: meaningText,
+      noteText: noteText,
+    );
+    final baseName = 'ibadia_${IbadahExportService.slugifyTitle(title)}';
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheetCtx) {
+        bool busy = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final cs = Theme.of(ctx).colorScheme;
+
+            Future<void> runAction({
+              required bool isPdf,
+              required bool isShare,
+            }) async {
+              if (busy) return;
+              setSheetState(() => busy = true);
+              try {
+                if (isPdf) {
+                  final pdfBytes = await IbadahExportService.buildSingleCardPdf(
+                    item,
+                    includeTransliteration: showTransliteration,
+                    includeMeaning: showMeaning,
+                    includeNotes: showNotes,
+                  );
+                  if (isShare) {
+                    await ExportService.sharePdfBytes(
+                      bytes: pdfBytes,
+                      baseName: baseName,
+                      title: title,
+                    );
+                  } else {
+                    await ExportService.savePdfBytes(
+                      bytes: pdfBytes,
+                      baseName: baseName,
+                    );
+                  }
+                } else {
+                  final rendered = await IbadahExportService.renderCardPng(
+                    item,
+                    includeTransliteration: showTransliteration,
+                    includeMeaning: showMeaning,
+                    includeNotes: showNotes,
+                  );
+                  if (isShare) {
+                    await ExportService.sharePngPages(
+                      pages: [rendered.bytes],
+                      baseName: baseName,
+                      title: title,
+                    );
+                  } else {
+                    final savedToGallery = await ExportService.savePngPages(
+                      pages: [rendered.bytes],
+                      baseName: baseName,
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            savedToGallery
+                                ? strings.savedToGallery
+                                : strings.exportSuccess,
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (!isShare && isPdf && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(strings.exportSuccess),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(strings.exportError),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } finally {
+                if (ctx.mounted) {
+                  setSheetState(() => busy = false);
+                }
+              }
+            }
+
+            return Directionality(
+              textDirection: strings.textDirection,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.hd_rounded, color: cs.primary, size: 22),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                strings.exportCardTitle,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                strings.exportCardSubtitle,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (busy)
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.2),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: cs.primaryContainer,
+                        child: Icon(Icons.image_rounded, color: cs.primary),
+                      ),
+                      title: Text(
+                        strings.saveUltraHdPng,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      trailing: const Icon(Icons.download_rounded),
+                      onTap: busy
+                          ? null
+                          : () => runAction(isPdf: false, isShare: false),
+                    ),
+                    ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: cs.primaryContainer,
+                        child: Icon(Icons.share_rounded, color: cs.primary),
+                      ),
+                      title: Text(
+                        strings.shareUltraHdPng,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: busy
+                          ? null
+                          : () => runAction(isPdf: false, isShare: true),
+                    ),
+                    ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: cs.secondaryContainer,
+                        child: Icon(
+                          Icons.picture_as_pdf_rounded,
+                          color: cs.secondary,
+                        ),
+                      ),
+                      title: Text(
+                        strings.saveHighQualityPdf,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      trailing: const Icon(Icons.download_rounded),
+                      onTap: busy
+                          ? null
+                          : () => runAction(isPdf: true, isShare: false),
+                    ),
+                    ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: cs.secondaryContainer,
+                        child: Icon(Icons.ios_share_rounded, color: cs.secondary),
+                      ),
+                      title: Text(
+                        strings.shareHighQualityPdf,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: busy
+                          ? null
+                          : () => runAction(isPdf: true, isShare: true),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

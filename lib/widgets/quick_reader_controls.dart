@@ -191,7 +191,7 @@ class QuickReaderControls extends ConsumerWidget {
                 notifier.updateWith(
                   (s) => s.copyWith(
                     arabicFontSize:
-                        (s.arabicFontSize - 1.0).clamp(20.0, 50.0),
+                        (s.arabicFontSize - 2.0).clamp(20.0, 72.0),
                   ),
                 );
               },
@@ -199,9 +199,9 @@ class QuickReaderControls extends ConsumerWidget {
             Expanded(
               child: Slider(
                 min: 20,
-                max: 50,
-                divisions: 30,
-                value: settings.arabicFontSize.clamp(20.0, 50.0),
+                max: 72,
+                divisions: 52,
+                value: settings.arabicFontSize.clamp(20.0, 72.0),
                 onChanged: (v) =>
                     notifier.updateWith((s) => s.copyWith(arabicFontSize: v)),
               ),
@@ -213,7 +213,7 @@ class QuickReaderControls extends ConsumerWidget {
                 notifier.updateWith(
                   (s) => s.copyWith(
                     arabicFontSize:
-                        (s.arabicFontSize + 1.0).clamp(20.0, 50.0),
+                        (s.arabicFontSize + 2.0).clamp(20.0, 72.0),
                   ),
                 );
               },
@@ -255,7 +255,7 @@ class QuickReaderControls extends ConsumerWidget {
                 notifier.updateWith(
                   (s) => s.copyWith(
                     translationFontSize:
-                        (s.translationFontSize - 1.0).clamp(13.0, 24.0),
+                        (s.translationFontSize - 1.0).clamp(13.0, 34.0),
                   ),
                 );
               },
@@ -263,9 +263,9 @@ class QuickReaderControls extends ConsumerWidget {
             Expanded(
               child: Slider(
                 min: 13,
-                max: 24,
-                divisions: 11,
-                value: settings.translationFontSize.clamp(13.0, 24.0),
+                max: 34,
+                divisions: 21,
+                value: settings.translationFontSize.clamp(13.0, 34.0),
                 onChanged: (v) => notifier.updateWith(
                   (s) => s.copyWith(translationFontSize: v),
                 ),
@@ -278,7 +278,7 @@ class QuickReaderControls extends ConsumerWidget {
                 notifier.updateWith(
                   (s) => s.copyWith(
                     translationFontSize:
-                        (s.translationFontSize + 1.0).clamp(13.0, 24.0),
+                        (s.translationFontSize + 1.0).clamp(13.0, 34.0),
                   ),
                 );
               },

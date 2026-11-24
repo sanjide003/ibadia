@@ -11,6 +11,7 @@ import '../data/asmaul_husna_data.dart';
 import '../models/recent_activity_model.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
+import '../widgets/tv_mode_widgets.dart';
 
 String _stripArabicTashkeel(String input) {
   return input.replaceAll(RegExp(r'[\u064B-\u065F\u0670\u06D6-\u06ED]'), '');
@@ -22,6 +23,8 @@ void showAsmaulHusnaDetailSheet(
   required AppStrings strings,
   required String appLanguage,
   ValueChanged<AsmaulHusnaItem>? onNavigateName,
+  double textScale = 1.0,
+  double? arabicFontSize,
 }) {
   final total = AsmaulHusnaCatalog.names.length;
   if (total == 0) return;
@@ -132,7 +135,9 @@ void showAsmaulHusnaDetailSheet(
                       textDirection: TextDirection.rtl,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.amiri(
-                        fontSize: 46,
+                        fontSize: arabicFontSize != null
+                            ? math.max(46.0 * textScale, arabicFontSize)
+                            : 46.0 * textScale,
                         fontWeight: FontWeight.w700,
                         height: 1.35,
                         color: accent,
@@ -147,6 +152,7 @@ void showAsmaulHusnaDetailSheet(
                     value: item.malayalamMeaning,
                     cs: cs,
                     highlight: true,
+                    textScale: textScale,
                   ),
                   const SizedBox(height: 10),
 
@@ -155,6 +161,7 @@ void showAsmaulHusnaDetailSheet(
                     label: strings.meaningEnglishLabel,
                     value: item.englishMeaning,
                     cs: cs,
+                    textScale: textScale,
                   ),
                   const SizedBox(height: 10),
 
@@ -174,7 +181,7 @@ void showAsmaulHusnaDetailSheet(
                         Text(
                           strings.reflectionLabel,
                           style: TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 11.5 * textScale,
                             fontWeight: FontWeight.w700,
                             color: cs.primary,
                           ),
@@ -182,8 +189,8 @@ void showAsmaulHusnaDetailSheet(
                         const SizedBox(height: 4),
                         Text(
                           item.reflectionMl,
-                          style: const TextStyle(
-                            fontSize: 13.5,
+                          style: TextStyle(
+                            fontSize: 13.5 * textScale,
                             height: 1.5,
                             fontWeight: FontWeight.w500,
                           ),
@@ -193,7 +200,7 @@ void showAsmaulHusnaDetailSheet(
                           Text(
                             item.reflectionEn,
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontSize: 12.5 * textScale,
                               height: 1.45,
                               color: cs.onSurfaceVariant,
                             ),
@@ -267,12 +274,14 @@ class _MeaningDetailBlock extends StatelessWidget {
   final String value;
   final ColorScheme cs;
   final bool highlight;
+  final double textScale;
 
   const _MeaningDetailBlock({
     required this.label,
     required this.value,
     required this.cs,
     this.highlight = false,
+    this.textScale = 1.0,
   });
 
   @override
@@ -296,7 +305,7 @@ class _MeaningDetailBlock extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11.5,
+              fontSize: 11.5 * textScale,
               fontWeight: FontWeight.w700,
               color: highlight ? cs.primary : cs.onSurfaceVariant,
             ),
@@ -305,7 +314,7 @@ class _MeaningDetailBlock extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 15 * textScale,
               fontWeight: FontWeight.w700,
               color: cs.onSurface,
               height: 1.35,
@@ -380,7 +389,16 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = _palette(context, settings);
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 1040) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: settings.tvModeEnabled,
+      normalMaxWidth: 1040,
+    );
+    final double uiScale =
+        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.5) : 1.0;
+    final double arabicCardSize = settings.tvModeEnabled
+        ? math.max(25.0 * settings.tvFontScale, settings.arabicFontSize)
+        : 25.0;
     final String viewMode = settings.names99ViewMode;
 
     final trimmed = _query.trim().toLowerCase();
@@ -566,6 +584,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                   strings: t,
                                   appLanguage: settings.appLanguage,
                                   onNavigateName: _recordNameActivity,
+                                  textScale: uiScale,
+                                  arabicFontSize: arabicCardSize,
                                 );
                               },
                               child: Container(
@@ -610,7 +630,7 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                             textAlign: TextAlign.center,
                                             maxLines: 1,
                                             style: GoogleFonts.amiri(
-                                              fontSize: 25,
+                                              fontSize: arabicCardSize,
                                               fontWeight: FontWeight.w700,
                                               height: 1.25,
                                               color: accent,
@@ -645,6 +665,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                   isDark: isDark,
                                   cardBg: palette.cardBg,
                                   cardBorder: palette.cardBorder,
+                                  uiScale: uiScale,
+                                  arabicFontSize: arabicCardSize,
                                   onTap: () {
                                     _recordNameActivity(item);
                                     showAsmaulHusnaDetailSheet(
@@ -653,6 +675,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                       strings: t,
                                       appLanguage: settings.appLanguage,
                                       onNavigateName: _recordNameActivity,
+                                      textScale: uiScale,
+                                      arabicFontSize: arabicCardSize,
                                     );
                                   },
                                 ),
@@ -668,7 +692,7 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                             crossAxisCount: cols,
                             mainAxisSpacing: 10,
                             crossAxisSpacing: 10,
-                            mainAxisExtent: 120,
+                            mainAxisExtent: 120 * uiScale.clamp(1.0, 1.4),
                           ),
                           itemCount: filtered.length,
                           itemBuilder: (_, idx) {
@@ -679,6 +703,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                               isDark: isDark,
                               cardBg: palette.cardBg,
                               cardBorder: palette.cardBorder,
+                              uiScale: uiScale,
+                              arabicFontSize: arabicCardSize,
                               onTap: () {
                                 _recordNameActivity(item);
                                 showAsmaulHusnaDetailSheet(
@@ -687,6 +713,8 @@ class _AsmaulHusnaViewState extends ConsumerState<AsmaulHusnaView> {
                                   strings: t,
                                   appLanguage: settings.appLanguage,
                                   onNavigateName: _recordNameActivity,
+                                  textScale: uiScale,
+                                  arabicFontSize: arabicCardSize,
                                 );
                               },
                             );
@@ -706,6 +734,8 @@ class _AsmaulHusnaCard extends StatelessWidget {
   final bool isDark;
   final Color cardBg;
   final Color cardBorder;
+  final double uiScale;
+  final double arabicFontSize;
   final VoidCallback onTap;
 
   const _AsmaulHusnaCard({
@@ -714,6 +744,8 @@ class _AsmaulHusnaCard extends StatelessWidget {
     required this.isDark,
     required this.cardBg,
     required this.cardBorder,
+    this.uiScale = 1.0,
+    this.arabicFontSize = 25.0,
     required this.onTap,
   });
 
@@ -746,7 +778,7 @@ class _AsmaulHusnaCard extends StatelessWidget {
                 child: Text(
                   item.number.toString().padLeft(2, '0'),
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 13.5 * uiScale.clamp(1.0, 1.3),
                     fontWeight: FontWeight.w800,
                     color: cs.primary,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -765,8 +797,8 @@ class _AsmaulHusnaCard extends StatelessWidget {
                       item.transliteration,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
+                      style: TextStyle(
+                        fontSize: 15 * uiScale.clamp(1.0, 1.35),
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -776,7 +808,7 @@ class _AsmaulHusnaCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 13 * uiScale.clamp(1.0, 1.35),
                         fontWeight: FontWeight.w700,
                         color: accent,
                       ),
@@ -787,7 +819,7 @@ class _AsmaulHusnaCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 12 * uiScale.clamp(1.0, 1.35),
                         color: cs.onSurfaceVariant,
                       ),
                     ),
@@ -801,7 +833,7 @@ class _AsmaulHusnaCard extends StatelessWidget {
                 item.arabic,
                 textDirection: TextDirection.rtl,
                 style: GoogleFonts.amiri(
-                  fontSize: 25,
+                  fontSize: arabicFontSize,
                   fontWeight: FontWeight.w700,
                   height: 1.2,
                   color: accent,

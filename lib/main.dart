@@ -7,6 +7,7 @@ import 'core/config/app_branding.dart';
 import 'providers/quran_providers.dart';
 import 'screens/home_screen.dart';
 import 'services/hive_db.dart';
+import 'widgets/tv_mode_widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -83,9 +84,23 @@ class IbadiaApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (themeModeKey, appLang) = ref.watch(
-      settingsProvider.select((s) => (s.themeMode, s.appLanguage)),
+    final (themeModeKey, appLang, tvModeEnabled) = ref.watch(
+      settingsProvider.select((s) => (s.themeMode, s.appLanguage, s.tvModeEnabled)),
     );
+    ref.listen<bool>(
+      settingsProvider.select((s) => s.tvModeEnabled),
+      (prev, next) {
+        if (prev != next) {
+          applyTvModePlatformState(next);
+        }
+      },
+    );
+    if (tvModeEnabled) {
+      // Ensure persisted TV mode applies on initial startup too
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        applyTvModePlatformState(true);
+      });
+    }
 
     final ThemeData activeLightTheme =
         themeModeKey == 'sepia' ? _buildSepiaTheme() : _buildLightTheme();

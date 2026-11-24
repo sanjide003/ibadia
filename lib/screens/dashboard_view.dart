@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +16,7 @@ import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
 import '../widgets/tajweed_widgets.dart';
+import '../widgets/tv_mode_widgets.dart';
 import '../widgets/web_pwa_widgets.dart';
 import 'asmaul_husna_view.dart';
 import 'features_views.dart';
@@ -545,7 +545,11 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = _palette(context, settings);
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 1040) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: settings.tvModeEnabled,
+      normalMaxWidth: 1040,
+    );
 
     // Core 6 tools rendered right beneath the floating prayer hero card
     final topTools = <_DashboardQuickAction>[
@@ -1343,7 +1347,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
 
         // Floating Search Button (Screenshot-inspired pinned bottom-end action)
         PositionedDirectional(
-          end: math.max(16.0, (MediaQuery.sizeOf(context).width - 1040) / 2),
+          end: hPad,
           bottom: 16,
           child: FloatingActionButton(
             heroTag: 'dashboard_search_fab',

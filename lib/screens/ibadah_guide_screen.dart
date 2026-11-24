@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,9 +7,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
 import '../providers/quran_providers.dart';
+import '../services/export_service.dart';
 import '../services/ibadah_audio_controller.dart';
 import '../services/ibadah_data_service.dart';
+import '../services/ibadah_export_service.dart';
 import '../widgets/ibadah_audio_card.dart';
+import '../widgets/tv_mode_widgets.dart';
 
 enum IbadahSection {
   niyyah,
@@ -54,6 +56,53 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
 
   // Mayyith filter
   String _mayyithSection = 'all'; // 'all' | 'prep' | 'niyyah' | 'takbirs' | 'burial'
+  bool _exportingPdf = false;
+
+  Future<void> _exportSectionPdf({
+    required List<IbadahExportItem> items,
+    required String documentTitle,
+    required bool showTransliteration,
+    required bool showMeaning,
+    required bool showNotes,
+    required AppStrings strings,
+  }) async {
+    if (_exportingPdf || items.isEmpty) return;
+    setState(() => _exportingPdf = true);
+    try {
+      final pdfBytes = await IbadahExportService.buildMultiCardPdf(
+        items,
+        documentTitle: documentTitle,
+        includeTransliteration: showTransliteration,
+        includeMeaning: showMeaning,
+        includeNotes: showNotes,
+      );
+      final saved = await ExportService.savePdfBytes(
+        bytes: pdfBytes,
+        baseName: IbadahExportService.slugifyTitle(documentTitle),
+      );
+      if (!mounted) return;
+      if (saved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(strings.exportSuccess),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(strings.exportError),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _exportingPdf = false);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -200,7 +249,13 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final palette = _palette(context, settings.themeMode);
     final accentColor = isDark ? AppBranding.accentGold : cs.primary;
-    final hPad = math.max(16.0, (MediaQuery.sizeOf(context).width - 960) / 2);
+    final hPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: settings.tvModeEnabled,
+      normalMaxWidth: 960,
+    );
+    final double uiScale =
+        settings.tvModeEnabled ? settings.tvFontScale.clamp(1.0, 1.65) : 1.0;
 
     // Stop playback automatically if audio bar visibility is toggled off in Settings.
     ref.listen<bool>(
@@ -243,6 +298,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           showAudio: settings.ibadahShowAudio,
           palette: palette,
           hPad: hPad,
+          uiScale: uiScale,
           accentColor: accentColor,
           cs: cs,
         );
@@ -259,6 +315,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           showAudio: settings.ibadahShowAudio,
           palette: palette,
           hPad: hPad,
+          uiScale: uiScale,
           accentColor: accentColor,
           cs: cs,
         );
@@ -275,6 +332,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           showAudio: settings.ibadahShowAudio,
           palette: palette,
           hPad: hPad,
+          uiScale: uiScale,
           accentColor: accentColor,
           cs: cs,
         );
@@ -291,6 +349,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           showAudio: settings.ibadahShowAudio,
           palette: palette,
           hPad: hPad,
+          uiScale: uiScale,
           accentColor: accentColor,
           cs: cs,
         );
@@ -367,6 +426,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required bool showAudio,
     required ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
     required double hPad,
+    required double uiScale,
     required Color accentColor,
     required ColorScheme cs,
   }) {
@@ -381,6 +441,39 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
       data: (bundle) {
         final showFard = _niyyahScope == 'all' || _niyyahScope == 'fard';
         final showSunnah = _niyyahScope == 'all' || _niyyahScope == 'sunnah';
+
+        final exportItems = <IbadahExportItem>[
+          if (showFard)
+            for (int i = 0; i < bundle.fardPrayers.length; i++)
+              () {
+                final p = bundle.fardPrayers[i];
+                final v = p.variantForRole(_selectedRole);
+                return IbadahExportItem(
+                  orderBadge: '${i + 1}',
+                  title: p.titleFor(headingLang),
+                  subtitle: v.labelFor(headingLang),
+                  badgeText: headingLang == 'ml'
+                      ? '${p.rakaat} റക്അത്ത്'
+                      : '${p.rakaat} Raka\'at',
+                  arabicText: v.arabic,
+                  transliterationMl: v.transliterationMl,
+                  meaningText: v.meaningFor(lang),
+                  footerSource: t.niyyahTabLabel,
+                );
+              }(),
+          if (showSunnah)
+            for (int i = 0; i < bundle.sunnahPrayers.length; i++)
+              IbadahExportItem(
+                orderBadge: '${bundle.fardPrayers.length + i + 1}',
+                title: bundle.sunnahPrayers[i].titleFor(headingLang),
+                badgeText: hStrings.sunnahBadgeLabel,
+                arabicText: bundle.sunnahPrayers[i].arabic,
+                transliterationMl: bundle.sunnahPrayers[i].transliterationMl,
+                meaningText: bundle.sunnahPrayers[i].meaningFor(lang),
+                noteText: bundle.sunnahPrayers[i].noteFor(lang),
+                footerSource: t.niyyahTabLabel,
+              ),
+        ];
 
         final summaryRows = <_SummaryRowEntry>[
           _SummaryRowEntry(
@@ -456,6 +549,17 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 cardBg: palette.cardBg,
                 cardBorder: palette.cardBorder,
                 accentColor: accentColor,
+                textScale: uiScale,
+                exportPdfLabel: t.exportGuidePdfBtn,
+                isExporting: _exportingPdf,
+                onExportPdf: () => _exportSectionPdf(
+                  items: exportItems,
+                  documentTitle: 'Ibadia ${t.niyyahTabLabel}',
+                  showTransliteration: showTransliteration,
+                  showMeaning: showMeaning,
+                  showNotes: showNotes,
+                  strings: t,
+                ),
               ),
               const SizedBox(height: 12),
               _OrderedChainBar(
@@ -464,6 +568,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 cardBg: palette.cardBg,
                 cardBorder: palette.cardBorder,
                 accentColor: accentColor,
+                textScale: uiScale,
               ),
               const SizedBox(height: 14),
 
@@ -512,6 +617,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     icon: Icons.mosque_rounded,
                     title: hStrings.fardPrayersSection,
                     accentColor: accentColor,
+                    textScale: uiScale,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -590,6 +696,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     icon: Icons.auto_awesome_rounded,
                     title: hStrings.sunnahPrayersSection,
                     accentColor: AppBranding.accentGold,
+                    textScale: uiScale,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -644,6 +751,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required bool showAudio,
     required ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
     required double hPad,
+    required double uiScale,
     required Color accentColor,
     required ColorScheme cs,
   }) {
@@ -663,6 +771,44 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
         final stepsToShow = _fardStepsOnly
             ? bundle.steps.where((s) => s.isFard).toList()
             : bundle.steps;
+
+        final exportItems = <IbadahExportItem>[
+          if (bundle.conditions.isNotEmpty)
+            IbadahExportItem(
+              title: hStrings.shartChecklistTitle,
+              badgeText: '$totalSharts',
+              meaningText: bundle.conditions
+                  .asMap()
+                  .entries
+                  .map((e) =>
+                      '${e.key + 1}. ${e.value.titleFor(headingLang)} — ${e.value.descFor(headingLang)}')
+                  .join('\n'),
+              footerSource: t.salahGuideTabLabel,
+            ),
+          if (bundle.arkan.isNotEmpty)
+            IbadahExportItem(
+              title: hStrings.arkanSectionTitle,
+              badgeText: '${bundle.arkan.length}',
+              meaningText: bundle.arkan
+                  .map((r) => '${r.order}. ${r.titleFor(headingLang)}')
+                  .join('\n'),
+              footerSource: t.salahGuideTabLabel,
+            ),
+          for (final step in stepsToShow)
+            IbadahExportItem(
+              orderBadge: '${step.order}',
+              title: step.titleFor(headingLang),
+              subtitle: step.postureFor(headingLang),
+              badgeText: step.isFard
+                  ? hStrings.fardBadgeLabel
+                  : hStrings.sunnahBadgeLabel,
+              arabicText: step.arabic,
+              transliterationMl: step.transliterationMl,
+              meaningText: step.meaningFor(lang),
+              noteText: step.noteFor(lang),
+              footerSource: t.salahGuideTabLabel,
+            ),
+        ];
 
         final summaryRows = <_SummaryRowEntry>[
           _SummaryRowEntry(
@@ -727,6 +873,17 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 cardBg: palette.cardBg,
                 cardBorder: palette.cardBorder,
                 accentColor: accentColor,
+                textScale: uiScale,
+                exportPdfLabel: t.exportGuidePdfBtn,
+                isExporting: _exportingPdf,
+                onExportPdf: () => _exportSectionPdf(
+                  items: exportItems,
+                  documentTitle: 'Ibadia ${t.salahGuideTabLabel}',
+                  showTransliteration: showTransliteration,
+                  showMeaning: showMeaning,
+                  showNotes: showNotes,
+                  strings: t,
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -737,6 +894,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 cardBg: palette.cardBg,
                 cardBorder: palette.cardBorder,
                 accentColor: accentColor,
+                textScale: uiScale,
               ),
               const SizedBox(height: 14),
 
@@ -834,7 +992,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                                 title: Text(
                                   cond.titleFor(headingLang),
                                   style: TextStyle(
-                                    fontSize: 13.5,
+                                    fontSize: 13.5 * uiScale,
                                     fontWeight: FontWeight.w700,
                                     decoration: isChecked
                                         ? TextDecoration.lineThrough
@@ -847,7 +1005,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                                 subtitle: Text(
                                   cond.descFor(headingLang),
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 12 * uiScale,
                                     color: cs.onSurfaceVariant,
                                   ),
                                 ),
@@ -956,8 +1114,8 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                                               const EdgeInsets.only(top: 2),
                                           child: Text(
                                             rukn.titleFor(headingLang),
-                                            style: const TextStyle(
-                                              fontSize: 13.2,
+                                            style: TextStyle(
+                                              fontSize: 13.2 * uiScale,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -984,6 +1142,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                   icon: Icons.format_list_numbered_rounded,
                   title: hStrings.stepByStepSalahTitle,
                   accentColor: accentColor,
+                  textScale: uiScale,
                 ),
               ),
               const SizedBox(height: 10),
@@ -1061,6 +1220,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required bool showAudio,
     required ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
     required double hPad,
+    required double uiScale,
     required Color accentColor,
     required ColorScheme cs,
   }) {
@@ -1081,6 +1241,50 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           0,
           (sum, g) => sum + g.totalRakaat,
         );
+
+        final exportItems = <IbadahExportItem>[
+          if (showRawatib)
+            for (final g in bundle.rawatib) ...[
+              for (final item in g.before)
+                IbadahExportItem(
+                  title: '${g.prayerFor(headingLang)} — ${item.timingFor(headingLang)}',
+                  subtitle: hStrings.beforePrayerLabel,
+                  badgeText: item.isMuakkadah
+                      ? hStrings.muakkadahBadgeLabel
+                      : hStrings.ghairMuakkadahBadgeLabel,
+                  arabicText: item.arabic,
+                  transliterationMl: item.transliterationMl,
+                  meaningText: item.meaningMl,
+                  noteText: item.noteFor(lang),
+                  footerSource: t.rawatibTabLabel,
+                ),
+              for (final item in g.after)
+                IbadahExportItem(
+                  title: '${g.prayerFor(headingLang)} — ${item.timingFor(headingLang)}',
+                  subtitle: hStrings.afterPrayerLabel,
+                  badgeText: item.isMuakkadah
+                      ? hStrings.muakkadahBadgeLabel
+                      : hStrings.ghairMuakkadahBadgeLabel,
+                  arabicText: item.arabic,
+                  transliterationMl: item.transliterationMl,
+                  meaningText: item.meaningMl,
+                  noteText: item.noteFor(lang),
+                  footerSource: t.rawatibTabLabel,
+                ),
+            ],
+          if (showSurahs)
+            for (final g in bundle.recommendedSurahs)
+              IbadahExportItem(
+                title: g.occasionFor(headingLang),
+                badgeText: hStrings.recommendedSurahsTitle,
+                meaningText: g.surahs
+                    .map((s) =>
+                        '${s.surahNumber}. ${s.nameFor(headingLang)} (${s.nameAr}) · ${s.tagFor(headingLang)}')
+                    .join('\n'),
+                noteText: g.reasonFor(lang),
+                footerSource: t.rawatibTabLabel,
+              ),
+        ];
 
         final summaryRows = <_SummaryRowEntry>[
           _SummaryRowEntry(
@@ -1155,6 +1359,17 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 cardBg: palette.cardBg,
                 cardBorder: palette.cardBorder,
                 accentColor: accentColor,
+                textScale: uiScale,
+                exportPdfLabel: t.exportGuidePdfBtn,
+                isExporting: _exportingPdf,
+                onExportPdf: () => _exportSectionPdf(
+                  items: exportItems,
+                  documentTitle: 'Ibadia ${t.rawatibTabLabel}',
+                  showTransliteration: showTransliteration,
+                  showMeaning: showMeaning,
+                  showNotes: showNotes,
+                  strings: t,
+                ),
               ),
               const SizedBox(height: 12),
               _OrderedChainBar(
@@ -1163,6 +1378,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 cardBg: palette.cardBg,
                 cardBorder: palette.cardBorder,
                 accentColor: accentColor,
+                textScale: uiScale,
               ),
               const SizedBox(height: 14),
 
@@ -1208,6 +1424,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     icon: Icons.schedule_rounded,
                     title: hStrings.rawatibScheduleTitle,
                     accentColor: accentColor,
+                    textScale: uiScale,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1348,6 +1565,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     icon: Icons.menu_book_rounded,
                     title: hStrings.recommendedSurahsTitle,
                     accentColor: AppBranding.accentGold,
+                    textScale: uiScale,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1493,6 +1711,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
     required bool showAudio,
     required ({Color cardBg, Color cardBorder, Color tabBarBg}) palette,
     required double hPad,
+    required double uiScale,
     required Color accentColor,
     required ColorScheme cs,
   }) {
@@ -1512,6 +1731,60 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
             _mayyithSection == 'all' || _mayyithSection == 'takbirs';
         final showBurial =
             _mayyithSection == 'all' || _mayyithSection == 'burial';
+
+        final exportItems = <IbadahExportItem>[
+          if (showPrep)
+            for (int i = 0; i < bundle.preparationStages.length; i++)
+              IbadahExportItem(
+                orderBadge: '${i + 1}',
+                title: bundle.preparationStages[i].titleFor(headingLang),
+                badgeText: headingLang == 'ml' ? 'ശാഫിഈ' : 'Shafi\'i',
+                arabicText: bundle.preparationStages[i].arabic,
+                transliterationMl: bundle.preparationStages[i].transliterationMl,
+                meaningText: bundle.preparationStages[i].meaningMl,
+                noteText: bundle.preparationStages[i]
+                    .pointsFor(headingLang)
+                    .map((p) => '• $p')
+                    .join('\n'),
+                footerSource: t.mayyithTabLabel,
+              ),
+          if (showNiyyah)
+            for (int i = 0; i < bundle.niyyah.length; i++)
+              IbadahExportItem(
+                orderBadge: '${i + 1}',
+                title: bundle.niyyah[i].titleFor(headingLang),
+                badgeText: hStrings.fardBadgeLabel,
+                arabicText: bundle.niyyah[i].arabic,
+                transliterationMl: bundle.niyyah[i].transliterationMl,
+                meaningText: bundle.niyyah[i].meaningFor(lang),
+                footerSource: t.mayyithTabLabel,
+              ),
+          if (showTakbirs)
+            for (final step in bundle.takbirs)
+              IbadahExportItem(
+                orderBadge: '${step.takbirNumber}',
+                title: step.titleFor(headingLang),
+                badgeText: headingLang == 'ml'
+                    ? 'തക്ബീർ ${step.takbirNumber}'
+                    : 'Takbir ${step.takbirNumber}',
+                arabicText: step.arabic,
+                transliterationMl: step.transliterationMl,
+                meaningText: step.meaningFor(lang),
+                noteText: step.noteFor(lang),
+                footerSource: t.mayyithTabLabel,
+              ),
+          if (showBurial)
+            for (int i = 0; i < bundle.burialAndTalqeen.length; i++)
+              IbadahExportItem(
+                orderBadge: '${i + 1}',
+                title: bundle.burialAndTalqeen[i].titleFor(headingLang),
+                arabicText: bundle.burialAndTalqeen[i].arabic,
+                transliterationMl: bundle.burialAndTalqeen[i].transliterationMl,
+                meaningText: bundle.burialAndTalqeen[i].meaningMl,
+                noteText: bundle.burialAndTalqeen[i].noteFor(lang),
+                footerSource: t.mayyithTabLabel,
+              ),
+        ];
 
         final summaryRows = <_SummaryRowEntry>[
           _SummaryRowEntry(
@@ -1654,6 +1927,17 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 cardBg: palette.cardBg,
                 cardBorder: palette.cardBorder,
                 accentColor: accentColor,
+                textScale: uiScale,
+                exportPdfLabel: t.exportGuidePdfBtn,
+                isExporting: _exportingPdf,
+                onExportPdf: () => _exportSectionPdf(
+                  items: exportItems,
+                  documentTitle: 'Ibadia ${t.mayyithTabLabel}',
+                  showTransliteration: showTransliteration,
+                  showMeaning: showMeaning,
+                  showNotes: showNotes,
+                  strings: t,
+                ),
               ),
               const SizedBox(height: 12),
               _OrderedChainBar(
@@ -1662,6 +1946,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                 cardBg: palette.cardBg,
                 cardBorder: palette.cardBorder,
                 accentColor: accentColor,
+                textScale: uiScale,
               ),
               const SizedBox(height: 14),
 
@@ -1725,6 +2010,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     icon: Icons.medical_services_outlined,
                     title: hStrings.mayyithPrepTitle,
                     accentColor: accentColor,
+                    textScale: uiScale,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1804,6 +2090,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     icon: Icons.record_voice_over_rounded,
                     title: hStrings.mayyithNiyyahTitle,
                     accentColor: accentColor,
+                    textScale: uiScale,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1845,6 +2132,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     icon: Icons.looks_4_rounded,
                     title: hStrings.mayyithTakbirsTitle,
                     accentColor: AppBranding.accentGold,
+                    textScale: uiScale,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1889,6 +2177,7 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
                     icon: Icons.volunteer_activism_rounded,
                     title: hStrings.mayyithBurialTitle,
                     accentColor: accentColor,
+                    textScale: uiScale,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1950,6 +2239,10 @@ class _IbadahSummaryTable extends StatelessWidget {
   final Color cardBg;
   final Color cardBorder;
   final Color accentColor;
+  final double textScale;
+  final VoidCallback? onExportPdf;
+  final String? exportPdfLabel;
+  final bool isExporting;
 
   const _IbadahSummaryTable({
     required this.title,
@@ -1957,6 +2250,10 @@ class _IbadahSummaryTable extends StatelessWidget {
     required this.cardBg,
     required this.cardBorder,
     required this.accentColor,
+    this.textScale = 1.0,
+    this.onExportPdf,
+    this.exportPdfLabel,
+    this.isExporting = false,
   });
 
   @override
@@ -1973,25 +2270,56 @@ class _IbadahSummaryTable extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.09),
               border: Border(bottom: BorderSide(color: cardBorder)),
             ),
             child: Row(
               children: [
-                Icon(Icons.table_chart_rounded, size: 16, color: accentColor),
+                Icon(Icons.table_chart_rounded, size: 16 * textScale, color: accentColor),
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(
                     title,
                     style: TextStyle(
-                      fontSize: 12.2,
+                      fontSize: 12.2 * textScale,
                       fontWeight: FontWeight.w800,
                       color: accentColor,
                     ),
                   ),
                 ),
+                if (onExportPdf != null && exportPdfLabel != null)
+                  FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: isExporting ? null : onExportPdf,
+                    icon: isExporting
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: accentColor,
+                            ),
+                          )
+                        : const Icon(Icons.picture_as_pdf_rounded, size: 15),
+                    label: Text(
+                      exportPdfLabel!,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -2006,13 +2334,13 @@ class _IbadahSummaryTable extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(rows[i].icon, size: 17, color: rows[i].accent),
+                    Icon(rows[i].icon, size: 17 * textScale, color: rows[i].accent),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Text(
                         rows[i].label,
                         style: TextStyle(
-                          fontSize: 12.8,
+                          fontSize: 12.8 * textScale,
                           fontWeight: FontWeight.w700,
                           color: cs.onSurface,
                         ),
@@ -2030,7 +2358,7 @@ class _IbadahSummaryTable extends StatelessWidget {
                       child: Text(
                         rows[i].countText,
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 11.5 * textScale,
                           fontWeight: FontWeight.w800,
                           color: rows[i].accent,
                           fontFeatures: const [FontFeature.tabularFigures()],
@@ -2076,6 +2404,7 @@ class _OrderedChainBar extends StatelessWidget {
   final Color cardBg;
   final Color cardBorder;
   final Color accentColor;
+  final double textScale;
 
   const _OrderedChainBar({
     required this.title,
@@ -2083,6 +2412,7 @@ class _OrderedChainBar extends StatelessWidget {
     required this.cardBg,
     required this.cardBorder,
     required this.accentColor,
+    this.textScale = 1.0,
   });
 
   @override
@@ -2102,13 +2432,13 @@ class _OrderedChainBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.linear_scale_rounded, size: 16, color: accentColor),
+              Icon(Icons.linear_scale_rounded, size: 16 * textScale, color: accentColor),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 12 * textScale,
                     fontWeight: FontWeight.w800,
                     color: cs.onSurfaceVariant,
                   ),
@@ -2187,7 +2517,7 @@ class _OrderedChainBar extends StatelessWidget {
                                 Text(
                                   node.label,
                                   style: TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 11.5 * textScale,
                                     fontWeight: FontWeight.w700,
                                     color: node.isActive
                                         ? Colors.white
@@ -2215,24 +2545,26 @@ class _SectionTitleRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final Color accentColor;
+  final double textScale;
 
   const _SectionTitleRow({
     required this.icon,
     required this.title,
     required this.accentColor,
+    this.textScale = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 19, color: accentColor),
+        Icon(icon, size: 19 * textScale, color: accentColor),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              fontSize: 16,
+            style: TextStyle(
+              fontSize: 16 * textScale,
               fontWeight: FontWeight.w800,
             ),
           ),

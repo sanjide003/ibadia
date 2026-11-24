@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +9,7 @@ import '../models/surah_model.dart';
 import '../providers/quran_providers.dart';
 import '../services/export_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/tv_mode_widgets.dart';
 
 class ExportScreen extends ConsumerStatefulWidget {
   final bool showHeader;
@@ -335,8 +334,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           orElse: () => surahs.first,
         );
 
-        final hPad =
-            math.max(16.0, (MediaQuery.sizeOf(context).width - 860) / 2);
+        final hPad = responsivePageHorizontalPadding(
+          context,
+          tvModeEnabled: settings.tvModeEnabled,
+          normalMaxWidth: 860,
+        );
 
         return ListView(
           padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
@@ -673,6 +675,25 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                         },
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.hd_rounded,
+                          size: 16,
+                          color: cs.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          t.ultraHdQualityBadge,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: cs.primary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -773,6 +794,7 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
           page: page,
           includeTranslation: widget.includeTranslation,
           translationCodes: widget.translationCodes,
+          targetPixelRatio: widget.format == ExportFormat.pdf ? 5.5 : 5.0,
         );
         capturedPngs.add(rendered.bytes);
         logicalSizes.add(rendered.logicalSize);
@@ -874,7 +896,7 @@ class _ExportPreviewScreenState extends State<ExportPreviewScreen> {
                     ),
                   ),
                   Text(
-                    '${widget.pages.length} ${t.pagesLabel} • $formatLabel',
+                    '${widget.pages.length} ${t.pagesLabel} • $formatLabel • ${t.ultraHdQualityBadge}',
                     style: TextStyle(
                       fontSize: 12,
                       color: cs.onSurfaceVariant,

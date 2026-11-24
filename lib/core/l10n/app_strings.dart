@@ -640,4 +640,78 @@ class AppStrings {
         'ടിപ്പ്: ഉച്ചാരണം, അർത്ഥം, കുറിപ്പുകൾ, ഓഡിയോ എന്നിവയ്ക്ക് മുകളിലെ ⚙ അമർത്തുക.',
         'ملاحظة: اضغط ⚙ في الأعلى لإظهار النطق أو المعنى أو الصوت.',
       );
+
+  // TV / Classroom Mode (Teachers & Screen Share)
+  String get tvModeTitle => _p(
+        'TV / Classroom Mode',
+        'ടിവി / ക്ലാസ്സ്റൂം മോഡ്',
+        'وضع التلفاز والفصل الدراسي',
+      );
+  String get tvModeShort => _p('TV Mode', 'ടിവി മോഡ്', 'وضع التلفاز');
+  String get tvModeDesc => _p(
+        'Auto-switch to 16:9 landscape with large text for classroom TV projection',
+        'ക്ലാസ്സിലെ ടിവിയിൽ വ്യക്തമായി കാണാൻ ഓട്ടോ ലാൻഡ്സ്കേപ്പും വലിയ ഫോണ്ടും സജീവമാക്കുക',
+        'التبديل التلقائي للوضع الأفقي 16:9 مع تكبير الخطوط للعرض على التلفاز',
+      );
+  String get tvModeEnabledNotice => _p(
+        'TV Mode ON — Landscape & large display active',
+        'ടിവി മോഡ് ഓൺ — ലാൻഡ്സ്കേപ്പും വലിയ അക്ഷരങ്ങളും സജീവമാണ്',
+        'تم تفعيل وضع التلفاز — الوضع الأفقي وتكبير الخط',
+      );
+  String get tvModeOffNotice => _p(
+        'TV Mode turned off',
+        'ടിവി മോഡ് ഓഫ് ആക്കി',
+        'تم إيقاف وضع التلفاز',
+      );
+  String get tvModeExitLabel => _p('Exit TV', 'ടിവി നിർത്തുക', 'إنهاء التلفاز');
+  String get tvTextScaleLabel => _p(
+        'TV / Card Text Scale',
+        'ടിവി / കാർഡ് ടെക്സ്റ്റ് വലിപ്പം',
+        'حجم خط التلفاز والبطاقات',
+      );
+  String get tvLandscapeBadge => _p('TV 16:9', 'TV 16:9', 'تلفاز 16:9');
+  String get tvArabicShort => _p('Arabic', 'അറബിക്', 'عربي');
+  String get tvTextShort => _p('Text', 'ടെക്സ്റ്റ്', 'النص');
+
+  // Ibadah Card & Ultra-HD Export
+  String get exportCardTitle => _p(
+        'Export Ibadah Card',
+        'ഇബാദത്ത് കാർഡ് എക്സ്പോർട്ട്',
+        'تصدير بطاقة العبادة',
+      );
+  String get exportCardSubtitle => _p(
+        'Ultra-HD 4K PNG image or print-grade PDF',
+        'Ultra-HD ഇമേജ് (PNG) അല്ലെങ്കിൽ ഹൈ-ക്വാളിറ്റി PDF',
+        'صورة PNG فائقة الدقة أو ملف PDF عالي الجودة',
+      );
+  String get saveUltraHdPng => _p(
+        'Save Ultra-HD Image (PNG)',
+        'Ultra-HD ഇമേജ് (PNG) ഡൗൺലോഡ്',
+        'حفظ صورة فائقة الدقة (PNG)',
+      );
+  String get shareUltraHdPng => _p(
+        'Share Ultra-HD Image (PNG)',
+        'Ultra-HD ഇമേജ് ഷെയർ ചെയ്യുക',
+        'مشاركة صورة فائقة الدقة',
+      );
+  String get saveHighQualityPdf => _p(
+        'Save High-Quality PDF',
+        'ഹൈ-ക്വാളിറ്റി PDF ഡൗൺലോഡ്',
+        'حفظ ملف PDF عالي الجودة',
+      );
+  String get shareHighQualityPdf => _p(
+        'Share High-Quality PDF',
+        'ഹൈ-ക്വാളിറ്റി PDF ഷെയർ ചെയ്യുക',
+        'مشاركة ملف PDF عالي الجودة',
+      );
+  String get exportGuidePdfBtn => _p(
+        'Export PDF',
+        'PDF ഡൗൺലോഡ്',
+        'تصدير PDF',
+      );
+  String get ultraHdQualityBadge => _p(
+        'Ultra-HD 360 DPI',
+        'Ultra-HD ഹൈ ക്വാളിറ്റി',
+        'جودة فائقة Ultra-HD',
+      );
 }

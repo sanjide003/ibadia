@@ -15,6 +15,7 @@ import '../services/storage_service.dart';
 import '../widgets/audio_player_bar.dart';
 import '../widgets/quick_reader_controls.dart';
 import '../widgets/tajweed_widgets.dart';
+import '../widgets/tv_mode_widgets.dart';
 import 'settings_screen.dart';
 
 class _MushafPageSegment {
@@ -1321,14 +1322,20 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
         ref.watch(settingsProvider.select((s) => s.selectedTranslations));
     final appLanguage =
         ref.watch(settingsProvider.select((s) => s.appLanguage));
+    final tvModeEnabled =
+        ref.watch(settingsProvider.select((s) => s.tvModeEnabled));
 
     final bookmarks = ref.watch(bookmarksProvider);
     final t = ref.watch(stringsProvider);
     final cs = Theme.of(context).colorScheme;
     final scaffoldBg = Theme.of(context).scaffoldBackgroundColor;
     final bodyTextColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final double readerHPad =
-        math.max(14.0, (MediaQuery.sizeOf(context).width - 820) / 2);
+    final double readerHPad = responsivePageHorizontalPadding(
+      context,
+      tvModeEnabled: tvModeEnabled,
+      normalMaxWidth: 820,
+      minPad: 14.0,
+    );
 
     if (readingMode != _cachedBlockMode && _forwardSurahs.isNotEmpty) {
       final bool modeChangedWhileOpen = _cachedBlockMode.isNotEmpty;
@@ -1435,6 +1442,7 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
               },
             ),
             actions: [
+              const TvModeActionButton(),
               IconButton(
                 tooltip: t.tajweedGuideTitle,
                 icon: const Icon(Icons.palette_outlined),
@@ -1453,6 +1461,12 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
           body: SafeArea(
             child: Column(
               children: [
+                Builder(
+                  builder: (bodyCtx) => QuickTvControlBar(
+                    onOpenSettings: () =>
+                        Scaffold.of(bodyCtx).openEndDrawer(),
+                  ),
+                ),
                 const ReaderAudioPlayerBar(),
                 if (!_isInitialLoading && _errorText == null)
                   Padding(
