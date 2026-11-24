@@ -597,26 +597,5 @@ class AdhkarCatalog {
       titleMl: 'അല്ലാഹു അക്ബർ',
       defaultTarget: 33,
     ),
-    TasbihPreset(
-      id: 'tasbih_istighfar',
-      arabic: 'أَسْتَغْفِرُ اللَّهَ',
-      titleEn: 'Astaghfirullah',
-      titleMl: 'അസ്തഗ്ഫിറുല്ലാഹ്',
-      defaultTarget: 100,
-    ),
-    TasbihPreset(
-      id: 'tasbih_salawat',
-      arabic: 'اللَّهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ',
-      titleEn: 'Salawat upon the Prophet',
-      titleMl: 'സ്വലാത്ത്',
-      defaultTarget: 100,
-    ),
-    TasbihPreset(
-      id: 'tasbih_tahlil',
-      arabic: 'لَا إِلَٰهَ إِلَّا اللَّهُ',
-      titleEn: 'La ilaha illallah',
-      titleMl: 'ലാ ഇലാഹ ഇല്ലല്ലാഹ്',
-      defaultTarget: 100,
-    ),
   ];
 }

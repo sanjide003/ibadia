@@ -785,53 +785,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         bottomNavigationBar: MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(
-              settings.tvFontScale.clamp(0.85, 1.25),
+              settings.tvFontScale.clamp(0.85, 1.1),
             ),
           ),
-          child: NavigationBar(
-            selectedIndex: _tabIndex.clamp(0, 2),
-            onDestinationSelected: (i) {
-            setState(() => _tabIndex = i);
-            _persistHomeState(forceHomeActive: true);
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _applyPendingHomeScrollOffsets();
-            });
-          },
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.home_outlined),
-              selectedIcon: const Icon(Icons.home_rounded),
-              label: t.homeTab,
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.auto_stories_outlined),
-              selectedIcon: const Icon(Icons.auto_stories_rounded),
-              label: t.quranTab,
-            ),
-            NavigationDestination(
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.settings_outlined),
-                  if (updateState.updateAvailable)
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppBranding.accentGold,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                ],
+          child: NavigationBarTheme(
+            data: NavigationBarThemeData(
+              height: 56,
+              iconTheme: WidgetStateProperty.all(
+                const IconThemeData(size: 21),
               ),
-              selectedIcon: const Icon(Icons.settings_rounded),
-              label: t.settingsTab,
+              labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                final selected = states.contains(WidgetState.selected);
+                return TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  height: 1.05,
+                );
+              }),
             ),
-          ],
+            child: NavigationBar(
+              height: 56,
+              selectedIndex: _tabIndex.clamp(0, 2),
+              onDestinationSelected: (i) {
+                setState(() => _tabIndex = i);
+                _persistHomeState(forceHomeActive: true);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _applyPendingHomeScrollOffsets();
+                });
+              },
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Icons.home_outlined),
+                  selectedIcon: const Icon(Icons.home_rounded),
+                  label: t.homeTab,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.auto_stories_outlined),
+                  selectedIcon: const Icon(Icons.auto_stories_rounded),
+                  label: t.quranTab,
+                ),
+                NavigationDestination(
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.settings_outlined),
+                      if (updateState.updateAvailable)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppBranding.accentGold,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  selectedIcon: const Icon(Icons.settings_rounded),
+                  label: t.settingsTab,
+                ),
+              ],
+            ),
           ),
         ),
       ),

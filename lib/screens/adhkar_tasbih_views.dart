@@ -658,74 +658,97 @@ class DigitalTasbihView extends ConsumerWidget {
     );
   }
 
+  static const String _addCustomMenuValue = '__add_custom_dhikr__';
+  static final RegExp _arabicScriptRe = RegExp(r'[\u0600-\u06FF]');
+
   Future<void> _showAddCustomDialog(
     BuildContext context,
     WidgetRef ref,
     AppStrings t,
   ) async {
-    final nameCtrl = TextEditingController();
-    final arabicCtrl = TextEditingController();
-    int chosenTarget = 33;
+    final dhikrCtrl = TextEditingController();
+    final countCtrl = TextEditingController(text: '33');
 
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (dialogCtx, setDialogState) => AlertDialog(
-          title: Text(t.addCustomDhikr),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: t.customDhikrName,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: arabicCtrl,
-                textDirection: TextDirection.rtl,
-                decoration: InputDecoration(
-                  labelText: t.customDhikrArabic,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
+        builder: (dialogCtx, setDialogState) {
+          final currentVal = int.tryParse(countCtrl.text.trim()) ?? 0;
+          return AlertDialog(
+            title: Text(t.addCustomDhikr),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final tgt in const [33, 99, 100, 0])
-                    ChoiceChip(
-                      label: Text(tgt == 0 ? t.unlimitedLabel : '$tgt'),
-                      selected: chosenTarget == tgt,
-                      onSelected: (_) => setDialogState(() => chosenTarget = tgt),
+                  TextField(
+                    controller: dhikrCtrl,
+                    autofocus: true,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: t.customDhikrName,
+                      border: const OutlineInputBorder(),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: countCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: t.customDhikrTargetLabel,
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final tgt in const [33, 99, 100, 0])
+                        ChoiceChip(
+                          label: Text(tgt == 0 ? t.unlimitedLabel : '$tgt'),
+                          selected: currentVal == tgt,
+                          onSelected: (_) {
+                            setDialogState(() {
+                              countCtrl.text = '$tgt';
+                            });
+                          },
+                        ),
+                    ],
+                  ),
                 ],
               ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(t.cancelLabel),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final text = dhikrCtrl.text.trim();
+                  if (text.isEmpty) return;
+                  final target = int.tryParse(countCtrl.text.trim()) ?? 33;
+                  ref.read(tasbihProvider.notifier).addCustomPreset(
+                        title: text,
+                        arabic: text,
+                        defaultTarget: target < 0 ? 0 : target,
+                      );
+                  Navigator.pop(ctx);
+                },
+                child: Text(t.applyLabel),
+              ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(t.cancelLabel),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (nameCtrl.text.trim().isEmpty) return;
-                ref.read(tasbihProvider.notifier).addCustomPreset(
-                      title: nameCtrl.text.trim(),
-                      arabic: arabicCtrl.text.trim(),
-                      defaultTarget: chosenTarget,
-                    );
-                Navigator.pop(ctx);
-              },
-              child: Text(t.applyLabel),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
+    Future.delayed(const Duration(milliseconds: 350), () {
+      dhikrCtrl.dispose();
+      countCtrl.dispose();
+    });
   }
 
   @override
@@ -763,187 +786,430 @@ class DigitalTasbihView extends ConsumerWidget {
     );
 
     final listLang = contentLangFor(appLang);
+    final presetTitle = preset.titleFor(listLang).trim();
+    final presetArabic = preset.arabic.trim();
+    final bool hasDistinctSubtitle =
+        presetTitle.isNotEmpty && presetTitle != presetArabic;
+    final bool mainTextIsArabic = _arabicScriptRe.hasMatch(presetArabic);
 
     return Directionality(
       textDirection: t.textDirection,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: tasbih.tapAnywhere ? () => _handleTap(ref, tasbih) : null,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 28),
-          children: [
-            // Preset selector row
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final p in tasbih.allPresets) ...[
-                    InputChip(
-                      selected: p.id == tasbih.selectedId,
-                      label: Text(p.titleFor(listLang)),
-                      onPressed: () => notifier.selectPreset(p.id),
-                      onDeleted: p.isCustom
-                          ? () => notifier.deleteCustomPreset(p.id)
-                          : null,
-                      deleteButtonTooltipMessage: t.deleteCustomLabel,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  ActionChip(
-                    avatar: const Icon(Icons.add_rounded, size: 17),
-                    label: Text(t.addCustomDhikr),
-                    onPressed: () => _showAddCustomDialog(context, ref, t),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Active Dhikr display card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: cardBorder),
-              ),
-              child: Column(
-                children: [
-                  Directionality(
-                    textDirection: TextDirection.rtl,
-                    child: NoTextScaling(
-                      child: Text(
-                        preset.arabic,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.amiri(
-                          fontSize: tasbihArabicPx,
-                          fontWeight: FontWeight.w700,
-                          height: 1.5,
-                          color: cs.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    preset.titleFor(listLang),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      _AdhkarActionChip(
-                        icon: Icons.share_rounded,
-                        label: t.share,
-                        color: cs.primary,
-                        borderColor: cardBorder,
-                        onTap: () => ExportService.shareText(
-                          '${preset.arabic}\n${preset.titleFor(listLang)}',
-                          subject: preset.titleFor(listLang),
-                        ),
-                      ),
-                      _AdhkarActionChip(
-                        icon: Icons.copy_rounded,
-                        label: t.copyLabel,
-                        color: cs.onSurfaceVariant,
-                        borderColor: cardBorder,
-                        onTap: () {
-                          Clipboard.setData(
-                            ClipboardData(
-                              text:
-                                  '${preset.arabic}\n${preset.titleFor(listLang)}',
-                            ),
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(t.copiedNameNotice),
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Interactive Circular Counter Orb
-                  GestureDetector(
-                    onTap: () => _handleTap(ref, tasbih),
-                    child: SizedBox(
-                      width: 210,
-                      height: 210,
-                      child: Stack(
-                        alignment: Alignment.center,
+      child: LayoutBuilder(
+        builder: (context, viewportConstraints) {
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: tasbih.tapAnywhere ? () => _handleTap(ref, tasbih) : null,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(hPad, 12, hPad, 20),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: math.max(0.0, viewportConstraints.maxHeight - 32),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. TOP SECTION: Dropdown + Controls + Quick Stats (away from thumb tap zone)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {},
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SizedBox(
-                            width: 204,
-                            height: 204,
-                            child: CircularProgressIndicator(
-                              value: target > 0 ? progress : 1.0,
-                              strokeWidth: 10,
-                              backgroundColor:
-                                  cs.outlineVariant.withValues(alpha: 0.3),
-                              color: target > 0 && cycle == target
-                                  ? AppBranding.accentGold
-                                  : cs.primary,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InputDecorator(
+                                  decoration: InputDecoration(
+                                    labelText: t.selectDhikrLabel,
+                                    isDense: true,
+                                    filled: true,
+                                    fillColor: cardBg,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 6,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(color: cardBorder),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: BorderSide(color: cardBorder),
+                                    ),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: preset.id,
+                                      isExpanded: true,
+                                      borderRadius: BorderRadius.circular(14),
+                                      icon: Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: cs.primary,
+                                      ),
+                                      items: [
+                                        for (final p in tasbih.allPresets)
+                                          DropdownMenuItem<String>(
+                                            value: p.id,
+                                            child: Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    p.titleFor(listLang),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontSize: 14.5,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (p
+                                                        .titleFor(listLang)
+                                                        .trim() !=
+                                                    p.arabic.trim()) ...[
+                                                  const SizedBox(width: 8),
+                                                  ConstrainedBox(
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                      maxWidth: 130,
+                                                    ),
+                                                    child: Text(
+                                                      p.arabic,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      textDirection:
+                                                          TextDirection.rtl,
+                                                      style: GoogleFonts.amiri(
+                                                        fontSize: 15,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: cs.primary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        DropdownMenuItem<String>(
+                                          value: _addCustomMenuValue,
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons
+                                                    .add_circle_outline_rounded,
+                                                size: 19,
+                                                color: cs.primary,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  t.addCustomDhikr,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: cs.primary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val == null) return;
+                                        if (val == _addCustomMenuValue) {
+                                          _showAddCustomDialog(
+                                              context, ref, t);
+                                          return;
+                                        }
+                                        notifier.selectPreset(val);
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (preset.isCustom) ...[
+                                const SizedBox(width: 8),
+                                IconButton.outlined(
+                                  tooltip: t.deleteCustomLabel,
+                                  onPressed: () =>
+                                      notifier.deleteCustomPreset(preset.id),
+                                  icon: Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: cs.error,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Controls Card moved to TOP
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: cardBorder),
+                            ),
+                            child: Column(
+                              children: [
+                                SwitchListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  secondary: Icon(
+                                    Icons.touch_app_rounded,
+                                    color: cs.primary,
+                                  ),
+                                  title: Text(
+                                    t.tapAnywhereLabel,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    t.tapAnywhereHint,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  value: tasbih.tapAnywhere,
+                                  onChanged: (_) =>
+                                      notifier.toggleTapAnywhere(),
+                                ),
+                                const Divider(height: 1),
+                                SwitchListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  secondary: Icon(
+                                    Icons.vibration_rounded,
+                                    color: cs.primary,
+                                  ),
+                                  title: Text(
+                                    t.vibrateOnTapLabel,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  value: tasbih.vibrateOnTap,
+                                  onChanged: (_) =>
+                                      notifier.toggleVibrateOnTap(),
+                                ),
+                                const Divider(height: 1),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => _showTargetSheet(
+                                              context, ref, tasbih, t),
+                                          icon: const Icon(
+                                            Icons.flag_rounded,
+                                            size: 18,
+                                          ),
+                                          label: Text(
+                                            '${t.targetLabel}: ${target == 0 ? t.unlimitedLabel : target}',
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: notifier.resetCycle,
+                                          icon: const Icon(
+                                            Icons.refresh_rounded,
+                                            size: 18,
+                                          ),
+                                          label: Text(t.resetCycleLabel),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          Container(
-                            width: 174,
-                            height: 174,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  cs.primary.withValues(alpha: 0.14),
-                                  cs.primaryContainer.withValues(alpha: 0.5),
-                                ],
+                          const SizedBox(height: 10),
+
+                          // Quick metrics row
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _TasbihStatTile(
+                                  label: t.todayTotalLabel,
+                                  value: '${tasbih.todayTotal}',
+                                  cs: cs,
+                                ),
                               ),
-                              border: Border.all(
-                                color: cs.primary.withValues(alpha: 0.35),
-                                width: 1.5,
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _TasbihStatTile(
+                                  label: t.lifetimeTotalLabel,
+                                  value: '${tasbih.activeLifetimeCount}',
+                                  cs: cs,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () => _showTargetSheet(
+                                      context, ref, tasbih, t),
+                                  child: _TasbihStatTile(
+                                    label: t.targetLabel,
+                                    value: target == 0
+                                        ? t.unlimitedLabel
+                                        : '$target',
+                                    cs: cs,
+                                    highlight: true,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // 2. BOTTOM SECTION: Thumb-friendly Tap Counter Zone
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: cardBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          Directionality(
+                            textDirection: mainTextIsArabic
+                                ? TextDirection.rtl
+                                : t.textDirection,
+                            child: NoTextScaling(
+                              child: Text(
+                                presetArabic,
+                                textAlign: TextAlign.center,
+                                style: mainTextIsArabic
+                                    ? GoogleFonts.amiri(
+                                        fontSize: tasbihArabicPx,
+                                        fontWeight: FontWeight.w700,
+                                        height: 1.45,
+                                        color: cs.primary,
+                                      )
+                                    : TextStyle(
+                                        fontSize:
+                                            math.max(22.0, tasbihArabicPx * 0.8),
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.35,
+                                        color: cs.primary,
+                                      ),
                               ),
                             ),
-                            child: NoTextScaling(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                          ),
+                          if (hasDistinctSubtitle) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              presetTitle,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 18),
+
+                          // Interactive Circular Counter Orb (Bottom thumb zone)
+                          GestureDetector(
+                            onTap: () => _handleTap(ref, tasbih),
+                            child: SizedBox(
+                              width: 214,
+                              height: 214,
+                              child: Stack(
+                                alignment: Alignment.center,
                                 children: [
-                                  Text(
-                                    '$cycle',
-                                    style: TextStyle(
-                                      fontSize: 50,
-                                      fontWeight: FontWeight.w900,
-                                      color: cs.primary,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures(),
-                                      ],
+                                  SizedBox(
+                                    width: 208,
+                                    height: 208,
+                                    child: CircularProgressIndicator(
+                                      value: target > 0 ? progress : 1.0,
+                                      strokeWidth: 10,
+                                      backgroundColor: cs.outlineVariant
+                                          .withValues(alpha: 0.3),
+                                      color: target > 0 && cycle == target
+                                          ? AppBranding.accentGold
+                                          : cs.primary,
                                     ),
                                   ),
-                                  Text(
-                                    target == 0
-                                        ? t.unlimitedLabel
-                                        : '/ $target',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: cs.onSurfaceVariant,
+                                  Container(
+                                    width: 178,
+                                    height: 178,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          cs.primary.withValues(alpha: 0.14),
+                                          cs.primaryContainer
+                                              .withValues(alpha: 0.5),
+                                        ],
+                                      ),
+                                      border: Border.all(
+                                        color:
+                                            cs.primary.withValues(alpha: 0.35),
+                                        width: 1.5,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    t.tapToCount,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: cs.onSurfaceVariant,
+                                    child: NoTextScaling(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            '$cycle',
+                                            style: TextStyle(
+                                              fontSize: 52,
+                                              fontWeight: FontWeight.w900,
+                                              color: cs.primary,
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                            ),
+                                          ),
+                                          Text(
+                                            target == 0
+                                                ? t.unlimitedLabel
+                                                : '/ $target',
+                                            style: TextStyle(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: cs.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            t.tapToCount,
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              color: cs.onSurfaceVariant,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -953,111 +1219,12 @@ class DigitalTasbihView extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Quick metrics row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _TasbihStatTile(
-                          label: t.todayTotalLabel,
-                          value: '${tasbih.todayTotal}',
-                          cs: cs,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _TasbihStatTile(
-                          label: t.lifetimeTotalLabel,
-                          value: '${tasbih.activeLifetimeCount}',
-                          cs: cs,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => _showTargetSheet(context, ref, tasbih, t),
-                          child: _TasbihStatTile(
-                            label: t.targetLabel,
-                            value: target == 0 ? t.unlimitedLabel : '$target',
-                            cs: cs,
-                            highlight: true,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-
-            // Controls Card
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: cardBorder),
-              ),
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: Icon(Icons.touch_app_rounded, color: cs.primary),
-                    title: Text(
-                      t.tapAnywhereLabel,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      t.tapAnywhereHint,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    value: tasbih.tapAnywhere,
-                    onChanged: (_) => notifier.toggleTapAnywhere(),
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: Icon(Icons.vibration_rounded, color: cs.primary),
-                    title: Text(
-                      t.vibrateOnTapLabel,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    value: tasbih.vibrateOnTap,
-                    onChanged: (_) => notifier.toggleVibrateOnTap(),
-                  ),
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                _showTargetSheet(context, ref, tasbih, t),
-                            icon: const Icon(Icons.flag_rounded, size: 18),
-                            label: Text(t.targetLabel),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: notifier.resetCycle,
-                            icon: const Icon(Icons.refresh_rounded, size: 18),
-                            label: Text(t.resetCycleLabel),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

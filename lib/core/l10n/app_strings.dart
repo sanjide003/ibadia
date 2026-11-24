@@ -385,8 +385,17 @@ class AppStrings {
   String get todayTotalLabel => _p('Today', 'ഇന്ന്', 'اليوم');
   String get lifetimeTotalLabel => _p('Total', 'ആകെ', 'الإجمالي');
   String get addCustomDhikr => _p('Add Custom Dhikr', 'പുതിയ ദിക്ർ ചേർക്കുക', 'إضافة ذكر مخصص');
-  String get customDhikrName => _p('Dhikr Name / Transliteration', 'ദിക്ർ പേര്', 'اسم الذكر');
-  String get customDhikrArabic => _p('Arabic Text (optional)', 'അറബിക് ടെക്സ്റ്റ് (നിർബന്ധമില്ല)', 'النص العربي (اختياري)');
+  String get selectDhikrLabel => _p('Select Dhikr', 'ദിക്ർ തിരഞ്ഞെടുക്കുക', 'اختر الذكر');
+  String get customDhikrName => _p(
+        'Dhikr / Text (Any Language)',
+        'ദിക്ർ / വാചകം (ഏത് ഭാഷയിലും)',
+        'الذكر (بأي لغة)',
+      );
+  String get customDhikrTargetLabel => _p(
+        'Count (0 = Unlimited)',
+        'എണ്ണം (0 = അൺലിമിറ്റഡ്)',
+        'العدد (0 = مفتوح)',
+      );
   String get deleteCustomLabel => _p('Delete', 'ഒഴിവാക്കുക', 'حذف');
   String get vibrateOnTapLabel => _p('Haptic Vibration', 'വൈബ്രേഷൻ', 'الاهتزاز');
   String get resetCycleLabel => _p('Reset Cycle', 'റീസെറ്റ്', 'تصفير');
