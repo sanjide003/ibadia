@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/config/app_branding.dart';
 import '../core/l10n/app_strings.dart';
@@ -13,13 +12,11 @@ import '../providers/update_provider.dart';
 import '../services/web_platform_bridge.dart';
 import 'update_dialog.dart';
 
-const String _hasDownloadedApkKey = 'has_downloaded_apk_v1';
-
 OverlayEntry? _activeTopNoticeEntry;
 Timer? _activeTopNoticeTimer;
 
 /// Displays a sleek foreground banner at the very top of the root overlay,
-/// painting cleanly ABOVE any open Settings Drawer or modal scrim.
+/// painting cleanly ABOVE any open drawer or modal scrim.
 void showTopForegroundNotice(
   BuildContext context, {
   required String message,
@@ -126,24 +123,24 @@ Future<void> triggerPwaInstall(BuildContext context, AppStrings t) async {
     await bridge.promptPwaInstall();
     return;
   }
-  if (bridge.isIosWeb && context.mounted) {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: t.textDirection,
-        child: AlertDialog(
-          title: Text(t.installOnIosTitle),
-          content: Text(t.installOnIosSteps),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(t.closeLabel),
-            ),
-          ],
-        ),
+  if (!context.mounted) return;
+  final bool isIos = bridge.isIosWeb;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => Directionality(
+      textDirection: t.textDirection,
+      child: AlertDialog(
+        title: Text(isIos ? t.installOnIosTitle : t.browserInstallTitle),
+        content: Text(isIos ? t.installOnIosSteps : t.browserInstallSteps),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(t.closeLabel),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 Future<void> triggerShareApp(BuildContext context, AppStrings t) async {
@@ -178,12 +175,18 @@ Future<bool> triggerAndroidApkDownload(
   BuildContext context,
   AppStrings t,
 ) async {
-  const apkUrl = AppBranding.androidApkUrl;
+  final apkUrl = AppBranding.resolvedAndroidApkUrl;
   if (apkUrl.isNotEmpty) {
     final launched = WebPlatformBridge.instance.openExternalUrl(apkUrl);
     if (launched) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_hasDownloadedApkKey, true);
+      if (context.mounted) {
+        showTopForegroundNotice(
+          context,
+          message: t.apkDownloadStarted,
+          textDirection: t.textDirection,
+          icon: Icons.download_rounded,
+        );
+      }
       return true;
     }
   }
@@ -199,6 +202,22 @@ Future<bool> triggerAndroidApkDownload(
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
               child: Text(t.closeLabel),
+            ),
+            OutlinedButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: apkUrl));
+                if (ctx.mounted) {
+                  Navigator.of(ctx).pop();
+                  showTopForegroundNotice(
+                    context,
+                    message: t.apkLinkCopied,
+                    textDirection: t.textDirection,
+                    icon: Icons.copy_rounded,
+                  );
+                }
+              },
+              icon: const Icon(Icons.copy_rounded, size: 17),
+              label: Text(t.copyApkLink),
             ),
             FilledButton.icon(
               onPressed: () {
@@ -262,40 +281,28 @@ class OfflineStatusBanner extends StatelessWidget {
   }
 }
 
-/// Bottom-anchored actions inside CompactSettingsDrawer:
-/// - Check for Updates / Update Now (with top foreground overlay + inline drawer status card)
-/// - Install App (only on Web when eligible & not yet installed as PWA)
-/// - Download Android APK (only on Web before APK download / PWA install)
-/// - Share App (shares https://ibadia.vercel.app cleanly)
-class DrawerBottomAppActions extends ConsumerStatefulWidget {
+/// Dedicated Home bottom card for:
+/// - Check for App Updates / Update Now
+/// - Install Ibadia App (on Web when not yet running as a standalone PWA)
+/// - Download Android APK (direct Ibadia.apk download from GitHub Releases)
+/// - Share App
+class HomeAppUpdatesCard extends ConsumerStatefulWidget {
   final AppStrings strings;
+  final Color cardBg;
+  final Color cardBorder;
 
-  const DrawerBottomAppActions({super.key, required this.strings});
+  const HomeAppUpdatesCard({
+    super.key,
+    required this.strings,
+    required this.cardBg,
+    required this.cardBorder,
+  });
 
   @override
-  ConsumerState<DrawerBottomAppActions> createState() =>
-      _DrawerBottomAppActionsState();
+  ConsumerState<HomeAppUpdatesCard> createState() => _HomeAppUpdatesCardState();
 }
 
-class _DrawerBottomAppActionsState
-    extends ConsumerState<DrawerBottomAppActions> {
-  bool _hasDownloadedApk = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadDownloadFlag();
-  }
-
-  Future<void> _loadDownloadFlag() async {
-    if (!kIsWeb) return;
-    final prefs = await SharedPreferences.getInstance();
-    final downloaded = prefs.getBool(_hasDownloadedApkKey) ?? false;
-    if (downloaded && mounted) {
-      setState(() => _hasDownloadedApk = true);
-    }
-  }
-
+class _HomeAppUpdatesCardState extends ConsumerState<HomeAppUpdatesCard> {
   Future<void> _handleUpdateButtonTap(AppStrings t) async {
     final update = ref.read(updateProvider);
     final notifier = ref.read(updateProvider.notifier);
@@ -334,205 +341,285 @@ class _DrawerBottomAppActionsState
     final t = widget.strings;
     final bridge = WebPlatformBridge.instance;
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final update = ref.watch(updateProvider);
     final manualOutcome = update.lastManualOutcome;
+    final accentColor = isDark ? AppBranding.accentGold : cs.primary;
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: bridge.isStandaloneNotifier,
-      builder: (_, isStandalone, __) {
-        final bool showShareInstead =
-            !kIsWeb || isStandalone || _hasDownloadedApk;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // App Update button (1-click self-update to latest build)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: update.updateAvailable
-                  ? FilledButton.icon(
-                      onPressed: update.isBusy
-                          ? null
-                          : () => _handleUpdateButtonTap(t),
-                      icon: const Icon(Icons.system_update_rounded, size: 18),
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              t.updateNow,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppBranding.accentGold,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              t.updateAvailableBadge,
-                              style: const TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppBranding.primaryEmerald,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 11,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    )
-                  : OutlinedButton.icon(
-                      onPressed: update.isChecking
-                          ? null
-                          : () => _handleUpdateButtonTap(t),
-                      icon: update.isChecking
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: cs.primary,
-                              ),
-                            )
-                          : Icon(
-                              Icons.system_update_alt_rounded,
-                              size: 18,
-                              color: cs.primary,
-                            ),
-                      label: Text(
-                        update.isChecking
-                            ? t.checkingUpdates
-                            : t.checkForUpdates,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 11,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-            ),
-
-            // Inline update check status card inside the open Settings drawer
-            if (!update.isChecking &&
-                (manualOutcome == UpdateCheckOutcome.upToDate ||
-                    manualOutcome == UpdateCheckOutcome.unavailable))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: manualOutcome == UpdateCheckOutcome.upToDate
-                        ? cs.primaryContainer.withValues(alpha: 0.45)
-                        : cs.errorContainer.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(11),
-                    border: Border.all(
-                      color: manualOutcome == UpdateCheckOutcome.upToDate
-                          ? cs.primary.withValues(alpha: 0.3)
-                          : cs.error.withValues(alpha: 0.35),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: widget.cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: widget.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: bridge.isStandaloneNotifier,
+        builder: (_, isStandalone, __) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Card Header with Brand Icon + Version
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      AppBranding.logoAsset,
+                      width: 38,
+                      height: 38,
+                      fit: BoxFit.cover,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        manualOutcome == UpdateCheckOutcome.upToDate
-                            ? Icons.verified_rounded
-                            : Icons.info_outline_rounded,
-                        size: 17,
-                        color: manualOutcome == UpdateCheckOutcome.upToDate
-                            ? cs.primary
-                            : cs.error,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          manualOutcome == UpdateCheckOutcome.upToDate
-                              ? t.upToDateMessage
-                              : t.updateCheckUnavailable,
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.appAndUpdatesTitle,
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            height: 1.35,
-                            color: manualOutcome == UpdateCheckOutcome.upToDate
-                                ? cs.onPrimaryContainer
-                                : cs.onErrorContainer,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w800,
+                            color: cs.onSurface,
                           ),
                         ),
-                      ),
-                      InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => ref
-                            .read(updateProvider.notifier)
-                            .clearManualOutcome(),
-                        child: Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: Icon(
-                            Icons.close_rounded,
-                            size: 16,
+                        const SizedBox(height: 1),
+                        Text(
+                          '${t.appTitle} • v${update.currentVersion} (#${update.currentBuildNumber})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
                             color: cs.onSurfaceVariant,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // 1. Check for App Updates / Update Now
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: update.updateAvailable
+                    ? FilledButton.icon(
+                        onPressed: update.isBusy
+                            ? null
+                            : () => _handleUpdateButtonTap(t),
+                        icon: const Icon(Icons.system_update_rounded, size: 18),
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                t.updateNow,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppBranding.accentGold,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                t.updateAvailableBadge,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppBranding.primaryEmerald,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: update.isChecking
+                            ? null
+                            : () => _handleUpdateButtonTap(t),
+                        icon: update.isChecking
+                            ? SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: accentColor,
+                                ),
+                              )
+                            : Icon(
+                                Icons.system_update_alt_rounded,
+                                size: 18,
+                                color: accentColor,
+                              ),
+                        label: Text(
+                          update.isChecking
+                              ? t.checkingUpdates
+                              : t.checkForUpdates,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
               ),
 
-            if (kIsWeb && !isStandalone)
-              ValueListenableBuilder<bool>(
-                valueListenable: bridge.canInstallNotifier,
-                builder: (_, canInstall, __) {
-                  if (!canInstall && !bridge.isIosWeb) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: FilledButton.icon(
-                      onPressed: () => triggerPwaInstall(context, t),
-                      icon: const Icon(Icons.install_mobile_rounded, size: 18),
-                      label: Text(
-                        t.installApp,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 11,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+              // Inline update check status card
+              if (!update.isChecking &&
+                  (manualOutcome == UpdateCheckOutcome.upToDate ||
+                      manualOutcome == UpdateCheckOutcome.unavailable))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: manualOutcome == UpdateCheckOutcome.upToDate
+                          ? cs.primaryContainer.withValues(alpha: 0.45)
+                          : cs.errorContainer.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(
+                        color: manualOutcome == UpdateCheckOutcome.upToDate
+                            ? cs.primary.withValues(alpha: 0.3)
+                            : cs.error.withValues(alpha: 0.35),
                       ),
                     ),
-                  );
-                },
-              ),
-            if (showShareInstead)
+                    child: Row(
+                      children: [
+                        Icon(
+                          manualOutcome == UpdateCheckOutcome.upToDate
+                              ? Icons.verified_rounded
+                              : Icons.info_outline_rounded,
+                          size: 17,
+                          color: manualOutcome == UpdateCheckOutcome.upToDate
+                              ? cs.primary
+                              : cs.error,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            manualOutcome == UpdateCheckOutcome.upToDate
+                                ? t.upToDateMessage
+                                : t.updateCheckUnavailable,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                              color:
+                                  manualOutcome == UpdateCheckOutcome.upToDate
+                                      ? cs.onPrimaryContainer
+                                      : cs.onErrorContainer,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => ref
+                              .read(updateProvider.notifier)
+                              .clearManualOutcome(),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // 2. Install Ibadia App (Web non-standalone)
+              if (kIsWeb && !isStandalone)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: FilledButton.icon(
+                    onPressed: () => triggerPwaInstall(context, t),
+                    icon: const Icon(Icons.install_mobile_rounded, size: 18),
+                    label: Text(
+                      t.installApp,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppBranding.primaryEmerald,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // 3. Download Android APK (Web)
+              if (kIsWeb)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: OutlinedButton.icon(
+                    onPressed: () => triggerAndroidApkDownload(context, t),
+                    icon: Icon(
+                      Icons.android_rounded,
+                      size: 19,
+                      color: accentColor,
+                    ),
+                    label: Text(
+                      t.downloadAndroidApk,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // 4. Share App
               OutlinedButton.icon(
                 onPressed: () => triggerShareApp(context, t),
-                icon: Icon(Icons.share_rounded, size: 18, color: cs.primary),
+                icon: Icon(Icons.share_rounded, size: 18, color: accentColor),
                 label: Text(
                   t.shareApp,
                   overflow: TextOverflow.ellipsis,
@@ -540,39 +627,17 @@ class _DrawerBottomAppActionsState
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
-                    vertical: 11,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              )
-            else
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final started = await triggerAndroidApkDownload(context, t);
-                  if (started && mounted) {
-                    setState(() => _hasDownloadedApk = true);
-                  }
-                },
-                icon: Icon(Icons.android_rounded, size: 19, color: cs.primary),
-                label: Text(
-                  t.downloadAndroidApk,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 11,
+                    vertical: 12,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 }

@@ -27,24 +27,34 @@ class AppBranding {
     defaultValue: 'https://ibadia.vercel.app',
   );
 
+  static const String defaultAndroidApkUrl =
+      'https://github.com/sanjide003/ibadia/releases/download/latest/Ibadia.apk';
+
+  static const String defaultUpdateManifestUrl =
+      'https://github.com/sanjide003/ibadia/releases/download/latest/version.json';
+
   static const String androidApkUrl = String.fromEnvironment(
     'ANDROID_APK_URL',
-    defaultValue: 'https://github.com/sanjide003/ibadia/releases/download/latest/Ibadia.apk',
+    defaultValue: defaultAndroidApkUrl,
   );
 
   static const String updateManifestUrl = String.fromEnvironment(
     'UPDATE_MANIFEST_URL',
-    defaultValue: 'https://github.com/sanjide003/ibadia/releases/download/latest/version.json',
+    defaultValue: defaultUpdateManifestUrl,
   );
+
+  static String get resolvedAndroidApkUrl {
+    final explicit = androidApkUrl.trim();
+    return explicit.isNotEmpty ? explicit : defaultAndroidApkUrl;
+  }
 
   static String get resolvedAndroidUpdateManifestUrl {
     final explicit = updateManifestUrl.trim();
     if (explicit.isNotEmpty) return explicit;
-    final apk = androidApkUrl.trim();
-    if (apk.isEmpty) return '';
+    final apk = resolvedAndroidApkUrl;
     final idx = apk.lastIndexOf('/');
-    if (idx <= 0) return '';
-    return '${apk.substring(0, idx)}/version.json';
+    if (idx > 0) return '${apk.substring(0, idx)}/version.json';
+    return defaultUpdateManifestUrl;
   }
 
   static bool get isAndroidNative => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;

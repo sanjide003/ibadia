@@ -194,7 +194,7 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
       final String? remoteApkUrl = decoded['apkUrl']?.toString().trim();
       final resolvedDownloadUrl = (remoteApkUrl != null && remoteApkUrl.isNotEmpty)
           ? remoteApkUrl
-          : AppBranding.androidApkUrl;
+          : AppBranding.resolvedAndroidApkUrl;
 
       if (remoteBuild > state.currentBuildNumber) {
         state = state.copyWith(
@@ -262,7 +262,7 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
 
     final apkUrl = (state.downloadUrl != null && state.downloadUrl!.isNotEmpty)
         ? state.downloadUrl!
-        : AppBranding.androidApkUrl;
+        : AppBranding.resolvedAndroidApkUrl;
     if (apkUrl.isEmpty) {
       state = state.copyWith(errorMessage: 'missing_apk_url');
       return;
@@ -328,7 +328,7 @@ class AppUpdateNotifier extends StateNotifier<AppUpdateState> {
   Future<void> openApkInBrowserFallback() async {
     final apkUrl = (state.downloadUrl != null && state.downloadUrl!.isNotEmpty)
         ? state.downloadUrl!
-        : AppBranding.androidApkUrl;
+        : AppBranding.resolvedAndroidApkUrl;
     if (apkUrl.isEmpty) return;
 
     if (kIsWeb) {

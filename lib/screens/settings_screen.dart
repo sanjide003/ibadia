@@ -12,7 +12,6 @@ import '../providers/quran_providers.dart';
 import '../providers/update_provider.dart';
 import '../services/prayer_alarm_bridge.dart';
 import '../widgets/quick_reader_controls.dart';
-import '../widgets/web_pwa_widgets.dart';
 import 'features_views.dart';
 
 enum SettingsScope { quran, features, ibadah, all }
@@ -989,8 +988,6 @@ class CompactSettingsDrawer extends ConsumerWidget {
                       const IbadahSettingsSection(),
                     ],
                     const Divider(height: 28),
-                    DrawerBottomAppActions(strings: t),
-                    const SizedBox(height: 12),
                     _AppBrandFooterCard(strings: t),
                   ],
                 ),
@@ -1126,23 +1123,8 @@ class SettingsTabView extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // 4. App Updates, Install / APK Download, Share & Version Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: cardBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DrawerBottomAppActions(strings: t),
-              const SizedBox(height: 12),
-              _AppBrandFooterCard(strings: t),
-            ],
-          ),
-        ),
+        // 4. App Version Footer Card
+        _AppBrandFooterCard(strings: t),
       ],
     );
   }

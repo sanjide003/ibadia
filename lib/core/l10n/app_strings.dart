@@ -456,6 +456,20 @@ class AppStrings {
         'നിസ്കാര അലാറവും ഓട്ടോ-സൈലന്റും ലഭിക്കാൻ Ibadia APK ഡൗൺലോഡ് ചെയ്യുക.',
         'حمّل تطبيق عبادية APK للحصول على منبهات الصلاة والصامت التلقائي.',
       );
+  String get appAndUpdatesTitle => _p('App & Updates', 'ആപ്പും അപ്ഡേറ്റുകളും', 'التطبيق والتحديثات');
+  String get apkDownloadStarted => _p(
+        'Starting Ibadia.apk download...',
+        'Ibadia.apk ഡൗൺലോഡ് തുടങ്ങുന്നു...',
+        'بدأ تنزيل Ibadia.apk...',
+      );
+  String get copyApkLink => _p('Copy APK Link', 'APK ലിങ്ക് കോപ്പി ചെയ്യുക', 'نسخ رابط APK');
+  String get apkLinkCopied => _p('APK download link copied', 'APK ലിങ്ക് കോപ്പി ചെയ്തു', 'تم نسخ رابط APK');
+  String get browserInstallTitle => _p('Install Ibadia App', 'ഇബാദിയ ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യുക', 'تثبيت تطبيق عبادية');
+  String get browserInstallSteps => _p(
+        'Open your browser menu (⋮ or Share) and select "Install App" or "Add to Home Screen".',
+        'ബ്രൗസർ മെനു (⋮) തുറന്ന് "Install App" അല്ലെങ്കിൽ "Add to Home Screen" തിരഞ്ഞെടുക്കുക.',
+        'افتح قائمة المتصفح واختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية".',
+      );
 
   String prayerName(String key) {
     switch (key) {

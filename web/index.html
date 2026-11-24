@@ -76,14 +76,20 @@
           try {
             var a = document.createElement('a');
             a.href = url;
+            if (/\.apk(\?|$)/i.test(url)) {
+              a.setAttribute('download', 'Ibadia.apk');
+            }
             a.target = '_blank';
             a.rel = 'noopener noreferrer';
+            a.style.display = 'none';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             return true;
           } catch (e) {
             try {
+              var opened = window.open(url, '_blank', 'noopener,noreferrer');
+              if (opened) return true;
               window.location.href = url;
               return true;
             } catch (_) {

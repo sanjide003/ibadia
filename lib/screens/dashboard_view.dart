@@ -17,6 +17,7 @@ import '../providers/islamic_features_providers.dart';
 import '../providers/quran_providers.dart';
 import '../services/storage_service.dart';
 import '../widgets/tajweed_widgets.dart';
+import '../widgets/web_pwa_widgets.dart';
 import 'asmaul_husna_view.dart';
 import 'features_views.dart';
 
@@ -1323,6 +1324,18 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 cardBorder: palette.cardBorder,
                 cs: cs,
                 isDark: isDark,
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // 6. Dedicated App & Updates Card (Check Updates, Install PWA, Download Android APK, Share)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: HomeAppUpdatesCard(
+                strings: t,
+                cardBg: palette.cardBg,
+                cardBorder: palette.cardBorder,
               ),
             ),
           ],
