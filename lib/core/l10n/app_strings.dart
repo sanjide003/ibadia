@@ -722,8 +722,6 @@ class AppStrings {
       );
 
   // Focused Index List & Single-Item Reader Navigation
-  String get previousLabel => _p('Previous', 'മുമ്പത്തേത്', 'السابق');
-  String get nextLabel => _p('Next', 'അടുത്തത്', 'التالي');
   String get searchItemsHint => _p(
         'Search by title or topic...',
         'പേര് അല്ലെങ്കിൽ വിഷയം തിരയുക...',

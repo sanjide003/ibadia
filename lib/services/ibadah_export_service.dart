@@ -311,7 +311,7 @@ class IbadahExportService {
     );
     canvas.restore();
 
-    final double x = outerPad + innerPad;
+    const double x = outerPad + innerPad;
     double y = outerPad + innerPad + 2.0;
 
     // Order pill

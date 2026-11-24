@@ -502,14 +502,14 @@ class _IbadahGuideScreenState extends ConsumerState<IbadahGuideScreen> {
           for (final g in bundle.rawatib) ...[
             for (final item in g.before)
               _RawatibIndexEntry.rawatib(
-                group: g,
-                item: item,
+                prayerGroup: g,
+                rawatibItem: item,
                 isBefore: true,
               ),
             for (final item in g.after)
               _RawatibIndexEntry.rawatib(
-                group: g,
-                item: item,
+                prayerGroup: g,
+                rawatibItem: item,
                 isBefore: false,
               ),
           ],
