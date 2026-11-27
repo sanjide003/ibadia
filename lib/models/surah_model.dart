@@ -41,6 +41,7 @@ class AyahItem {
   final int numberInSurah;
   final int globalNumber;
   final String arabicText;
+  final String? tajweedTaggedText;
   final int juz;
   final int page;
 
@@ -48,15 +49,24 @@ class AyahItem {
     required this.numberInSurah,
     required this.globalNumber,
     required this.arabicText,
+    this.tajweedTaggedText,
     required this.juz,
     required this.page,
   });
 
+  String get tajweedSourceText =>
+      (tajweedTaggedText != null && tajweedTaggedText!.isNotEmpty)
+          ? tajweedTaggedText!
+          : arabicText;
+
   factory AyahItem.fromJson(Map<String, dynamic> json) {
+    final tagged = json['tajweedTaggedText']?.toString();
     return AyahItem(
       numberInSurah: (json['numberInSurah'] as num?)?.toInt() ?? 1,
       globalNumber: (json['globalNumber'] ?? json['number'] as num?)?.toInt() ?? 1,
       arabicText: (json['arabicText'] ?? json['text'] ?? '').toString(),
+      tajweedTaggedText:
+          (tagged != null && tagged.isNotEmpty) ? tagged : null,
       juz: (json['juz'] as num?)?.toInt() ?? 1,
       page: (json['page'] as num?)?.toInt() ?? 1,
     );
@@ -66,6 +76,8 @@ class AyahItem {
         'numberInSurah': numberInSurah,
         'globalNumber': globalNumber,
         'arabicText': arabicText,
+        if (tajweedTaggedText != null && tajweedTaggedText!.isNotEmpty)
+          'tajweedTaggedText': tajweedTaggedText,
         'juz': juz,
         'page': page,
       };

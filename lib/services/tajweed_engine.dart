@@ -97,12 +97,12 @@ class TajweedEngine {
       nameMl: 'ഇദ്ഗാം ബി-ഗുന്ന (മണിച്ചു ലയിപ്പിക്കൽ)',
       nameAr: 'إدغام بغنة',
       descEn:
-          'Noon Sakinah or Tanween followed by ي ن م و (Yanmu). Merge smoothly with 2-count nasal sound.',
+          'Noon Sakinah or Tanween followed by ي ن م و (Yanmu), or Meem Sakinah followed by م. Merge smoothly with 2-count nasal sound.',
       descMl:
-          'സുകൂനുള്ള നൂനോ തൻവീനോ കഴിഞ്ഞ് (ي ن م و) വന്നാൽ മണിച്ചുകൊണ്ട് അടുത്ത അക്ഷരത്തിലേക്ക് ലയിപ്പിച്ചു വായിക്കുക.',
+          'സുകൂനുള്ള നൂനോ തൻവീനോ കഴിഞ്ഞ് (ي ن م و) വന്നാലോ, മീം സാക്കിന് ശേഷം (م) വന്നാലോ മണിച്ചുകൊണ്ട് ലയിപ്പിച്ചു വായിക്കുക.',
       descAr:
-          'نون ساكنة أو تنوين بعده أحد حروف (ينمو)، يُدغم مع غنة بمقدار حركتين.',
-      sampleAr: 'مَن يَقُولُ · خَيْرٌ مِّن',
+          'نون ساكنة أو تنوين بعده أحد حروف (ينمو)، أو ميم ساكنة بعدها ميم، يُدغم مع غنة بمقدار حركتين.',
+      sampleAr: 'مَن يَقُولُ · خَيْرٌ مِّن · لَهُم مَّغْفِرَةٌ',
       lightColor: Color(0xFF00796B),
       darkColor: Color(0xFF2DD4BF),
     ),
@@ -165,15 +165,15 @@ class TajweedEngine {
     ),
     TajweedRuleMeta(
       rule: TajweedRule.madd,
-      nameEn: 'Madd (Elongation)',
-      nameMl: 'മദ്ദ് (നീട്ടി വായിക്കൽ)',
+      nameEn: 'Madd (4–6 Counts)',
+      nameMl: 'മദ്ദ് (4–6 ഹറകത്ത് നീട്ടി വായിക്കൽ)',
       nameAr: 'مَدّ (4–6 حركات)',
       descEn:
-          'Elongated vowel sign (~ / آ / dagger Alif). Stretch smoothly for 4 to 6 counts as marked.',
+          'Obligatory or permitted long Madd (~ / آ). Stretch smoothly for 4 to 6 counts as marked.',
       descMl:
           'മദ്ദിന്റെ ചിഹ്നം (~ / آ) ഉള്ള ഭാഗങ്ങൾ നിയമപ്രകാരം 4 മുതൽ 6 ഹറകത്ത് വരെ നീട്ടി ഓതുക.',
-      descAr: 'حرف مدّ تعلوه علامة المد (~) أو ألف خنجرية، يُمدّ 4 إلى 6 حركات.',
-      sampleAr: 'السَّمَاءِ · الضَّالِّينَ · ذَٰلِكَ',
+      descAr: 'حرف مدّ تعلوه علامة المد (~) أو مدّ لازم، يُمدّ 4 إلى 6 حركات.',
+      sampleAr: 'السَّمَآءِ · الضَّآلِّينَ · بِمَآ',
       lightColor: Color(0xFFB45309),
       darkColor: Color(0xFFFBBF24),
     ),
@@ -183,9 +183,9 @@ class TajweedEngine {
       nameMl: 'ഉച്ചരിക്കാത്ത അക്ഷരം / ലാം ശംസിയ്യ',
       nameAr: 'حرف صامت / لام شمسية',
       descEn:
-          'Silent Hamzatul Wasl, silent Alif/Waw, or assimilated Lam Shamsiyyah. Bypass silently into the next sound.',
+          'Silent Hamzatul Wasl, silent Alif/Waw, Lam Shamsiyyah, or assimilated silent letters. Bypass silently into the next sound.',
       descMl:
-          'ശബ്ദമില്ലാത്ത ഹംസതുൽ വസ്‌ൽ, ലാം ശംസിയ്യ പോലുള്ള അക്ഷരങ്ങൾ ഉച്ചരിക്കാതെ അടുത്ത അക്ഷരവുമായി ചേർത്തു വായിക്കുക.',
+          'ശബ്ദമില്ലാത്ത ഹംസതുൽ വസ്‌ൽ, ലാം ശംസിയ്യ, ലയിപ്പിക്കപ്പെടുന്ന അക്ഷരങ്ങൾ എന്നിവ ഉച്ചരിക്കാതെ അടുത്ത അക്ഷരവുമായി ചേർത്തു വായിക്കുക.',
       descAr: 'همزة وصل أو لام شمسية أو حرف مدغم لا يُنطق، بل يُوصل مباشرة بما بعده.',
       sampleAr: 'ٱلشَّمْسُ · قَالُوا۟',
       lightColor: Color(0xFF64748B),
@@ -202,6 +202,8 @@ class TajweedEngine {
 
   static final Map<String, List<TajweedToken>> _cache = {};
   static const int _maxCache = 1800;
+
+  static final RegExp _tagOpenRegex = RegExp(r'\[([a-z])(?::\d+)?\[');
 
   static const Set<String> _qalqalahLetters = {'ق', 'ط', 'ب', 'ج', 'د'};
   static const Set<String> _idghamGhunnahLetters = {'ي', 'ن', 'م', 'و'};
@@ -255,14 +257,77 @@ class TajweedEngine {
     'ى',
   };
 
+  static bool hasTajweedMarkup(String text) =>
+      text.contains('[') && _tagOpenRegex.hasMatch(text);
+
+  /// Strips all official `quran-tajweed` bracket annotations `[code[:id][...]]`
+  /// (including nested tags and stray delimiter brackets) to return pure Arabic text.
+  static String stripMarkup(String text) {
+    if (!text.contains('[') && !text.contains(']')) return text;
+    final out = StringBuffer();
+    var i = 0;
+    while (i < text.length) {
+      final ch = text[i];
+      if (ch == '[') {
+        final match = _tagOpenRegex.matchAsPrefix(text, i);
+        if (match != null) {
+          i = match.end;
+          continue;
+        }
+        i++;
+        continue;
+      }
+      if (ch == ']') {
+        i++;
+        continue;
+      }
+      out.write(ch);
+      i++;
+    }
+    return out.toString();
+  }
+
+  static TajweedRule _ruleForTagCode(String code) {
+    switch (code) {
+      case 'g':
+        return TajweedRule.ghunnah;
+      case 'a':
+      case 'w':
+        return TajweedRule.idghamGhunnah;
+      case 'u':
+        return TajweedRule.idghamNoGhunnah;
+      case 'f':
+      case 'c':
+        return TajweedRule.ikhfa;
+      case 'i':
+        return TajweedRule.iqlab;
+      case 'q':
+        return TajweedRule.qalqalah;
+      case 'o':
+      case 'm':
+        return TajweedRule.madd;
+      case 'h':
+      case 'l':
+      case 's':
+      case 'd':
+      case 'b':
+        return TajweedRule.silent;
+      case 'n':
+      case 'p':
+      default:
+        return TajweedRule.none;
+    }
+  }
+
   static bool _isCombiningMark(int cp) {
+    if (cp == 0x06DD || cp == 0x06DE || cp == 0x06E9) return false;
     return (cp >= 0x064B && cp <= 0x065F) ||
         cp == 0x0670 ||
         (cp >= 0x06D6 && cp <= 0x06ED);
   }
 
   static bool _isArabicLetter(int cp) {
-    return (cp >= 0x0621 && cp <= 0x064A) || cp == 0x0671;
+    return (cp >= 0x0621 && cp <= 0x064A) || cp == 0x0671 || cp == 0x0672;
   }
 
   static List<_TajweedCluster> _extractClusters(String text) {
@@ -306,11 +371,8 @@ class TajweedEngine {
       _hasTanween(m) ||
       _hasSukun(m);
 
-  static bool _hasMaddSign(String m) =>
-      m.contains('\u0653') || m.contains('\u0670');
-
-  static bool _hasSmallMeem(String m) =>
-      m.contains('\u06E2') || m.contains('\u06ED');
+  // Only true 4-6 count Maddah (~) sign (exclude 2-count Dagger Alif \u0670).
+  static bool _hasMaddSign(String m) => m.contains('\u0653');
 
   static int? _nextLetterIndex(List<_TajweedCluster> clusters, int from) {
     for (var j = from + 1; j < clusters.length; j++) {
@@ -319,117 +381,35 @@ class TajweedEngine {
     return null;
   }
 
-  static int? _nextWordInitialLetterIndex(
+  static ({int index, bool crossedWordBoundary})? _nextConsonantTarget(
     List<_TajweedCluster> clusters,
-    int from,
-  ) {
+    int from, {
+    required bool skipTanweenSeatAlif,
+  }) {
+    var crossedBoundary = false;
     for (var j = from + 1; j < clusters.length; j++) {
-      if (clusters[j].isLetter) {
-        if ((clusters[j].base == 'ٱ' || clusters[j].base == 'ا') &&
-            j + 1 < clusters.length &&
-            clusters[j + 1].isLetter) {
-          continue;
-        }
-        return j;
+      final c = clusters[j];
+      if (!c.isLetter) {
+        crossedBoundary = true;
+        continue;
       }
+      if (skipTanweenSeatAlif &&
+          !crossedBoundary &&
+          (c.base == 'ا' || c.base == 'ى') &&
+          !_hasAnyVowel(c.marks) &&
+          (j + 1 >= clusters.length || !clusters[j + 1].isLetter)) {
+        continue;
+      }
+      return (index: j, crossedWordBoundary: crossedBoundary);
     }
     return null;
   }
 
-  static List<TajweedToken> tokenize(String text) {
-    if (text.isEmpty) return const [];
-    final hit = _cache[text];
-    if (hit != null) return hit;
-
-    final clusters = _extractClusters(text);
+  static List<TajweedToken> _buildTokensFromClusters(
+    List<_TajweedCluster> clusters,
+    List<TajweedRule> rules,
+  ) {
     if (clusters.isEmpty) return const [];
-
-    final rules = List<TajweedRule>.filled(clusters.length, TajweedRule.none);
-
-    for (var i = 0; i < clusters.length; i++) {
-      final c = clusters[i];
-      if (!c.isLetter) continue;
-      final b = c.base;
-      final m = c.marks;
-
-      if (b == 'ٱ' || m.contains('\u06DF')) {
-        rules[i] = TajweedRule.silent;
-        continue;
-      }
-
-      if (b == 'ل' && !_hasAnyVowel(m)) {
-        final nextIdx = _nextLetterIndex(clusters, i);
-        if (nextIdx != null &&
-            _sunLetters.contains(clusters[nextIdx].base) &&
-            _hasShaddah(clusters[nextIdx].marks)) {
-          rules[i] = TajweedRule.silent;
-          continue;
-        }
-      }
-
-      if (b == 'آ' || _hasMaddSign(m)) {
-        rules[i] = TajweedRule.madd;
-        continue;
-      }
-
-      if ((b == 'ن' || b == 'م') && _hasShaddah(m)) {
-        rules[i] = TajweedRule.ghunnah;
-        continue;
-      }
-
-      if (_hasSmallMeem(m)) {
-        rules[i] = TajweedRule.iqlab;
-        continue;
-      }
-
-      final isNoonSakin =
-          b == 'ن' && (_hasSukun(m) || (!_hasAnyVowel(m) && !_hasShaddah(m)));
-      final isTanween = _hasTanween(m);
-
-      if (isNoonSakin || isTanween) {
-        final nextIdx = _nextWordInitialLetterIndex(clusters, i);
-        if (nextIdx != null) {
-          final nextChar = clusters[nextIdx].base;
-          if (nextChar == 'ب') {
-            rules[i] = TajweedRule.iqlab;
-            continue;
-          } else if (_idghamGhunnahLetters.contains(nextChar)) {
-            rules[i] = TajweedRule.idghamGhunnah;
-            continue;
-          } else if (_idghamNoGhunnahLetters.contains(nextChar)) {
-            rules[i] = TajweedRule.idghamNoGhunnah;
-            continue;
-          } else if (_ikhfaLetters.contains(nextChar)) {
-            rules[i] = TajweedRule.ikhfa;
-            continue;
-          }
-        }
-      }
-
-      final isMeemSakin =
-          b == 'م' && (_hasSukun(m) || (!_hasAnyVowel(m) && !_hasShaddah(m)));
-      if (isMeemSakin) {
-        final nextIdx = _nextWordInitialLetterIndex(clusters, i);
-        if (nextIdx != null) {
-          final nextChar = clusters[nextIdx].base;
-          if (nextChar == 'ب') {
-            rules[i] = TajweedRule.ikhfa;
-            continue;
-          } else if (nextChar == 'م') {
-            rules[i] = TajweedRule.idghamGhunnah;
-            continue;
-          }
-        }
-      }
-
-      if (_qalqalahLetters.contains(b)) {
-        final isLastLetterOfAyah = _nextLetterIndex(clusters, i) == null;
-        if (_hasSukun(m) || (isLastLetterOfAyah && !_hasShaddah(m))) {
-          rules[i] = TajweedRule.qalqalah;
-          continue;
-        }
-      }
-    }
 
     final tokens = <TajweedToken>[];
     var activeRule = rules[0];
@@ -466,10 +446,225 @@ class TajweedEngine {
       tokens.add(TajweedToken(buf.toString(), activeRule));
     }
 
+    return tokens;
+  }
+
+  static List<TajweedToken> _tokenizeTagged(String text) {
+    final stack = <TajweedRule>[];
+    final taggedChars = <({int cp, String ch, TajweedRule rule})>[];
+
+    var i = 0;
+    while (i < text.length) {
+      final unit = text.codeUnitAt(i);
+      if (unit == 0x5B /* '[' */) {
+        final match = _tagOpenRegex.matchAsPrefix(text, i);
+        if (match != null) {
+          stack.add(_ruleForTagCode(match.group(1)!));
+          i = match.end;
+          continue;
+        }
+        // Preserve balanced stack if an unmatched stray '[' appears.
+        stack.add(stack.isEmpty ? TajweedRule.none : stack.last);
+        i++;
+        continue;
+      }
+      if (unit == 0x5D /* ']' */) {
+        if (stack.isNotEmpty) {
+          stack.removeLast();
+        }
+        i++;
+        continue;
+      }
+
+      // Handle UTF-16 surrogate pairs cleanly if present.
+      int cp;
+      String ch;
+      if (unit >= 0xD800 && unit <= 0xDBFF && i + 1 < text.length) {
+        final nextUnit = text.codeUnitAt(i + 1);
+        if (nextUnit >= 0xDC00 && nextUnit <= 0xDFFF) {
+          cp = 0x10000 + ((unit - 0xD800) << 10) + (nextUnit - 0xDC00);
+          ch = text.substring(i, i + 2);
+          i += 2;
+        } else {
+          cp = unit;
+          ch = text[i];
+          i++;
+        }
+      } else {
+        cp = unit;
+        ch = text[i];
+        i++;
+      }
+
+      taggedChars.add((
+        cp: cp,
+        ch: ch,
+        rule: stack.isEmpty ? TajweedRule.none : stack.last,
+      ));
+    }
+
+    if (taggedChars.isEmpty) return const [];
+
+    // Group into base-letter grapheme clusters so no TextSpan ever starts with
+    // an isolated combining diacritic.
+    final clusters = <_TajweedCluster>[];
+    final rules = <TajweedRule>[];
+    var j = 0;
+    while (j < taggedChars.length) {
+      final base = taggedChars[j];
+      final marksBuf = StringBuffer();
+      var k = j + 1;
+      while (k < taggedChars.length && _isCombiningMark(taggedChars[k].cp)) {
+        marksBuf.write(taggedChars[k].ch);
+        k++;
+      }
+      final marks = marksBuf.toString();
+      clusters.add(
+        _TajweedCluster(
+          base: base.ch,
+          marks: marks,
+          full: '${base.ch}$marks',
+          isLetter: _isArabicLetter(base.cp),
+        ),
+      );
+      rules.add(base.rule);
+      j = k;
+    }
+
+    return _buildTokensFromClusters(clusters, rules);
+  }
+
+  static List<TajweedToken> _tokenizeHeuristic(String text) {
+    final clusters = _extractClusters(text);
+    if (clusters.isEmpty) return const [];
+
+    final rules = List<TajweedRule>.filled(clusters.length, TajweedRule.none);
+    var seenLetter = false;
+
+    for (var i = 0; i < clusters.length; i++) {
+      final c = clusters[i];
+      if (!c.isLetter) continue;
+      final isFirstLetter = !seenLetter;
+      seenLetter = true;
+
+      final b = c.base;
+      final m = c.marks;
+
+      // Hamzatul Wasl is only silent mid-stream (not when starting the ayah on it),
+      // and small high rounded zero (\u06DF) marks silent letters (e.g. واْ).
+      if ((b == 'ٱ' && !isFirstLetter) || m.contains('\u06DF')) {
+        rules[i] = TajweedRule.silent;
+        continue;
+      }
+
+      if (b == 'ل' && !_hasAnyVowel(m)) {
+        final nextIdx = _nextLetterIndex(clusters, i);
+        if (nextIdx != null &&
+            _sunLetters.contains(clusters[nextIdx].base) &&
+            _hasShaddah(clusters[nextIdx].marks)) {
+          rules[i] = TajweedRule.silent;
+          continue;
+        }
+      }
+
+      if (b == 'آ' || _hasMaddSign(m)) {
+        rules[i] = TajweedRule.madd;
+        continue;
+      }
+
+      if ((b == 'ن' || b == 'م') && _hasShaddah(m)) {
+        rules[i] = TajweedRule.ghunnah;
+        continue;
+      }
+
+      final isNoonSakin =
+          b == 'ن' && (_hasSukun(m) || (!_hasAnyVowel(m) && !_hasShaddah(m)));
+      final isTanween = _hasTanween(m);
+
+      if (isNoonSakin || isTanween) {
+        final target = _nextConsonantTarget(
+          clusters,
+          i,
+          skipTanweenSeatAlif: isTanween,
+        );
+        if (target != null) {
+          final nextChar = clusters[target.index].base;
+          final crossed = target.crossedWordBoundary;
+          if (nextChar == 'ب') {
+            rules[i] = TajweedRule.iqlab;
+            continue;
+          } else if (_idghamGhunnahLetters.contains(nextChar)) {
+            // Izhar Mutlaq: Noon Sakinah before ي or و inside the same word
+            // (الدُّنْيَا، بُنْيَانٌ، قِنْوَانٌ، صِنْوَانٌ) is NOT Idgham.
+            if (isNoonSakin &&
+                !crossed &&
+                (nextChar == 'ي' || nextChar == 'و')) {
+              continue;
+            }
+            rules[i] = TajweedRule.idghamGhunnah;
+            continue;
+          } else if (_idghamNoGhunnahLetters.contains(nextChar)) {
+            if (crossed || isTanween) {
+              rules[i] = TajweedRule.idghamNoGhunnah;
+              continue;
+            }
+          } else if (_ikhfaLetters.contains(nextChar)) {
+            rules[i] = TajweedRule.ikhfa;
+            continue;
+          }
+        }
+      }
+
+      final isMeemSakin =
+          b == 'م' && (_hasSukun(m) || (!_hasAnyVowel(m) && !_hasShaddah(m)));
+      if (isMeemSakin) {
+        final target = _nextConsonantTarget(
+          clusters,
+          i,
+          skipTanweenSeatAlif: false,
+        );
+        if (target != null) {
+          final nextChar = clusters[target.index].base;
+          if (nextChar == 'ب') {
+            rules[i] = TajweedRule.ikhfa;
+            continue;
+          } else if (nextChar == 'م') {
+            rules[i] = TajweedRule.idghamGhunnah;
+            continue;
+          }
+        }
+      }
+
+      if (_qalqalahLetters.contains(b)) {
+        final isLastLetterOfAyah = _nextLetterIndex(clusters, i) == null;
+        if (_hasSukun(m) || (isLastLetterOfAyah && !_hasShaddah(m))) {
+          rules[i] = TajweedRule.qalqalah;
+          continue;
+        }
+      }
+    }
+
+    return _buildTokensFromClusters(clusters, rules);
+  }
+
+  static List<TajweedToken> tokenize(
+    String text, {
+    bool? isTaggedSource,
+  }) {
+    if (text.isEmpty) return const [];
+    final useTagged = isTaggedSource ?? hasTajweedMarkup(text);
+    final cacheKey = '${useTagged ? 'T' : 'H'}:$text';
+    final hit = _cache[cacheKey];
+    if (hit != null) return hit;
+
+    final tokens = useTagged
+        ? _tokenizeTagged(text)
+        : _tokenizeHeuristic(text);
+
     if (_cache.length >= _maxCache) {
       _cache.clear();
     }
-    _cache[text] = tokens;
+    _cache[cacheKey] = tokens;
     return tokens;
   }
 }

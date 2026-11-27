@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../core/config/api_config.dart';
 import '../models/surah_model.dart';
 import 'hive_db.dart';
+import 'tajweed_engine.dart';
 
 class QuranApiService {
   static List<SurahSummary>? _memSurahList;
@@ -17,7 +18,93 @@ class QuranApiService {
   static const String _bismillahPrefix =
       'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ';
 
+  static final RegExp _bismillahTaggedPrefix = RegExp(
+    r'^بِسْمِ\s+\[[^\]]+\]للَّهِ\s+\[[^\]]+\]\[[^\]]+\]رَّحْمَ\[[^\]]+\]نِ\s+\[[^\]]+\]\[[^\]]+\]رَّح\[[^\]]+\]مِ\s*',
+  );
+
   static const String _surahListCacheKey = 'cache_surah_list_v3';
+
+  String _stripBismillahIfNeeded(
+    String rawText, {
+    required int surahNumber,
+    required int ayahInSurah,
+  }) {
+    if (surahNumber == 1 || surahNumber == 9 || ayahInSurah != 1) {
+      return rawText;
+    }
+    if (rawText.startsWith(_bismillahPrefix)) {
+      return rawText.substring(_bismillahPrefix.length).trim();
+    }
+    final match = _bismillahTaggedPrefix.matchAsPrefix(rawText);
+    if (match != null) {
+      return rawText.substring(match.end).trim();
+    }
+    return rawText;
+  }
+
+  Future<Map<String, dynamic>> _getSurahPayloadWithFallback(
+    int surahNumber,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        '${ApiConfig.quranBaseUrl}/surah/$surahNumber/${ApiConfig.tajweedArabicEdition}',
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 25));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final data = body['data'];
+        if (data is Map && (data['ayahs'] as List?)?.isNotEmpty == true) {
+          return {'data': Map<String, dynamic>.from(data), 'isTajweed': true};
+        }
+      }
+    } catch (_) {}
+
+    final uri = Uri.parse(
+      '${ApiConfig.quranBaseUrl}/surah/$surahNumber/${ApiConfig.arabicEdition}',
+    );
+    final res = await http.get(uri).timeout(const Duration(seconds: 25));
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'Failed to load Surah $surahNumber (HTTP ${res.statusCode})',
+      );
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return {
+      'data': Map<String, dynamic>.from(body['data'] as Map),
+      'isTajweed': false,
+    };
+  }
+
+  Future<Map<String, dynamic>> _getJuzPayloadWithFallback(
+    int juzNumber,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        '${ApiConfig.quranBaseUrl}/juz/$juzNumber/${ApiConfig.tajweedArabicEdition}',
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 25));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final data = body['data'];
+        if (data is Map && (data['ayahs'] as List?)?.isNotEmpty == true) {
+          return {'data': Map<String, dynamic>.from(data), 'isTajweed': true};
+        }
+      }
+    } catch (_) {}
+
+    final uri = Uri.parse(
+      '${ApiConfig.quranBaseUrl}/juz/$juzNumber/${ApiConfig.arabicEdition}',
+    );
+    final res = await http.get(uri).timeout(const Duration(seconds: 25));
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('Failed Juz $juzNumber (HTTP ${res.statusCode})');
+    }
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return {
+      'data': Map<String, dynamic>.from(body['data'] as Map),
+      'isTajweed': false,
+    };
+  }
 
   String _editionForCode(String code) {
     if (code == 'ml') return ApiConfig.malayalamTranslationEdition;
@@ -76,7 +163,7 @@ class QuranApiService {
 
     await HiveDb.instance.ensureInitialized();
     final box = HiveDb.instance.quranCacheBox;
-    final key = 'cache_surah_ar_v3_$surahNumber';
+    final key = 'cache_surah_ar_v4_$surahNumber';
     final rawCached = box.get(key);
     if (rawCached is String && rawCached.isNotEmpty) {
       try {
@@ -96,34 +183,27 @@ class QuranApiService {
       } catch (_) {}
     }
 
-    final uri = Uri.parse(
-      '${ApiConfig.quranBaseUrl}/surah/$surahNumber/${ApiConfig.arabicEdition}',
-    );
-    final res = await http.get(uri).timeout(const Duration(seconds: 25));
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(
-        'Failed to load Surah $surahNumber (HTTP ${res.statusCode})',
-      );
-    }
-
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final d = Map<String, dynamic>.from(body['data'] as Map);
+    final fetched = await _getSurahPayloadWithFallback(surahNumber);
+    final d = fetched['data'] as Map<String, dynamic>;
+    final isTajweedEdition = fetched['isTajweed'] == true;
     final summary = SurahSummary.fromJson(d);
     final rawAyahs = (d['ayahs'] as List<dynamic>? ?? const []);
     final ayahs = rawAyahs.whereType<Map>().map((raw) {
       final m = Map<String, dynamic>.from(raw);
       final numInSurah = (m['numberInSurah'] as num?)?.toInt() ?? 1;
-      var text = (m['text'] ?? '').toString();
-      if (surahNumber != 1 &&
-          surahNumber != 9 &&
-          numInSurah == 1 &&
-          text.startsWith(_bismillahPrefix)) {
-        text = text.substring(_bismillahPrefix.length).trim();
-      }
+      final rawText = _stripBismillahIfNeeded(
+        (m['text'] ?? '').toString(),
+        surahNumber: surahNumber,
+        ayahInSurah: numInSurah,
+      );
+      final cleanText = isTajweedEdition
+          ? TajweedEngine.stripMarkup(rawText)
+          : rawText;
       return AyahItem(
         numberInSurah: numInSurah,
         globalNumber: (m['number'] as num?)?.toInt() ?? 1,
-        arabicText: text,
+        arabicText: cleanText,
+        tajweedTaggedText: isTajweedEdition ? rawText : null,
         juz: (m['juz'] as num?)?.toInt() ?? 1,
         page: (m['page'] as num?)?.toInt() ?? 1,
       );
@@ -219,7 +299,7 @@ class QuranApiService {
 
     await HiveDb.instance.ensureInitialized();
     final box = HiveDb.instance.quranCacheBox;
-    final cacheKey = 'cache_juz_ar_v3_$juzNumber';
+    final cacheKey = 'cache_juz_ar_v4_$juzNumber';
     final rawCached = box.get(cacheKey);
     if (rawCached is String && rawCached.isNotEmpty) {
       try {
@@ -235,16 +315,9 @@ class QuranApiService {
       } catch (_) {}
     }
 
-    final uri = Uri.parse(
-      '${ApiConfig.quranBaseUrl}/juz/$juzNumber/${ApiConfig.arabicEdition}',
-    );
-    final res = await http.get(uri).timeout(const Duration(seconds: 25));
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception('Failed Juz $juzNumber (HTTP ${res.statusCode})');
-    }
-
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final data = body['data'] as Map<String, dynamic>?;
+    final fetched = await _getJuzPayloadWithFallback(juzNumber);
+    final data = fetched['data'] as Map<String, dynamic>?;
+    final isTajweedEdition = fetched['isTajweed'] == true;
     final rawAyahs = (data?['ayahs'] as List<dynamic>? ?? const []);
 
     final entries = rawAyahs.whereType<Map>().map((raw) {
@@ -252,19 +325,21 @@ class QuranApiService {
       final sMap = Map<String, dynamic>.from((m['surah'] as Map?) ?? {});
       final surah = SurahSummary.fromJson(sMap);
       final numInSurah = (m['numberInSurah'] as num?)?.toInt() ?? 1;
-      var text = (m['text'] ?? '').toString();
-      if (surah.number != 1 &&
-          surah.number != 9 &&
-          numInSurah == 1 &&
-          text.startsWith(_bismillahPrefix)) {
-        text = text.substring(_bismillahPrefix.length).trim();
-      }
+      final rawText = _stripBismillahIfNeeded(
+        (m['text'] ?? '').toString(),
+        surahNumber: surah.number,
+        ayahInSurah: numInSurah,
+      );
+      final cleanText = isTajweedEdition
+          ? TajweedEngine.stripMarkup(rawText)
+          : rawText;
       return JuzAyahEntry(
         surah: surah,
         ayah: AyahItem(
           numberInSurah: numInSurah,
           globalNumber: (m['number'] as num?)?.toInt() ?? 1,
-          arabicText: text,
+          arabicText: cleanText,
+          tajweedTaggedText: isTajweedEdition ? rawText : null,
           juz: (m['juz'] as num?)?.toInt() ?? juzNumber,
           page: (m['page'] as num?)?.toInt() ?? 1,
         ),

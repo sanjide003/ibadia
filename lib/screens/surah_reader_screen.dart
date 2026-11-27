@@ -2181,7 +2181,8 @@ class _SurahReaderScreenState extends ConsumerState<SurahReaderScreen>
                     const SizedBox(height: 10),
                     NoTextScaling(
                       child: TajweedAyahRichText(
-                        arabicText: ayah.arabicText,
+                        arabicText: ayah.tajweedSourceText,
+                        isTaggedSource: ayah.tajweedTaggedText != null,
                         endMarker: ApiConfig.ayahEndMarker(ayahNo),
                         baseStyle: styles.arabicBase,
                         markerStyle: styles.arabicMarker,
@@ -2315,7 +2316,9 @@ class _MushafSegmentBodyState extends ConsumerState<_MushafSegmentBody>
                     );
                   }(),
                   ...buildTajweedSpans(
-                    arabicText: segment.detail.ayahs[i].arabicText,
+                    arabicText: segment.detail.ayahs[i].tajweedSourceText,
+                    isTaggedSource:
+                        segment.detail.ayahs[i].tajweedTaggedText != null,
                     baseStyle: styles.arabicBase,
                     isDark: isDark,
                     backgroundColor: (activeAudio != null &&

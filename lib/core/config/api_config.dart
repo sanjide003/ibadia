@@ -144,6 +144,7 @@ class ApiConfig {
   static const String alAdhanBaseUrl = 'https://api.aladhan.com/v1';
 
   static const String arabicEdition = 'quran-uthmani';
+  static const String tajweedArabicEdition = 'quran-tajweed';
   static const String englishTranslationEdition = 'en.sahih';
   static const String malayalamTranslationEdition = 'ml.abdulhameed';
   static const String arabicTafsirEdition = 'ar.muyassar';

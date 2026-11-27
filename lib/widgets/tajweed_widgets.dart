@@ -19,12 +19,16 @@ mixin TajweedRecognizerPool<T extends StatefulWidget> on State<T> {
 
   List<InlineSpan> buildTajweedSpans({
     required String arabicText,
+    bool? isTaggedSource,
     required TextStyle baseStyle,
     required bool isDark,
     Color? backgroundColor,
     required void Function(TajweedRuleMeta meta, String sample) onRuleTap,
   }) {
-    final tokens = TajweedEngine.tokenize(arabicText);
+    final tokens = TajweedEngine.tokenize(
+      arabicText,
+      isTaggedSource: isTaggedSource,
+    );
     if (tokens.isEmpty) {
       return [
         TextSpan(
@@ -90,6 +94,7 @@ mixin TajweedRecognizerPool<T extends StatefulWidget> on State<T> {
 
 class TajweedAyahRichText extends StatefulWidget {
   final String arabicText;
+  final bool? isTaggedSource;
   final String endMarker;
   final TextStyle baseStyle;
   final TextStyle markerStyle;
@@ -99,6 +104,7 @@ class TajweedAyahRichText extends StatefulWidget {
   const TajweedAyahRichText({
     super.key,
     required this.arabicText,
+    this.isTaggedSource,
     required this.endMarker,
     required this.baseStyle,
     required this.markerStyle,
@@ -126,6 +132,7 @@ class _TajweedAyahRichTextState extends State<TajweedAyahRichText>
           children: [
             ...buildTajweedSpans(
               arabicText: widget.arabicText,
+              isTaggedSource: widget.isTaggedSource,
               baseStyle: widget.baseStyle,
               isDark: isDark,
               backgroundColor: widget.backgroundColor,
